@@ -117,7 +117,7 @@ jobs:
           version="${TAG#v}"
           bridges/yamcs/widget/build.sh dist "$YAMCS_VERSION"
           (cd bridges/cosmos && rake build VERSION="$version")
-          mv "bridges/cosmos-$version.gem" dist/
+          mv "bridges/cosmos/openc3-cosmos-constellation-$version.gem" dist/
           # Each bridge with the constellation package it imports, as one file: python3 yamcs-bridge.pyz
           for bridge in yamcs lattice; do
             python -m pip install --quiet --no-deps --no-compile --target "build/$bridge-bridge" clients/python
