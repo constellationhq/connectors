@@ -193,7 +193,7 @@ jobs:
           case "$version" in 0.*|*-*) ;; *) tags+=(-t "$IMAGE:latest") ;; esac
           docker buildx create --use
           docker buildx build --platform linux/amd64,linux/arm64 --push --metadata-file meta.json \
-            --build-arg VERSION="$version" "${tags[@]}" -f "bridges/$BRIDGE/Dockerfile" .
+            --build-arg VERSION="$version" "${tags[@]}" -f "bridges/$BRIDGE/deploy/Dockerfile" .
           digest="$(jq -r '."containerimage.digest"' meta.json)"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           cosign sign --yes "$IMAGE@$digest"
