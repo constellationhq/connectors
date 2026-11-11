@@ -339,7 +339,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public dist/constellationspace-client-*.tgz
+        run: npm publish --provenance --access public ./dist/constellationspace-client-*.tgz
 
   rubygems:
     needs: release
