@@ -1,0 +1,23 @@
+# The Yamcs bridge beside your Yamcs, with constellation-yamcs.jar in Yamcs's lib/ext:
+# cp .env.example .env, fill it in, docker compose up -d. Compose reads .env on every later
+# up, restart or recreate, so nothing needs exporting. Any other variable on
+# https://platform.constellation.space/docs/connectors/yamcs (YAMCS_USERNAME, CONSUMER, ...) can
+# go in the environment below.
+services:
+  yamcs-bridge:
+    image: ghcr.io/constellationhq/yamcs-bridge:0.7.0
+    restart: unless-stopped
+    environment:
+      # The production API unless CONSTELLATION_API_URL (here or in .env) names another.
+      CONSTELLATION_API_URL: ${CONSTELLATION_API_URL:-https://api.constellation.space}
+      CONSUMER: ${CONSUMER:-yamcs-bridge}
+      CONSTELLATION_API_KEY: ${CONSTELLATION_API_KEY:?a Constellation API key with predictions:read}
+      YAMCS_URL: ${YAMCS_URL:?where the bridge reaches your Yamcs, e.g. http://yamcs:8090}
+      YAMCS_INSTANCE: ${YAMCS_INSTANCE:?the Yamcs instance to write into, e.g. simulator}
+    # Its feed cursor and what it announced as approved: a recreated container resumes where the
+    # last one stopped and never announces an action twice.
+    volumes:
+      - yamcs-bridge-state:/var/lib/constellation
+
+volumes:
+  yamcs-bridge-state:

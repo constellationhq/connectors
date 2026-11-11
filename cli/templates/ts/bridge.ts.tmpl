@@ -1,0 +1,37 @@
+// {{.Title}}: a Constellation bridge. Write workflow results into your system in apply(), and carry out
+// approved actions in act(). Check-in, cursor, paging and reporting are the Bridge base class.
+import { readFileSync, realpathSync } from "node:fs";
+import { Bridge, type Result, type Manifest, type RunInfo } from "@constellationspace/client/bridge";
+
+export class {{.Class}} extends Bridge {
+  /**
+   * Write one run's items into your system, keyed on item.entity.id; return what you wrote. The
+   * run is the whole answer for its window: withdraw what you wrote earlier for run.workflow
+   * inside the window that `items` no longer carries.
+   */
+  apply(items: Result[], settings: Record<string, unknown>, run: RunInfo): Record<string, number> {
+    const min = Number(settings.min_p10_gb ?? 0);
+    const kept = items.filter((item) => (item.value.p10 ?? 0) >= min);
+    for (const item of kept) console.log(`${settings.label}: ${item.entity.id} at ${item.target_at}`);
+    return { passes: kept.length };
+  }
+
+  /**
+   * Carry out an approved action (book the backup pass, cancel the original) and return true once
+   * done. Only approved actions arrive here, each once; throw to retry the run.
+   */
+  act(item: Result, settings: Record<string, unknown>, run: RunInfo): boolean {
+    console.log(`approved: ${item.action?.verb} ${item.action?.from} -> ${item.action?.to}`);
+    return true;
+  }
+}
+
+export const manifest: Manifest = JSON.parse(readFileSync(new URL("./connector.json", import.meta.url), "utf8"));
+
+// Run directly (not imported by the test); argv[1] may be a symlinked path to this file.
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
+  new {{.Class}}({ manifest }).run().catch((error) => {
+    console.error(`${manifest.name}: ${error.message}. Stopped; start it again once that is done`);
+    process.exit(2);
+  });
+}

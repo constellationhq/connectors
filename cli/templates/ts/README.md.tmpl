@@ -1,0 +1,13 @@
+# {{.Title}}
+
+A Constellation bridge in TypeScript (Node 22.6+ runs the .ts directly). Write workflow results into your
+system in `apply()` and carry out approved actions in `act()` (bridge.ts). Its name and settings are in
+`connector.json`.
+
+    npm ci        # the released @constellationspace/client, by the integrity package-lock.json pins
+    npm test
+    constellation conformance -- npm start --silent    # against the mock
+    CONSTELLATION_API_KEY=<a key with predictions:read> npm start
+
+On start it checks in; approve it on Integrations in Constellation. `CURSOR_FILE` (default cursor.txt) keeps
+where it stopped. Build the image with `docker build -t {{.Name}} .`.

@@ -1,0 +1,34 @@
+package main
+
+import (
+	"testing"
+
+	"{{.Module}}/results"
+)
+
+func pass(p10 float64) results.Item {
+	return results.Item{"entity": map[string]any{"type": "pass", "id": "pass_1"}, "target_at": "2030-01-01T00:00:00+00:00",
+		"value": map[string]any{"p10": p10}}
+}
+
+func TestApplyWritesThePassesAboveTheThreshold(t *testing.T) {
+	got, err := apply([]results.Item{pass(1), pass(9)}, map[string]any{"min_p10_gb": 5.0, "label": "x"}, results.Run{})
+	if err != nil || got["passes"] != 1 {
+		t.Fatalf("%v %v", got, err)
+	}
+}
+
+func TestActCarriesOutAnApprovedSwap(t *testing.T) {
+	item := pass(9)
+	item["action"] = map[string]any{"verb": "swap", "from": "pass_1", "to": "pass_backup", "mode": "approve"}
+	item["action_status"] = "approved"
+	if done, err := act(item, nil, results.Run{}); !done || err != nil {
+		t.Fatalf("%v %v", done, err)
+	}
+}
+
+func TestTheManifestLoads(t *testing.T) {
+	if _, err := results.NewBridge(manifest); err != nil {
+		t.Fatal(err)
+	}
+}

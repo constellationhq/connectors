@@ -1,0 +1,5 @@
+# The ReservePass task definition, for the Lattice Schema Registry (https://platform.constellation.space/docs/connectors/lattice).
+version: v2
+modules:
+  - path: .
+    name: schema-registry.developer.anduril.com/constellation/lattice

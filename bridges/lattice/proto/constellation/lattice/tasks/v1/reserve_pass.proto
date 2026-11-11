@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package constellation.lattice.tasks.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Ask whether a forecast pass is worth reserving on the tasked ground antenna. Constellation
+// allows it when the pass's expected GB p10 is at or above the workflow's floor and its forecast
+// is recent enough, and refuses it otherwise. Allowing reserves nothing: the task's outcome is
+// ALLOWED_NOT_RESERVED, and the pass is booked in the operator's own scheduler.
+message ReservePass {
+  // The satellite, as Constellation names it, for example sat-1.
+  string satellite_id = 1;
+
+  // Acquisition of signal of the pass, within 10 minutes. Unset: the next forecast pass.
+  google.protobuf.Timestamp aos = 2;
+}

@@ -1,0 +1,4658 @@
+{
+  "components": {
+    "schemas": {
+      "AccountEntitlements": {
+        "properties": {
+          "live_ingest": {
+            "title": "Live Ingest",
+            "type": "boolean"
+          },
+          "minting": {
+            "title": "Minting",
+            "type": "boolean"
+          },
+          "quotas": {
+            "$ref": "#/components/schemas/QuotaDescriptor"
+          },
+          "usage": {
+            "items": {
+              "$ref": "#/components/schemas/UsageDescriptor"
+            },
+            "title": "Usage",
+            "type": "array"
+          }
+        },
+        "required": [
+          "live_ingest",
+          "minting",
+          "quotas"
+        ],
+        "title": "AccountEntitlements",
+        "type": "object"
+      },
+      "AccountStateDescriptor": {
+        "properties": {
+          "academic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/constellation__platform__api__entitlements__models__AcademicView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "account_type": {
+            "title": "Account Type",
+            "type": "string"
+          },
+          "act_mode": {
+            "default": "off",
+            "enum": [
+              "live",
+              "shadow",
+              "off"
+            ],
+            "title": "Act Mode",
+            "type": "string"
+          },
+          "audit_trial": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuditTrialView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entitlements": {
+            "$ref": "#/components/schemas/AccountEntitlements"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "promo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromoView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trial_ends_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Ends At"
+          }
+        },
+        "required": [
+          "account_id",
+          "account_type",
+          "plan",
+          "entitlements"
+        ],
+        "title": "AccountStateDescriptor",
+        "type": "object"
+      },
+      "Approval": {
+        "additionalProperties": false,
+        "properties": {
+          "manifest_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Manifest Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "manifest_sha256"
+        ],
+        "title": "Approval",
+        "type": "object"
+      },
+      "AuditTrialView": {
+        "description": "Explore's free audit (store.FREE_AUDIT_HOURS from its first audit run): not started yet\nwhile ``started_at`` is None, and ``active`` until ``ends_at``.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          }
+        },
+        "required": [
+          "started_at",
+          "ends_at",
+          "active"
+        ],
+        "title": "AuditTrialView",
+        "type": "object"
+      },
+      "CheckIn": {
+        "additionalProperties": false,
+        "description": "What a bridge found on its side when it started: which system, what it may write there,\nand whether the Constellation Forecast widget is installed. Holds no credentials.",
+        "properties": {
+          "bridge_version": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bridge Version"
+          },
+          "can": {
+            "$ref": "#/components/schemas/Grants"
+          },
+          "consumer": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+            "title": "Consumer",
+            "type": "string"
+          },
+          "manifest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorManifest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mapping_versions": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "title": "Mapping Versions",
+            "type": "array"
+          },
+          "system": {
+            "enum": [
+              "yamcs",
+              "lattice",
+              "cosmos",
+              "custom"
+            ],
+            "title": "System",
+            "type": "string"
+          },
+          "system_version": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Version"
+          },
+          "target": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Target",
+            "type": "string"
+          },
+          "widget": {
+            "$ref": "#/components/schemas/Installed"
+          }
+        },
+        "required": [
+          "consumer",
+          "system"
+        ],
+        "title": "CheckIn",
+        "type": "object"
+      },
+      "ConnectorManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "settings": {
+            "maxProperties": 20,
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "$ref": "#/components/schemas/Setting"
+              }
+            },
+            "title": "Settings",
+            "type": "object"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "title"
+        ],
+        "title": "ConnectorManifest",
+        "type": "object"
+      },
+      "ContractMinimum": {
+        "additionalProperties": false,
+        "properties": {
+          "min_gb": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 100000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Gb"
+          }
+        },
+        "required": [
+          "min_gb"
+        ],
+        "title": "ContractMinimum",
+        "type": "object"
+      },
+      "Delivery": {
+        "additionalProperties": false,
+        "description": "What a plugin wrote into mission control for one run, e.g. {\"timeline_items\": 540}.",
+        "properties": {
+          "applied": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "maxProperties": 20,
+            "title": "Applied",
+            "type": "object"
+          },
+          "consumer": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+            "title": "Consumer",
+            "type": "string"
+          },
+          "cursor": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Cursor",
+            "type": "string"
+          },
+          "run_id": {
+            "pattern": "^run_\\d{8}T\\d{6}_[0-9a-f]{8}$",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "target": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "consumer",
+          "run_id",
+          "cursor"
+        ],
+        "title": "Delivery",
+        "type": "object"
+      },
+      "Edge": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/constellation__platform__api__contacts__graph__Port"
+          },
+          "id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "to": {
+            "$ref": "#/components/schemas/constellation__platform__api__contacts__graph__Port"
+          }
+        },
+        "required": [
+          "id",
+          "from",
+          "to"
+        ],
+        "title": "Edge",
+        "type": "object"
+      },
+      "Grants": {
+        "additionalProperties": false,
+        "description": "What the bridge's account in its system may write there.",
+        "properties": {
+          "buckets": {
+            "default": false,
+            "title": "Buckets",
+            "type": "boolean"
+          },
+          "events": {
+            "default": false,
+            "title": "Events",
+            "type": "boolean"
+          },
+          "parameters": {
+            "default": false,
+            "title": "Parameters",
+            "type": "boolean"
+          },
+          "timeline": {
+            "default": false,
+            "title": "Timeline",
+            "type": "boolean"
+          }
+        },
+        "title": "Grants",
+        "type": "object"
+      },
+      "Graph": {
+        "additionalProperties": false,
+        "properties": {
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/Edge"
+            },
+            "maxItems": 400,
+            "title": "Edges",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            },
+            "maxItems": 200,
+            "title": "Nodes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nodes"
+        ],
+        "title": "Graph",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthCheck": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "HealthCheck",
+        "type": "object"
+      },
+      "HealthStatus": {
+        "properties": {
+          "checks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/HealthCheck"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ],
+        "title": "HealthStatus",
+        "type": "object"
+      },
+      "Installed": {
+        "additionalProperties": false,
+        "properties": {
+          "installed": {
+            "default": false,
+            "title": "Installed",
+            "type": "boolean"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "title": "Installed",
+        "type": "object"
+      },
+      "Node": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "input",
+              "lane",
+              "transform",
+              "condition",
+              "output"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "position": {
+            "$ref": "#/components/schemas/constellation__platform__api__contacts__graph__Position"
+          },
+          "ref": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "ref"
+        ],
+        "title": "Node",
+        "type": "object"
+      },
+      "PromoView": {
+        "properties": {
+          "accepted_at": {
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "program": {
+            "title": "Program",
+            "type": "string"
+          },
+          "terms_version": {
+            "title": "Terms Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "program",
+          "terms_version",
+          "accepted_at",
+          "expires_at"
+        ],
+        "title": "PromoView",
+        "type": "object"
+      },
+      "QuotaDescriptor": {
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "resets_at": {
+            "title": "Resets At",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used"
+          }
+        },
+        "required": [
+          "unit",
+          "limit",
+          "used",
+          "remaining",
+          "period",
+          "resets_at"
+        ],
+        "title": "QuotaDescriptor",
+        "type": "object"
+      },
+      "RawDataItem": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "received_at": {
+            "title": "Received At",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "source",
+          "name",
+          "size",
+          "received_at"
+        ],
+        "title": "RawDataItem",
+        "type": "object"
+      },
+      "RawDataPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RawDataItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          }
+        },
+        "required": [
+          "items",
+          "next"
+        ],
+        "title": "RawDataPage",
+        "type": "object"
+      },
+      "Rejection": {
+        "description": "One problem with one record of a write: `field` names the id or field at fault.",
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "field",
+          "reason"
+        ],
+        "title": "Rejection",
+        "type": "object"
+      },
+      "RunRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset"
+          },
+          "deliver": {
+            "default": true,
+            "title": "Deliver",
+            "type": "boolean"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "network_config_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Network Config Version"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Id"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "workflow": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+            "title": "Workflow",
+            "type": "string"
+          },
+          "workflow_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Version"
+          }
+        },
+        "required": [
+          "workflow"
+        ],
+        "title": "RunRequest",
+        "type": "object"
+      },
+      "Scenario": {
+        "additionalProperties": false,
+        "properties": {
+          "add_antennas": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "maxProperties": 1000,
+            "title": "Add Antennas",
+            "type": "object"
+          },
+          "add_satellites": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxProperties": 1000,
+            "title": "Add Satellites",
+            "type": "object"
+          },
+          "antennas_down": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "Antennas Down",
+            "type": "array"
+          },
+          "extra_attenuation_db": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "maxProperties": 1000,
+            "title": "Extra Attenuation Db",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "stations_down": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "Stations Down",
+            "type": "array"
+          },
+          "weather_quantile": {
+            "anyOf": [
+              {
+                "enum": [
+                  "p50",
+                  "p90"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Quantile"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Scenario",
+        "type": "object"
+      },
+      "Setting": {
+        "additionalProperties": false,
+        "properties": {
+          "default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Default"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Description",
+            "type": "string"
+          },
+          "max_length": {
+            "anyOf": [
+              {
+                "maximum": 2000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Length"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "number",
+              "integer",
+              "boolean",
+              "string",
+              "enum"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "default"
+        ],
+        "title": "Setting",
+        "type": "object"
+      },
+      "TelemetryRecord": {
+        "properties": {
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TelemetryValue"
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "measurement": {
+            "minLength": 1,
+            "title": "Measurement",
+            "type": "string"
+          },
+          "tags": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "object"
+          },
+          "time": {
+            "format": "date-time",
+            "title": "Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "measurement",
+          "time"
+        ],
+        "title": "TelemetryRecord",
+        "type": "object"
+      },
+      "TelemetryRecordV2": {
+        "additionalProperties": false,
+        "properties": {
+          "contact_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "enum": [
+                  "live",
+                  "audit",
+                  "sim"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TelemetryValue"
+            },
+            "minProperties": 1,
+            "title": "Fields",
+            "type": "object"
+          },
+          "ground_antenna_id": {
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "title": "Ground Antenna Id",
+            "type": "string"
+          },
+          "ground_station_id": {
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "title": "Ground Station Id",
+            "type": "string"
+          },
+          "radio_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radio Id"
+          },
+          "satellite_id": {
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "title": "Satellite Id",
+            "type": "string"
+          },
+          "time": {
+            "format": "date-time",
+            "title": "Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "time",
+          "ground_station_id",
+          "ground_antenna_id",
+          "satellite_id",
+          "fields"
+        ],
+        "title": "TelemetryRecordV2",
+        "type": "object"
+      },
+      "TelemetryValue": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "TelemetryWriteAck": {
+        "properties": {
+          "accepted_count": {
+            "title": "Accepted Count",
+            "type": "integer"
+          },
+          "rejected_count": {
+            "title": "Rejected Count",
+            "type": "integer"
+          },
+          "rejected_indices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected Indices"
+          },
+          "rejections": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Rejection"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejections"
+          },
+          "write_id": {
+            "title": "Write Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "write_id",
+          "accepted_count",
+          "rejected_count"
+        ],
+        "title": "TelemetryWriteAck",
+        "type": "object"
+      },
+      "UploadResult": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "received_at": {
+            "title": "Received At",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "size",
+          "sha256",
+          "received_at"
+        ],
+        "title": "UploadResult",
+        "type": "object"
+      },
+      "UsageDescriptor": {
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "resets_at": {
+            "title": "Resets At",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used"
+          }
+        },
+        "required": [
+          "unit",
+          "limit",
+          "used",
+          "remaining",
+          "period",
+          "resets_at"
+        ],
+        "title": "UsageDescriptor",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "ViewBody": {
+        "additionalProperties": false,
+        "description": "A view is the Platform address that holds it (its tab, workflow, scope, window and what is\nopen) and, when it pins one, the run it reads; without one it follows the latest run.",
+        "properties": {
+          "default": {
+            "default": false,
+            "title": "Default",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9._:-]{1,160}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "to": {
+            "maxLength": 2000,
+            "pattern": "^/[a-z][a-z0-9-]*(/[A-Za-z0-9._~%:-]+)*(\\?[^\\s#]*)?$",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "to"
+        ],
+        "title": "ViewBody",
+        "type": "object"
+      },
+      "WhoAmI": {
+        "properties": {
+          "account": {
+            "title": "Account",
+            "type": "string"
+          },
+          "sftp_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sftp Host"
+          }
+        },
+        "required": [
+          "account",
+          "sftp_host"
+        ],
+        "title": "WhoAmI",
+        "type": "object"
+      },
+      "WorkflowDefinition": {
+        "additionalProperties": false,
+        "properties": {
+          "demo": {
+            "default": false,
+            "title": "Demo",
+            "type": "boolean"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/Graph"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "graph"
+        ],
+        "title": "WorkflowDefinition",
+        "type": "object"
+      },
+      "constellation__platform__api__contacts__graph__Port": {
+        "additionalProperties": false,
+        "properties": {
+          "node": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "port": {
+            "default": "rows",
+            "title": "Port",
+            "type": "string"
+          }
+        },
+        "required": [
+          "node"
+        ],
+        "title": "Port",
+        "type": "object"
+      },
+      "constellation__platform__api__contacts__graph__Position": {
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "default": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "default": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "title": "Position",
+        "type": "object"
+      },
+      "constellation__platform__api__entitlements__models__AcademicView": {
+        "properties": {
+          "accepted_at": {
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "institution_domain": {
+            "title": "Institution Domain",
+            "type": "string"
+          },
+          "linked_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Email"
+          },
+          "terms_version": {
+            "title": "Terms Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "institution_domain",
+          "terms_version",
+          "accepted_at"
+        ],
+        "title": "AcademicView",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "ConstellationOS",
+    "version": "1.5.1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/account/state": {
+      "get": {
+        "operationId": "get_account_state_account_state_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountStateDescriptor"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Account State"
+      }
+    },
+    "/assets/satellites": {
+      "get": {
+        "description": "Catalog satellites, one per NORAD id with its downlink bands: words starting with q first,\nthen those holding it, each by name.",
+        "operationId": "search_satellites_assets_satellites_get",
+        "parameters": [
+          {
+            "description": "Name, id or operator, any case.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Name, id or operator, any case.",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operator",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fleet",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fleet"
+            }
+          },
+          {
+            "in": "query",
+            "name": "band",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "S",
+                    "X",
+                    "Ka"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Band"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "next_cursor of the previous page.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 12,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor of the previous page.",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Search Satellites Assets Satellites Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "The catalog has not changed since the If-None-Match ETag."
+          },
+          "422": {
+            "description": "A filter is malformed: near is not lat,lon, or the cursor is not one."
+          }
+        },
+        "summary": "Search Satellites"
+      }
+    },
+    "/assets/stations": {
+      "get": {
+        "description": "Catalog ground stations, one per id with their receive bands, by id; with near, those\nwith coordinates within within_km, nearest first.",
+        "operationId": "search_stations_assets_stations_get",
+        "parameters": [
+          {
+            "description": "Name, id or operator, any case.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Name, id or operator, any case.",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The station's owner.",
+            "in": "query",
+            "name": "operator",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The station's owner.",
+              "title": "Operator"
+            }
+          },
+          {
+            "in": "query",
+            "name": "band",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "S",
+                    "X",
+                    "Ka"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Band"
+            }
+          },
+          {
+            "description": "lat,lon in degrees.",
+            "in": "query",
+            "name": "near",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "lat,lon in degrees.",
+              "title": "Near"
+            }
+          },
+          {
+            "in": "query",
+            "name": "within_km",
+            "required": false,
+            "schema": {
+              "default": 500.0,
+              "exclusiveMinimum": 0,
+              "maximum": 20000,
+              "title": "Within Km",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "next_cursor of the previous page.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 12,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor of the previous page.",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Search Stations Assets Stations Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "The catalog has not changed since the If-None-Match ETag."
+          },
+          "422": {
+            "description": "A filter is malformed: near is not lat,lon, or the cursor is not one."
+          }
+        },
+        "summary": "Search Stations"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/ingest/webhooks/{dataset_id}": {
+      "post": {
+        "operationId": "ingest_webhook_ingest_webhooks__dataset_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Payload accepted for ingest."
+          },
+          "400": {
+            "description": "Body is not valid JSON."
+          },
+          "401": {
+            "description": "Missing, stale, or invalid signature."
+          },
+          "404": {
+            "description": "No webhook dataset with this id."
+          },
+          "409": {
+            "description": "The dataset is paused."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Dataset store, secret store, or ingest runtime unavailable."
+          }
+        },
+        "summary": "Ingest Webhook"
+      }
+    },
+    "/predictions": {
+      "get": {
+        "operationId": "get_predictions_predictions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "model_family",
+            "required": false,
+            "schema": {
+              "default": "snr",
+              "title": "Model Family",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "link_ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Link Ids"
+            }
+          },
+          {
+            "in": "query",
+            "name": "horizon_minutes",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Horizon Minutes"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of_utc",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of Utc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ground_station_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ground Station Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "satellite_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Satellite Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ground_antenna_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ground Antenna Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "at",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "At"
+            }
+          },
+          {
+            "description": "A workflow run's id: answers the run (status, stage or items, deliveries); satellite_id, antenna_id, station_id and pass_id narrow its items.",
+            "in": "query",
+            "name": "run_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A workflow run's id: answers the run (status, stage or items, deliveries); satellite_id, antenna_id, station_id and pass_id narrow its items.",
+              "title": "Run Id"
+            }
+          },
+          {
+            "description": "A workflow's name: answers its newest finished run (409 when it has none; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
+            "in": "query",
+            "name": "workflow",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A workflow's name: answers its newest finished run (409 when it has none; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
+              "title": "Workflow"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workflow_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workflow Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scenario_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scenario Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "station_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Station Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "antenna_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Antenna Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pass_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pass Id"
+            }
+          },
+          {
+            "description": "A run's items in pages of this many, with next_page while more are left.",
+            "in": "query",
+            "name": "page_records",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 5000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A run's items in pages of this many, with next_page while more are left.",
+              "title": "Page Records"
+            }
+          },
+          {
+            "description": "Which page of page_records items.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Which page of page_records items.",
+              "minimum": 0,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "records (default): each family's own prediction records. items: the item shape workflow runs answer in (entity, target_at, value p10/p50/p90, explain).",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "records",
+              "description": "records (default): each family's own prediction records. items: the item shape workflow runs answer in (entity, target_at, value p10/p50/p90, explain).",
+              "enum": [
+                "records",
+                "items"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "description": "With workflow: the newest finished run that read this telemetry dataset (live, audit or sim), so a pass-log audit never stands in for a live review.",
+            "in": "query",
+            "name": "dataset",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With workflow: the newest finished run that read this telemetry dataset (live, audit or sim), so a pass-log audit never stands in for a live review.",
+              "title": "Dataset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Missing, invalid, or retired query parameter."
+          },
+          "403": {
+            "description": "Credential scopes do not permit predictions:read."
+          },
+          "404": {
+            "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "The durable prediction store returned an unexpected error."
+          },
+          "503": {
+            "description": "The prediction store is temporarily unreadable; retry later."
+          }
+        },
+        "summary": "Get Predictions"
+      },
+      "post": {
+        "description": "Start a run: 202 with its `run_id`. Send an `Idempotency-Key` header (up to 255\ncharacters) so a retried or double submit starts one run: the same key and request from the\nsame account within 30 days (the life of a run's record) answers 200 with the first run's\n`run_id` and its status now, and the same key with a different request is 409\n`idempotency_key_reused`. A submit answered 503 frees its key for a retry.",
+        "operationId": "start_run_predictions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "A repeat of an Idempotency-Key: the run it started, not a new one."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Start Run Predictions Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "The Idempotency-Key was used with a different request."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          },
+          "503": {
+            "description": "Temporal is not wired here or did not answer in time."
+          }
+        },
+        "summary": "Start Run"
+      }
+    },
+    "/predictions/actions": {
+      "get": {
+        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected or expired. A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
+        "operationId": "list_actions_predictions_actions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Workflow",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Actions Predictions Actions Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "Workflows are off here, or the workflow is unknown."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "List Actions"
+      }
+    },
+    "/predictions/actions/decisions": {
+      "get": {
+        "description": "Every decision on the workflow's held actions, newest first, kept 30 days whether or not\na run still holds the action: who decided what, when, and on which run, pass and target. A\ndecision made before decisions carried the run, entity, target and action has them null.",
+        "operationId": "list_decisions_predictions_actions_decisions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Workflow",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Decisions Predictions Actions Decisions Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "Workflows are off here, or the workflow is unknown."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "List Decisions"
+      }
+    },
+    "/predictions/actions/{run_id}/{item_id}/approve": {
+      "post": {
+        "description": "Approve an action a run holds: it is published to the workflow's feed outputs as an\ninstruction for the connected mission control to carry out, and it cannot be rejected\nafterwards. The approval stands for the same action on the workflow's later runs. Asking\nagain is safe: it answers the same feed cursor, or publishes if the first try did not.\nRefused on a plan without Act, even for an action held while the account had it.",
+        "operationId": "approve_action_predictions_actions__run_id___item_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "pattern": "^run_\\d{8}T\\d{6}_[0-9a-f]{8}$",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._:-]{1,160}$",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Approve Action Predictions Actions  Run Id   Item Id  Approve Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "Workflows are off here, or no such run or held action."
+          },
+          "409": {
+            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Approve Action"
+      }
+    },
+    "/predictions/actions/{run_id}/{item_id}/reject": {
+      "post": {
+        "description": "Reject an action a run holds: nothing is published, it cannot be decided again, and the\nworkflow's later runs hold the same action back as rejected.",
+        "operationId": "reject_action_predictions_actions__run_id___item_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "pattern": "^run_\\d{8}T\\d{6}_[0-9a-f]{8}$",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._:-]{1,160}$",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Reject Action Predictions Actions  Run Id   Item Id  Reject Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "Workflows are off here, or no such run or held action."
+          },
+          "409": {
+            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Reject Action"
+      }
+    },
+    "/predictions/connectors": {
+      "get": {
+        "description": "The systems a feed output can deliver to, with what each mapping may say and the default\nmapping and Forecast page layout per template; and the account's own custom connectors, each\npending or approved.",
+        "operationId": "connectors_predictions_connectors_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Connectors Predictions Connectors Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Connectors"
+      }
+    },
+    "/predictions/connectors/{name}": {
+      "delete": {
+        "description": "Forgets a custom connector; it registers pending again the next time its bridge checks in.",
+        "operationId": "remove_connector_predictions_connectors__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Remove Connector"
+      }
+    },
+    "/predictions/connectors/{name}/approve": {
+      "post": {
+        "description": "Lets the account's workflows feed this custom connector, with the manifest the approver\nsaw: 409 when the bridge has checked in with another since, which is shown and approved\nafresh.",
+        "operationId": "approve_connector_predictions_connectors__name__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Approval"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Approve Connector Predictions Connectors  Name  Approve Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "The manifest changed since the one approved was listed."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Approve Connector"
+      }
+    },
+    "/predictions/contract-minimum": {
+      "get": {
+        "description": "The workspace's contract minimum: the GB each pass must deliver, which the Platform\nchecks each pass's p10 against, and who set it when. All null until someone sets one.",
+        "operationId": "get_contract_minimum_predictions_contract_minimum_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Contract Minimum Predictions Contract Minimum Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Get Contract Minimum"
+      },
+      "put": {
+        "description": "Set the workspace's contract minimum for everyone in it, or clear it with null.",
+        "operationId": "put_contract_minimum_predictions_contract_minimum_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContractMinimum"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Contract Minimum Predictions Contract Minimum Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Put Contract Minimum"
+      }
+    },
+    "/predictions/feed": {
+      "get": {
+        "description": "Finished runs' items as OTLP log requests, oldest first, after a cursor. A plugin inside a\ncustomer's mission control polls this from their side and keeps the last cursor it applied;\nnaming itself (consumer) lets the platform show when it last pulled, and gets it only the\nresources of feed outputs to its connection: a run's entry repeats its items per output.\n\nA bridge that pages (`page_records`) gets an entry with more records than that in pages:\nthe first here, with `next_page`, and the rest from `cursor=<the entry>&page=<n>`, which it\njoins before applying the run. A bridge that does not page always gets whole entries.\n\nA page also stops at FEED_PAGE_BYTES encoded, so `entries` can hold fewer than `limit`:\ncontinue from `next`. An entry alone over that is returned alone with `oversized: true`;\nname `page_records` to read it in pages.\n\n`from=latest` is where a first start reads from, without reading a run: no entries, and\n`next` just before the newest run with something for `consumer` (the newest entry when none\nhas), so reading on from it applies that run and none older.\n\n`oldest` is the oldest entry the feed still holds (null when it holds none): entries expire\nFEED_TTL after they were published, so a bridge whose cursor sorts before `oldest` may have\nmissed entries that expired while it was offline.",
+        "operationId": "feed_predictions_feed_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "After",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "consumer",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Consumer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_records",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 5000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page Records"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "latest",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Feed Predictions Feed Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Feed"
+      }
+    },
+    "/predictions/feed/checkin": {
+      "post": {
+        "description": "Records what a bridge found on its side. A custom bridge's manifest registers it with the\naccount, pending until someone who may edit workflows approves it; a changed manifest waits\nfor approval again, so a bridge's key can propose a connector but never enable one. A Lattice\nor COSMOS bridge checks in only on the plan its output needs.",
+        "operationId": "check_in_predictions_feed_checkin_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Check In"
+      }
+    },
+    "/predictions/feed/deliveries": {
+      "post": {
+        "description": "What a plugin wrote into mission control for one of the tenant's runs.",
+        "operationId": "deliver_predictions_feed_deliveries_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Delivery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Deliver"
+      }
+    },
+    "/predictions/feed/readers": {
+      "get": {
+        "description": "Every plugin that pulls this tenant's feed, with when it last pulled and, once it has\nchecked in, what it found on its side (`checkin`).",
+        "operationId": "readers_predictions_feed_readers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Readers Predictions Feed Readers Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Readers"
+      }
+    },
+    "/predictions/runs": {
+      "get": {
+        "description": "The workflow's runs of every status and version, newest first (to the second): a failed or cancelled run,\nor one of a version since edited, shows here though GET /predictions?workflow= answers only\nthe newest finished run. next_before pages on while older runs may be left.",
+        "operationId": "list_runs_predictions_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Workflow",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "A run id: lists the runs older than it (next_before of the page before).",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^run_\\d{8}T\\d{6}_[0-9a-f]{8}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A run id: lists the runs older than it (next_before of the page before).",
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Runs Predictions Runs Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "Workflows are off here, or the workflow is unknown."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "List Runs"
+      }
+    },
+    "/predictions/runs/{run_id}/cancel": {
+      "post": {
+        "description": "Stop a queued or running run: its record says cancelled, by whom and when, and its\nTemporal workflow is cancelled. A cancelled run never publishes or sends: every delivery step\nfirst reports its stage, which a cancelled run refuses. Asking again answers the cancelled\nrun and asks Temporal again, in case the first ask never reached it; a run that finished, or\nis already publishing or sending, is 409.",
+        "operationId": "cancel_run_predictions_runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "pattern": "^run_\\d{8}T\\d{6}_[0-9a-f]{8}$",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Cancel Run Predictions Runs  Run Id  Cancel Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "No such run in this account."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Cancel Run"
+      }
+    },
+    "/predictions/views": {
+      "get": {
+        "description": "The views saved to the key's workspace, oldest first, and how many it may hold.",
+        "operationId": "list_views_predictions_views_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Views Predictions Views Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "List Views"
+      },
+      "post": {
+        "operationId": "save_view_predictions_views_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Save View Predictions Views Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "The workspace is full (views_full) or the name is taken."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Save View"
+      }
+    },
+    "/predictions/views/{view_id}": {
+      "delete": {
+        "operationId": "delete_view_predictions_views__view_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "view_id",
+            "required": true,
+            "schema": {
+              "pattern": "^view_[0-9a-f]{16}$",
+              "title": "View Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Delete View"
+      },
+      "put": {
+        "description": "Renames a view, points it at another address or run, or makes it its tab's default.",
+        "operationId": "update_view_predictions_views__view_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "view_id",
+            "required": true,
+            "schema": {
+              "pattern": "^view_[0-9a-f]{16}$",
+              "title": "View Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Update View Predictions Views  View Id  Put"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "Another view of the workspace has the name."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Update View"
+      }
+    },
+    "/predictions/workflows": {
+      "get": {
+        "description": "The caller's workflows, the latest version of each; with templates=true, the read-only\ntemplates instead, which a caller copies by saving one's graph under its own slug, and every\nlane with whether a run prices it here and, where not, why.",
+        "operationId": "list_workflows_predictions_workflows_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "templates",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Templates",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Workflows Predictions Workflows Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "List Workflows"
+      }
+    },
+    "/predictions/workflows/{slug}": {
+      "get": {
+        "operationId": "get_workflow_predictions_workflows__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Workflow Predictions Workflows  Slug  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Get Workflow"
+      },
+      "put": {
+        "description": "Save a workflow's name and graph as the slug's next version. A graph the validator finds\nissues with is refused whole, with every issue.",
+        "operationId": "put_workflow_predictions_workflows__slug__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Put Workflow Predictions Workflows  Slug  Put"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "description": "A bad body, or a graph with issues (each names its node)."
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Put Workflow"
+      }
+    },
+    "/predictions/workflows/{slug}/validate": {
+      "post": {
+        "description": "The issues saving this graph under the slug would meet, each naming its node or edge, a\nfeature beyond the account's plan among them; nothing is saved.",
+        "operationId": "validate_workflow_predictions_workflows__slug__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Validate Workflow Predictions Workflows  Slug  Validate Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Validate Workflow"
+      }
+    },
+    "/telemetry": {
+      "post": {
+        "description": "Telemetry records, each checked against the latest network config.",
+        "operationId": "post_telemetry_v2_telemetry_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/TelemetryRecordV2"
+                },
+                "title": "Records",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryWriteAck"
+                }
+              }
+            },
+            "description": "The records that pass the v2 rules are written. rejected_count and rejected_indices name the records not written; rejections lists every problem, including an unknown field dropped from a record that was written."
+          },
+          "400": {
+            "description": "No record passes the v2 rules (invalid_input, with the first rejection's index, field and reason, and every rejection)."
+          },
+          "409": {
+            "description": "The tenant has no network config to check ids against."
+          },
+          "422": {
+            "description": "The body does not match the record schema (a malformed id, an extra key, no fields, a bad pass outcome field). The whole batch is refused, unlike a v2 rule."
+          }
+        },
+        "summary": "Post Telemetry V2"
+      }
+    },
+    "/telemetry/files": {
+      "get": {
+        "description": "The caller's own files in S3 key order. ``since`` filters each page, so\na page can come back short or empty with a ``next`` still to follow.",
+        "operationId": "list_raw_data_telemetry_files_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RawDataPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "invalid_name (source) or invalid_cursor."
+          },
+          "403": {
+            "description": "insufficient_scope, sandbox_read_only (a test key), or account_disabled."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "raw_data_unavailable: this deployment has no raw data bucket; entitlement_unavailable: the account record could not be read."
+          }
+        },
+        "summary": "List Raw Data"
+      }
+    },
+    "/telemetry/files/whoami": {
+      "get": {
+        "operationId": "whoami_telemetry_files_whoami_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhoAmI"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "insufficient_scope, sandbox_read_only (a test key), or account_disabled."
+          },
+          "503": {
+            "description": "raw_data_unavailable: this deployment has no raw data bucket; entitlement_unavailable: the account record could not be read."
+          }
+        },
+        "summary": "Whoami"
+      }
+    },
+    "/telemetry/files/{source}/{name}": {
+      "put": {
+        "description": "Store the body as one file. Never overwrites: the received_at prefix\nmakes every key unique.",
+        "operationId": "put_raw_data_telemetry_files__source___name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source",
+            "required": true,
+            "schema": {
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "invalid_name: source or name is not [A-Za-z0-9._-]{1,128}, or . or .."
+          },
+          "403": {
+            "description": "insufficient_scope, sandbox_read_only (a test key), or account_disabled."
+          },
+          "413": {
+            "description": "too_large: the body is over max_bytes."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "raw_data_unavailable: this deployment has no raw data bucket; entitlement_unavailable: the account record could not be read."
+          }
+        },
+        "summary": "Put Raw Data"
+      }
+    },
+    "/telemetry/pass-logs": {
+      "post": {
+        "description": "A CSV of flown passes (satellite_id, antenna_id, aos_utc, los_utc, bytes_delivered, status;\nany column order), written as v2 records tagged dataset=audit.",
+        "operationId": "post_pass_log_telemetry_pass_logs_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryWriteAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "404": {
+            "description": "No network config to check the log's ids against."
+          },
+          "413": {
+            "description": "More passes than the per-request record cap."
+          },
+          "422": {
+            "description": "The log has bad rows (invalid_pass_log); nothing was written."
+          }
+        },
+        "summary": "Post Pass Log"
+      }
+    },
+    "/telemetry/pass-logs/demo-sample": {
+      "get": {
+        "description": "A pass log of the past week for SAMPLE_SATELLITES, one row inside each pass an\naudit-ledger run of that week finds (the same sightings, on a run's step), as sample_passes\ntells it. Only for an account whose network config holds those satellites as the demo's\n(demo_network.demo_entities).",
+        "operationId": "demo_sample_pass_log_telemetry_pass_logs_demo_sample_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "text/csv": {}
+            },
+            "description": "A pass log for the past week."
+          },
+          "404": {
+            "description": "Workflows are off here, or the tenant has no network config."
+          },
+          "409": {
+            "description": "The network config does not hold the demo fleet (not_demo_fleet)."
+          }
+        },
+        "summary": "Demo Sample Pass Log"
+      }
+    },
+    "/topology": {
+      "get": {
+        "description": "The fleet as declared (the latest network config, as /topology/config holds it) and as\nobserved (the newest value of each field per antenna and satellite in the window, `field_times`\ngiving each field's own time), with the\nentities of the context layers `layers` names in `state`: each station's rain and fade\n(contacts/context). `declined` names a layer that has none and why, e.g. ssa while no model\nserves it. `config`\nis null when there is no network config, or when the key may not read it (no config:read,\nconfig:write or workflows:write): topology:read alone still reads the observed state and the\nlayers.",
+        "operationId": "get_topology_topology_get",
+        "parameters": [
+          {
+            "description": "Defaults to now.",
+            "in": "query",
+            "name": "as_of_utc",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to now.",
+              "title": "As Of Utc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "freshness_seconds",
+            "required": false,
+            "schema": {
+              "default": 300.0,
+              "maximum": 3600,
+              "minimum": 1.0,
+              "title": "Freshness Seconds",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ground_station_id",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Ground Station Id",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ground_antenna_id",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Ground Antenna Id",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "satellite_id",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Satellite Id",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Context layers to add to state, comma-separated: weather, ssa.",
+            "in": "query",
+            "name": "layers",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Context layers to add to state, comma-separated: weather, ssa.",
+              "title": "Layers",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid input (invalid_input, with field)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Topology"
+      }
+    },
+    "/topology/config": {
+      "get": {
+        "operationId": "get_network_config_topology_config_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Network Config Topology Config Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No network config was uploaded, or no such version."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Network Config"
+      },
+      "patch": {
+        "operationId": "patch_network_config_topology_config_patch",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Patch Network Config Topology Config Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "201": {
+            "description": "A new version was stored."
+          },
+          "403": {
+            "description": "The plan does not include this many satellites (plan_required)."
+          },
+          "409": {
+            "description": "A concurrent write took the version number twice."
+          },
+          "413": {
+            "description": "The body is over 358400 bytes."
+          },
+          "422": {
+            "description": "The body is not a valid network config document."
+          },
+          "503": {
+            "description": "The plan a growing fleet is checked against could not be read."
+          }
+        },
+        "summary": "Patch Network Config"
+      },
+      "put": {
+        "operationId": "put_network_config_topology_config_put",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Network Config Topology Config Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "201": {
+            "description": "A new version was stored."
+          },
+          "403": {
+            "description": "The plan does not include this many satellites (plan_required)."
+          },
+          "409": {
+            "description": "A concurrent write took the version number twice."
+          },
+          "413": {
+            "description": "The body is over 358400 bytes."
+          },
+          "422": {
+            "description": "The body is not a valid network config document."
+          },
+          "503": {
+            "description": "The plan a growing fleet is checked against could not be read."
+          }
+        },
+        "summary": "Put Network Config"
+      }
+    },
+    "/topology/demo-fleet": {
+      "post": {
+        "description": "Load the demo fleet into the caller's account: demo_network_config.json (5 ground\nstations, 6 antennas and 5 sun-synchronous Earth observation satellites) as its network\nconfig, then the telemetry of its passes in the last two hours, then the demo workflows\nwith a first run of each. Safe to repeat: a config that holds the demo is kept, the\ntelemetry rewritten, and a workflow already saved under a demo slug left as it is.",
+        "operationId": "load_demo_fleet_topology_demo_fleet_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "The demo network config is in place. `network_config` says whether it was merged now or already held; `telemetry` counts the records posted, or is the refusal of POST /telemetry (its status and body: 403 insufficient_scope for a key without telemetry:write, 429 or 503 while telemetry cannot be written); `workflows` says, per demo workflow, whether it was saved now and how its first run's start was answered."
+          },
+          "403": {
+            "description": "The key lacks config:write."
+          },
+          "409": {
+            "description": "The account has a network config of its own (network_config_exists)."
+          }
+        },
+        "summary": "Load Demo Fleet"
+      }
+    },
+    "/topology/passes": {
+      "get": {
+        "description": "Every pass between from and to in the latest network config, computed from the fleet's\nelement sets and antenna masks and sampled every step_s from `from`, as a run samples it. Each\npass carries the pass_id a run's item for it carries. Below the satellites feature it covers\nat most FREE_SATELLITES of the tenant's own, as a test run does; the demo fleet's are free.",
+        "operationId": "list_topology_passes_topology_passes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "step_s",
+            "required": true,
+            "schema": {
+              "exclusiveMinimum": 0,
+              "title": "Step S",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "satellite_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Satellite Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "antenna_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Antenna Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response List Topology Passes Topology Passes Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "Workflows are off here, or the tenant has no network config."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "description": "A bad window or step, an id the network config does not hold, or more link steps than one listing computes (too_many_link_steps)."
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "List Topology Passes"
+      }
+    },
+    "/topology/scenarios": {
+      "get": {
+        "operationId": "list_scenarios_topology_scenarios_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Scenarios Topology Scenarios Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "List Scenarios"
+      },
+      "post": {
+        "operationId": "create_scenario_topology_scenarios_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Scenario"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Scenario Topology Scenarios Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Malformed request body (not valid JSON)."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Create Scenario"
+      }
+    },
+    "/topology/series": {
+      "get": {
+        "operationId": "get_telemetry_v2_topology_series_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ground_station_id",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Ground Station Id",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ground_antenna_id",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Ground Antenna Id",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "satellite_id",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Satellite Id",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Field",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Aggregate into windows: 15s to 1h.",
+            "in": "query",
+            "name": "interval",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Aggregate into windows: 15s to 1h.",
+              "title": "Interval"
+            }
+          },
+          {
+            "description": "mean, min, max or last.",
+            "in": "query",
+            "name": "agg",
+            "required": false,
+            "schema": {
+              "default": "mean",
+              "description": "mean, min, max or last.",
+              "title": "Agg",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TelemetryRecord"
+                  },
+                  "title": "Response Get Telemetry V2 Topology Series Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid input (invalid_input, with field)."
+          },
+          "422": {
+            "description": "Inverted range (invalid_range), a raw span over an hour (interval_required), or a series past the per-series row cap (too_many_points): narrow the window or the ids."
+          }
+        },
+        "summary": "Get Telemetry V2"
+      }
+    }
+  }
+}

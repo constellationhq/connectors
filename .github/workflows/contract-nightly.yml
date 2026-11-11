@@ -1,0 +1,87 @@
+name: Contract nightly
+
+# Every night, read-only: everything that reads contract/ (make contract-test) against the newest
+# contract the API's repository published, and the dev API's feed against what the bridges read
+# (tools/contract/dev_feed.py). A failure opens one issue, or refreshes the open one; a pass
+# closes it. Nothing is pushed.
+#
+# vars.CONTRACT_REPO is the API's repository (owner/name), secrets.OS_CONTRACTS_READ_TOKEN reads
+# its releases, vars.CONTRACT_DEV_API_URL is the dev API, and secrets.CONTRACT_DEV_API_KEY a dev
+# key with predictions:read.
+on:
+  schedule:
+    - cron: "41 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: contract-nightly
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - run: pip install --quiet -r tests/requirements.txt
+
+      - name: Pin the newest published contract, in this checkout only
+        env:
+          GH_TOKEN: ${{ secrets.OS_CONTRACTS_READ_TOKEN }}
+          CONTRACT_REPO: ${{ vars.CONTRACT_REPO }}
+        run: |
+          set -euo pipefail
+          : "${CONTRACT_REPO:?set the repository variable CONTRACT_REPO to the API repository, owner/name}"
+          newest="$(gh release list -R "$CONTRACT_REPO" --limit 200 --json tagName \
+            -q '[.[].tagName | select(startswith("contract-v"))][0] // ""')"
+          make -s contract-update VERSION="${newest#contract-v}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Everything that reads contract/
+        run: make contract-test
+
+      - name: The dev API's feed against what the bridges read
+        if: ${{ !cancelled() }}
+        env:
+          CONSTELLATION_API_URL: ${{ vars.CONTRACT_DEV_API_URL }}
+          CONSTELLATION_API_KEY: ${{ secrets.CONTRACT_DEV_API_KEY }}
+        run: |
+          : "${CONSTELLATION_API_URL:?set the repository variable CONTRACT_DEV_API_URL to the dev API}"
+          : "${CONSTELLATION_API_KEY:?add the secret CONTRACT_DEV_API_KEY: a dev API key with predictions:read}"
+          python3 tools/contract/dev_feed.py
+
+      - name: Open, refresh or close the nightly issue
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED: ${{ job.status == 'failure' }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title="Nightly contract check is failing"
+          issue="$(gh issue list --state open --search "in:title \"$title\"" --json number,title \
+            -q "map(select(.title == \"$title\"))[0].number // \"\"")"
+          body="The nightly contract job failed on $(date -u +%F): $RUN. It tests everything that
+          reads contract/ against the newest published contract, and the dev API's feed against
+          what the bridges read. This issue closes itself the night it passes again."
+          if [ "$FAILED" = true ] && [ -n "$issue" ]; then
+            gh issue edit "$issue" --body "$body"
+          elif [ "$FAILED" = true ]; then
+            gh issue create --title "$title" --body "$body"
+          elif [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "Passed again: $RUN"
+          fi

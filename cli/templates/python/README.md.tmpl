@@ -1,0 +1,12 @@
+# {{.Title}}
+
+A Constellation bridge in Python. Write workflow results into your system in `apply()` and carry out
+approved actions in `act()` (bridge.py). Its name and settings are in `connector.json`.
+
+    pip install --require-hashes -r requirements.txt   # the released constellation-space, by hash
+    pip install pytest && pytest
+    constellation conformance -- python bridge.py      # against the mock
+    CONSTELLATION_API_KEY=<a key with predictions:read> python bridge.py
+
+On start it checks in; approve it on Integrations in Constellation. `CURSOR_FILE` (default cursor.txt) keeps
+where it stopped. Build the image with `docker build -t {{.Name}} .`.

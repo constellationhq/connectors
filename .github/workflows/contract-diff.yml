@@ -1,0 +1,49 @@
+name: Contract diff
+
+# A PR that moves contract.lock gets one comment, kept up to date, saying what changed between
+# the contract it pinned and the one it pins now (make contract-update prints the same).
+on:
+  pull_request:
+    paths: [contract.lock, contract/**]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: contract-diff-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diff:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Diff the contract the base branch vendors and the one this PR vendors
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add -q "$RUNNER_TEMP/base" "$BASE"
+          # No contract.lock on the base yet: nothing pinned before.
+          [ -f "$RUNNER_TEMP/base/contract.lock" ] || echo '{}' > "$RUNNER_TEMP/base/contract.lock"
+          {
+            echo "<!-- contract-lock-diff -->"
+            python3 tools/contract/fetch.py --diff "$RUNNER_TEMP/base/contract.lock" contract.lock
+          } > "$RUNNER_TEMP/diff.md"
+          cat "$RUNNER_TEMP/diff.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Post or update the comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          id=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+            --jq '.[] | select(.body | startswith("<!-- contract-lock-diff -->")) | .id' | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F "body=@$RUNNER_TEMP/diff.md" > /dev/null
+          else
+            gh api "repos/$REPO/issues/$PR/comments" -F "body=@$RUNNER_TEMP/diff.md" > /dev/null
+          fi

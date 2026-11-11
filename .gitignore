@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.gem
+*.jar
+build/
+.DS_Store
+.env
+.venv/
+*.egg-info/
+clients/typescript/src/generated/

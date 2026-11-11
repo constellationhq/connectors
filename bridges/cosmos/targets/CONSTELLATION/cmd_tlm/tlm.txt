@@ -1,0 +1,78 @@
+TELEMETRY CONSTELLATION NEXT_PASS BIG_ENDIAN "Forecast: the next predicted pass, not a scheduled contact"
+  ALLOW_SHORT
+  APPEND_ITEM SATELLITE 512 STRING "Satellite id"
+  APPEND_ITEM ANTENNA 512 STRING "Antenna id"
+  APPEND_ITEM AOS 256 STRING "Predicted acquisition of signal, UTC"
+  APPEND_ITEM LOS 256 STRING "Predicted loss of signal, UTC"
+  APPEND_ITEM EXPECTED_GB_P10 32 FLOAT "Expected GB, wet tail (p10)"
+    UNITS Gigabytes GB
+  APPEND_ITEM EXPECTED_GB_P50 32 FLOAT "Expected GB, median (p50)"
+    UNITS Gigabytes GB
+  APPEND_ITEM EXPECTED_GB_P90 32 FLOAT "Expected GB, best case (p90)"
+    UNITS Gigabytes GB
+  APPEND_ITEM MAX_ELEVATION 32 FLOAT "Peak elevation"
+    UNITS Degrees deg
+
+TELEMETRY CONSTELLATION NEXT_24H BIG_ENDIAN "Forecast: every predicted pass in the next 24 hours, summed"
+  ALLOW_SHORT
+  APPEND_ITEM PASSES 32 UINT "Predicted passes"
+  APPEND_ITEM EXPECTED_GB_P10 32 FLOAT "Expected GB, wet tail (p10)"
+    UNITS Gigabytes GB
+  APPEND_ITEM EXPECTED_GB_P50 32 FLOAT "Expected GB, median (p50)"
+    UNITS Gigabytes GB
+
+TELEMETRY CONSTELLATION SWAP BIG_ENDIAN "Forecast: the soonest open rain-fade swap, advised or approved"
+  ALLOW_SHORT
+  APPEND_ITEM OPEN 32 UINT "Rain-fade swaps open: advised or approved, deadline ahead"
+    LIMITS DEFAULT 1 ENABLED -1 -1 0.5 100000
+  APPEND_ITEM SATELLITE 512 STRING "Satellite id"
+  APPEND_ITEM ANTENNA 512 STRING "Antenna at risk"
+  APPEND_ITEM AOS 256 STRING "Predicted AOS of the pass at risk, UTC"
+  APPEND_ITEM KEEPS_GB_P10 32 FLOAT "GB the pass keeps if it rains (p10)"
+    UNITS Gigabytes GB
+  APPEND_ITEM EXPECTED_GB_P50 32 FLOAT "GB the pass delivers dry (p50)"
+    UNITS Gigabytes GB
+  APPEND_ITEM BACKUP_ANTENNA 512 STRING "Antenna to book instead, or NONE"
+  APPEND_ITEM BACKUP_AOS 256 STRING "Backup pass AOS, UTC"
+  APPEND_ITEM DEADLINE 256 STRING "Cancel the original by, UTC"
+  APPEND_ITEM MINUTES_TO_DEADLINE 32 FLOAT "Minutes left to decide (99999 when no swap is open)"
+    UNITS Minutes min
+    LIMITS DEFAULT 1 ENABLED 15 30 100000 100000
+  APPEND_ITEM STATUS 128 STRING "The swap shown: ADVISED, APPROVED (approved in Constellation: carry it out) or NONE"
+  APPEND_ITEM APPROVED 32 UINT "Open swaps approved in Constellation"
+  APPEND_ITEM PENDING 32 UINT "Swaps held for approval in Constellation"
+
+TELEMETRY CONSTELLATION CAPACITY BIG_ENDIAN "Forecast: one day's capacity across the antennas, and the tightest"
+  ALLOW_SHORT
+  APPEND_ITEM DAY 128 STRING "Day, UTC"
+  APPEND_ITEM ANTENNAS 32 UINT "Antennas forecast"
+  APPEND_ITEM PASSES 32 UINT "Predicted passes"
+  APPEND_ITEM SELLABLE_MIN 32 FLOAT "Sellable contact minutes"
+    UNITS Minutes min
+  APPEND_ITEM GB_P10 32 FLOAT "Expected GB, wet tail (p10)"
+    UNITS Gigabytes GB
+  APPEND_ITEM GB_P50 32 FLOAT "Expected GB, median (p50)"
+    UNITS Gigabytes GB
+  APPEND_ITEM TIGHTEST_ANTENNA 512 STRING "Antenna with the least expected GB that day"
+  APPEND_ITEM TIGHTEST_GB_P50 32 FLOAT "Its expected GB (p50)"
+    UNITS Gigabytes GB
+
+TELEMETRY CONSTELLATION MODCOD BIG_ENDIAN "Forecast: the next pass's MODCOD plan"
+  ALLOW_SHORT
+  APPEND_ITEM SATELLITE 512 STRING "Satellite id"
+  APPEND_ITEM ANTENNA 512 STRING "Antenna id"
+  APPEND_ITEM AOS 256 STRING "Predicted AOS, UTC"
+  APPEND_ITEM CHANGES 32 UINT "MODCOD changes over the pass"
+  APPEND_ITEM FIRST 256 STRING "MODCOD at AOS"
+  APPEND_ITEM LAST 256 STRING "MODCOD at LOS"
+  APPEND_ITEM MIN_SINR_DB 32 FLOAT "Lowest planned SINR over the pass"
+    UNITS Decibels dB
+  APPEND_ITEM PLANNED_PASSES 32 UINT "Passes with a plan still to fly"
+
+TELEMETRY CONSTELLATION RUN BIG_ENDIAN "The workflow run these forecasts came from"
+  ALLOW_SHORT
+  APPEND_ITEM WORKFLOW 512 STRING "Workflow"
+  APPEND_ITEM TEMPLATE 256 STRING "Template"
+  APPEND_ITEM WORKFLOW_VERSION 32 UINT "Workflow version"
+  APPEND_ITEM RUN_ID 512 STRING "Run id"
+  APPEND_ITEM RESULTS 32 UINT "Results in the run"

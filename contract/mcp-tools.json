@@ -1,0 +1,868 @@
+{
+  "approve_action": {
+    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as an instruction to carry out (a swap can cancel a booked pass) and cannot be rejected afterwards. Requires the act:approve scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "run_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "item_id"
+      ],
+      "type": "object"
+    }
+  },
+  "create_scenario": {
+    "description": "Create a scenario overlay: antennas taken down, and extra attenuation in dB per antenna. Returns a scenario_id for run_workflow. Requires the config:write scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "add_antennas": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "maxProperties": 1000,
+          "title": "Add Antennas",
+          "type": "object"
+        },
+        "add_satellites": {
+          "additionalProperties": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "maxProperties": 1000,
+          "title": "Add Satellites",
+          "type": "object"
+        },
+        "antennas_down": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Antennas Down",
+          "type": "array"
+        },
+        "extra_attenuation_db": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "maxProperties": 1000,
+          "title": "Extra Attenuation Db",
+          "type": "object"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "stations_down": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Stations Down",
+          "type": "array"
+        },
+        "weather_quantile": {
+          "anyOf": [
+            {
+              "enum": [
+                "p50",
+                "p90"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weather Quantile"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Scenario",
+      "type": "object"
+    }
+  },
+  "get_fleet": {
+    "description": "The fleet as declared and as observed, from GET /topology: config is the latest network config ({version, document}; null when there is none or the key lacks config:read), and state is the newest value of each field per ground antenna and satellite reported within freshness_seconds (default 300, at most 3600). An empty state means nothing has reported in the window. Requires the topology:read scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of_utc": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "freshness_seconds": {
+          "maximum": 3600,
+          "minimum": 1,
+          "type": "number"
+        },
+        "ground_antenna_id": {
+          "description": "Only these ground_antenna_ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ground_station_id": {
+          "description": "Only these ground_station_ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "satellite_id": {
+          "description": "Only these satellite_ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "get_network_config": {
+    "description": "The caller's network config: its ground stations with their antennas, and its satellites with their radios. version picks an older one; the latest otherwise. Contact predictions run over the antennas and satellites named here.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "get_predictions": {
+    "description": "Forecasts for named entities from Constellation's models; the ids go in link_ids whatever the family. The default family, snr, returns signal-to-noise forecasts in dB as a point value (snr_db_p50) per link and horizon; optical links (3000 GHz or more) return rx_power_dbm_p50, received power in dBm under clear sky; a link id is a ground antenna id from the caller's network config (see get_topology). To ask snr by instant, pass at (a future UTC instant) with a satellite_id, a ground_station_id or ground_antenna_id, or both sides, and no link_ids: each link up at that instant comes back with its snr_db_p50, named by ground_station_id, ground_antenna_id and satellite_id. Up to 100 ids per call, of which at most 25 without a stored forecast are computed in one call. Entities that cannot be answered are listed in entity_errors with a code: no_telemetry or insufficient_telemetry means the input telemetry is missing or stale, and prediction_unavailable means the id was declined for now (the message says why, e.g. a per-call limit or a busy fill) and a later retry can answer it. Retry only the declined ids, after a short pause, not in a loop. weather-attenuation takes no link_ids: it prices the slant-path attenuation in dB of the links of the caller's network config at one future instant, at, for a ground_station_id, a satellite_id or both. With both, every antenna at the station is priced against the satellite; with one, only the links in view and on a common band. Each item names its ground_station_id, ground_antenna_id and satellite_id. Requires the predictions:read scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "link_ids"
+          ]
+        },
+        {
+          "required": [
+            "at"
+          ]
+        }
+      ],
+      "properties": {
+        "as_of_utc": {
+          "description": "Return the prediction that existed at this past instant.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "at": {
+          "description": "weather-attenuation (required there), or snr: the future UTC instant to forecast the links at.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "ground_antenna_id": {
+          "description": "snr with at: ground antenna ids from the network config; not with ground_station_id.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        "ground_station_id": {
+          "description": "weather-attenuation, or snr with at: a ground station id from the network config.",
+          "type": "string"
+        },
+        "horizon_minutes": {
+          "description": "Forecast horizon. Omit to let the model choose.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "link_ids": {
+          "description": "Ids to forecast: ground antenna ids for snr. Not taken by weather-attenuation.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "type": "array"
+        },
+        "model_family": {
+          "description": "snr (default) for link SNR, or weather-attenuation for a link's attenuation at one instant.",
+          "type": "string"
+        },
+        "satellite_id": {
+          "description": "weather-attenuation, or snr with at: a satellite id from the network config.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "get_run": {
+    "description": "A run's status and, when done, every pass: pass_id, AOS, LOS, expected GB at p10/p50/p90, and the explain ledger naming each lane's value and source.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id"
+      ],
+      "type": "object"
+    }
+  },
+  "get_telemetry_v2": {
+    "description": "Link telemetry written with send_telemetry_v2 between start and end, one record per time and id set, oldest first. Set interval and agg to aggregate numeric fields into windows; a raw read spans at most an hour. Requires the topology:read scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "agg": {
+          "enum": [
+            "last",
+            "max",
+            "mean",
+            "min"
+          ],
+          "type": "string"
+        },
+        "end": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "field": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ground_antenna_id": {
+          "description": "Only these ground_antenna_ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ground_station_id": {
+          "description": "Only these ground_station_ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "interval": {
+          "enum": [
+            "15s",
+            "30s",
+            "1m",
+            "5m",
+            "15m",
+            "1h"
+          ],
+          "type": "string"
+        },
+        "satellite_id": {
+          "description": "Only these satellite_ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "start": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "type": "object"
+    }
+  },
+  "get_topology": {
+    "description": "The newest value of each field per ground antenna and satellite reported within freshness_seconds (default 300, at most 3600). An empty list means nothing has reported in the window. Requires the topology:read scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of_utc": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "freshness_seconds": {
+          "maximum": 3600,
+          "minimum": 1,
+          "type": "number"
+        },
+        "ground_antenna_id": {
+          "description": "Only these ground_antenna_ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ground_station_id": {
+          "description": "Only these ground_station_ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "satellite_id": {
+          "description": "Only these satellite_ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "get_usage": {
+    "description": "The caller's account: plan and this month's usage per unit (predictions, chat turns, telemetry points) and when the month resets. Usage is counted, never capped.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    }
+  },
+  "list_actions": {
+    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected or expired, with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "workflow": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "type": "object"
+    }
+  },
+  "list_workflows": {
+    "description": "The caller's saved workflows, the latest version of each, as a name and a node graph. With templates true, the read-only templates instead (pass-yield, antenna-capacity, modcod-plan, rain-fade-swap, audit-ledger, and rfi-watch, marked available false where no rfi model is served), and lanes: each lane with whether a run prices it here and, where not, why; copy a template by saving its graph with put_workflow under your own slug.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "templates": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "load_demo_fleet": {
+    "description": "Load a ready-made demo fleet into the caller's account, so the other tools have data: 5 ground stations with 6 antennas and 5 sun-synchronous Earth observation satellites on X and Ka band (ids norad-<NORAD id>) in the network config, and the link telemetry of every pass in the last two hours at a 30 second cadence (es_n0_db, elevation_deg, range_m and frequency_ghz), from the live orbit catalog. The call merges the demo stations, antennas and satellites, with their RF terms, into the caller's network config with PATCH /topology/config, unless the config already holds a demo id (as on a reload), so no tenant entity is overwritten. The telemetry names the demo ids, so on a fresh account a key without config:write fails the call, and the error says so. The SNR is synthetic: a planted offset per link (a known answer for calibration, not a measured loss), plus a slow wander and noise. Each link's es_n0_db also drops by the rain attenuation its ground station stored for the last 30 minutes, scaled to the link's elevation. Older records are not faded, nor is a link with no stored terms; rain_note counts those links, or says the stored terms could not be read. The data ends at the present and does not advance; calling again rewrites the same points, so it is safe to repeat. SNR forecasts need telemetry from the last minute, so call load_demo_fleet again right before get_predictions. Requires the telemetry:write scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    }
+  },
+  "patch_network_config": {
+    "description": "Merge a JSON merge patch into the caller's network config and store it as a new version: add or change ground stations, antennas and satellites. A satellite takes a norad_id or a tle. A satellite with catalog {norad_id} or a station with catalog {station_id} (from search_catalog) is filled from the catalog where the document leaves fields out; the document's own fields win and radio values are never filled. Requires the config:write scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "document": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "document"
+      ],
+      "type": "object"
+    }
+  },
+  "put_workflow": {
+    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. Requires the workflows:write or config:write scope.",
+    "inputSchema": {
+      "$defs": {
+        "Edge": {
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/Port"
+            },
+            "id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Id",
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/$defs/Port"
+            }
+          },
+          "required": [
+            "id",
+            "from",
+            "to"
+          ],
+          "title": "Edge",
+          "type": "object"
+        },
+        "Graph": {
+          "additionalProperties": false,
+          "properties": {
+            "edges": {
+              "items": {
+                "$ref": "#/$defs/Edge"
+              },
+              "maxItems": 400,
+              "title": "Edges",
+              "type": "array"
+            },
+            "nodes": {
+              "items": {
+                "$ref": "#/$defs/Node"
+              },
+              "maxItems": 200,
+              "title": "Nodes",
+              "type": "array"
+            }
+          },
+          "required": [
+            "nodes"
+          ],
+          "title": "Graph",
+          "type": "object"
+        },
+        "Node": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "input",
+                "lane",
+                "transform",
+                "condition",
+                "output"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": true,
+              "title": "Params",
+              "type": "object"
+            },
+            "position": {
+              "$ref": "#/$defs/Position"
+            },
+            "ref": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "ref"
+          ],
+          "title": "Node",
+          "type": "object"
+        },
+        "Port": {
+          "additionalProperties": false,
+          "properties": {
+            "node": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Node",
+              "type": "string"
+            },
+            "port": {
+              "default": "rows",
+              "title": "Port",
+              "type": "string"
+            }
+          },
+          "required": [
+            "node"
+          ],
+          "title": "Port",
+          "type": "object"
+        },
+        "Position": {
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "default": 0.0,
+              "title": "X",
+              "type": "number"
+            },
+            "y": {
+              "default": 0.0,
+              "title": "Y",
+              "type": "number"
+            }
+          },
+          "title": "Position",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "demo": {
+          "default": false,
+          "title": "Demo",
+          "type": "boolean"
+        },
+        "graph": {
+          "$ref": "#/$defs/Graph"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "name",
+        "graph"
+      ],
+      "title": "WorkflowDefinition",
+      "type": "object"
+    }
+  },
+  "reject_action": {
+    "description": "Reject an action a run holds (run_id and item_id from list_actions): nothing is published and it cannot be decided again. Requires the act:approve scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "run_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "item_id"
+      ],
+      "type": "object"
+    }
+  },
+  "run_workflow": {
+    "description": "Start a run of a saved workflow over a UTC window (from and to) or at one time (at), optionally against a scenario_id. Returns a run_id for get_run. Every time carries a UTC offset. Requires the workflows:write scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        },
+        "dataset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dataset"
+        },
+        "deliver": {
+          "default": true,
+          "title": "Deliver",
+          "type": "boolean"
+        },
+        "from": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From"
+        },
+        "network_config_version": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Network Config Version"
+        },
+        "scenario_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scenario Id"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To"
+        },
+        "workflow": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "title": "Workflow",
+          "type": "string"
+        },
+        "workflow_version": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workflow Version"
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "title": "RunRequest",
+      "type": "object"
+    }
+  },
+  "search_catalog": {
+    "description": "Search the public asset catalog to build a fleet from it: kind satellites (by NORAD id, with downlink bands) or stations (ground stations, with receive bands, coordinates and antenna counts). q matches name, id or operator; operator, fleet and band (S, X, Ka) filter; near (lat,lon) with within_km finds stations nearest first. Pages of limit (default 50) with next_cursor. Add a pick with patch_network_config: a satellite {\"catalog\": {\"norad_id\": N}}, a station {\"catalog\": {\"station_id\": id}}. Requires the topology:read scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "band": {
+          "enum": [
+            "S",
+            "X",
+            "Ka"
+          ]
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "fleet": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "satellites",
+            "stations"
+          ]
+        },
+        "limit": {
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "near": {
+          "description": "lat,lon in degrees (stations)",
+          "type": "string"
+        },
+        "operator": {
+          "type": "string"
+        },
+        "q": {
+          "maxLength": 100,
+          "type": "string"
+        },
+        "within_km": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    }
+  },
+  "send_telemetry_v2": {
+    "description": "Write link telemetry keyed by the caller's network config: up to 1,000 records per call. Each record names a ground_station_id, one of its ground_antenna_ids and a satellite_id, as the network config has them. Antenna fields: azimuth_deg, elevation_deg, tracking_error_az_deg, tracking_error_el_deg, track_mode, range_m, range_rate_m_s. Carrier fields: carrier_locked, subcarrier_locked, symbol_locked, frame_locked, c_n0_dbhz, es_n0_db, rx_power_dbm, frequency_ghz, carrier_offset_hz, frames_delivered, frames_good, uplink_status, modcod, tx_power_dbm, ber, per, system_noise_temp_k, noise_power_dbm, noise_diode_on. A batch with one invalid record is rejected whole, naming its index, field and reason. Requires the telemetry:write scope.",
+    "inputSchema": {
+      "$defs": {
+        "TelemetryValue": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "records": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "contact_id": {
+                "anyOf": [
+                  {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Contact Id"
+              },
+              "dataset": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "live",
+                      "audit",
+                      "sim"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Dataset"
+              },
+              "fields": {
+                "additionalProperties": {
+                  "$ref": "#/$defs/TelemetryValue"
+                },
+                "minProperties": 1,
+                "title": "Fields",
+                "type": "object"
+              },
+              "ground_antenna_id": {
+                "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                "title": "Ground Antenna Id",
+                "type": "string"
+              },
+              "ground_station_id": {
+                "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                "title": "Ground Station Id",
+                "type": "string"
+              },
+              "radio_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Radio Id"
+              },
+              "satellite_id": {
+                "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                "title": "Satellite Id",
+                "type": "string"
+              },
+              "time": {
+                "format": "date-time",
+                "title": "Time",
+                "type": "string"
+              }
+            },
+            "required": [
+              "time",
+              "ground_station_id",
+              "ground_antenna_id",
+              "satellite_id",
+              "fields"
+            ],
+            "title": "TelemetryRecordV2",
+            "type": "object"
+          },
+          "maxItems": 1000,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "records"
+      ],
+      "type": "object"
+    }
+  }
+}

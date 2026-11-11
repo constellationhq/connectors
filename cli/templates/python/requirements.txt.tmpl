@@ -1,0 +1,8 @@
+{{- if .PythonHashes}}# Exactly the package released with the constellation CLI that wrote this: pip checks the hash,
+# so no other upload of the name can install.
+constellation-space=={{.SemVer}}{{range .PythonHashes}} \
+    --hash={{.}}{{end}}
+{{- else}}# This constellation CLI was not built by a release, so it does not know the released package's
+# hash. Install constellation-space from your checkout (pip install path/to/clients/python), or
+# scaffold with a released CLI.
+{{- end}}

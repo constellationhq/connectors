@@ -1,0 +1,25 @@
+# LANGUAGE python
+# Constellation workflow forecasts in COSMOS: a CONSTELLATION target whose packets the bridge
+# microservice fills from the Constellation feed. Everything here is a forecast, not telemetry
+# measured from a spacecraft or a ground station.
+VARIABLE constellation_api_url https://api.constellation.space
+VARIABLE_DESCRIPTION "Constellation API base URL"
+VARIABLE consumer cosmos-bridge
+VARIABLE_DESCRIPTION "This connection's name: workflows pick it as an output"
+
+TARGET CONSTELLATION CONSTELLATION
+
+# The Constellation Forecast view, reading what the bridge writes to COSMOS's config bucket.
+TOOL constellationforecast "Constellation Forecast"
+  INLINE_URL main.js
+  ICON mdi-chart-timeline-variant
+  DISABLE_ERB
+
+MICROSERVICE BRIDGE constellation-bridge
+  CMD python bridge.py
+  TARGET_NAME CONSTELLATION
+  ENV CONSTELLATION_API_URL <%= constellation_api_url %>
+  ENV CONSUMER <%= consumer %>
+  # Admin > Secrets: CONSTELLATION_API_KEY (a key with predictions:read). The bridge reads it there
+  # at each poll, so it can be added or changed after installing.
+  SECRET ENV CONSTELLATION_API_KEY CONSTELLATION_API_KEY

@@ -1,0 +1,1167 @@
+{
+ "name": "demo",
+ "entries": [
+  {
+   "phase": 1,
+   "published": "20300115T060012.418233",
+   "run_id": "run_20300115T055800_4e1d2a7c",
+   "workflow": "fairbanks-pass-yield",
+   "template": "pass-yield",
+   "window": [
+    "2030-01-15T06:00:00+00:00",
+    "2030-01-16T06:00:00+00:00"
+   ],
+   "items": [
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_8f3a1c92d4e7",
+      "link_id": "NASA-FAIRBANKS__dbs3m:norad-43013",
+      "satellite_id": "norad-43013",
+      "ground_station_id": "NASA-FAIRBANKS",
+      "antenna_id": "NASA-FAIRBANKS__dbs3m",
+      "source": "computed",
+      "track": [
+       {
+        "t": "2030-01-15T07:12:40+00:00",
+        "latitude_deg": 56.1,
+        "longitude_deg": -152.3
+       },
+       {
+        "t": "2030-01-15T07:24:10+00:00",
+        "latitude_deg": 74.9,
+        "longitude_deg": -139.8
+       }
+      ]
+     },
+     "target_at": "2030-01-15T07:12:40+00:00",
+     "until": "2030-01-15T07:24:10+00:00",
+     "value": {
+      "p10": 18.4,
+      "p50": 23.1,
+      "p90": 26.7
+     },
+     "explain": {
+      "passes": {
+       "value": 71.2,
+       "unit": "deg",
+       "source": "orbit"
+      },
+      "expected_gb": {
+       "value": {
+        "p10": 18.4,
+        "p50": 23.1,
+        "p90": 26.7
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      }
+     },
+     "workflow_version": 3
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_2b7e90d1c6f4",
+      "link_id": "NASA-FAIRBANKS__dbs3m:norad-43013",
+      "satellite_id": "norad-43013",
+      "ground_station_id": "NASA-FAIRBANKS",
+      "antenna_id": "NASA-FAIRBANKS__dbs3m",
+      "source": "computed",
+      "track": [
+       {
+        "t": "2030-01-15T08:53:05+00:00",
+        "latitude_deg": 58.4,
+        "longitude_deg": -171.0
+       },
+       {
+        "t": "2030-01-15T09:03:35+00:00",
+        "latitude_deg": 76.2,
+        "longitude_deg": -160.5
+       }
+      ]
+     },
+     "target_at": "2030-01-15T08:53:05+00:00",
+     "until": "2030-01-15T09:03:35+00:00",
+     "value": {
+      "p10": 11.2,
+      "p50": 15.8,
+      "p90": 18.9
+     },
+     "explain": {
+      "passes": {
+       "value": 28.5,
+       "unit": "deg",
+       "source": "orbit"
+      },
+      "expected_gb": {
+       "value": {
+        "p10": 11.2,
+        "p50": 15.8,
+        "p90": 18.9
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      }
+     },
+     "workflow_version": 3
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_c41d6a08e3b5",
+      "link_id": "NASA-FAIRBANKS__dbs3m:norad-43013",
+      "satellite_id": "norad-43013",
+      "ground_station_id": "NASA-FAIRBANKS",
+      "antenna_id": "NASA-FAIRBANKS__dbs3m",
+      "source": "computed",
+      "track": [
+       {
+        "t": "2030-01-15T20:41:18+00:00",
+        "latitude_deg": 73.8,
+        "longitude_deg": -128.6
+       },
+       {
+        "t": "2030-01-15T20:52:02+00:00",
+        "latitude_deg": 55.2,
+        "longitude_deg": -141.9
+       }
+      ]
+     },
+     "target_at": "2030-01-15T20:41:18+00:00",
+     "until": "2030-01-15T20:52:02+00:00",
+     "value": {
+      "p10": 14.9,
+      "p50": 19.6,
+      "p90": 22.4
+     },
+     "explain": {
+      "passes": {
+       "value": 44.0,
+       "unit": "deg",
+       "source": "orbit"
+      },
+      "expected_gb": {
+       "value": {
+        "p10": 14.9,
+        "p50": 19.6,
+        "p90": 22.4
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      }
+     },
+     "workflow_version": 3
+    }
+   ]
+  },
+  {
+   "phase": 1,
+   "published": "20300115T061504.002917",
+   "run_id": "run_20300115T061300_b81f04e9",
+   "workflow": "fairbanks-pass-yield",
+   "template": "pass-yield",
+   "window": [
+    "2030-01-15T06:00:00+00:00",
+    "2030-01-16T06:00:00+00:00"
+   ],
+   "schema": "constellation.item/v9",
+   "items": [
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_4a6e1f0b8c37",
+      "link_id": "NASA-FAIRBANKS__dbs3m:norad-43013",
+      "satellite_id": "norad-43013",
+      "ground_station_id": "NASA-FAIRBANKS",
+      "antenna_id": "NASA-FAIRBANKS__dbs3m",
+      "source": "computed",
+      "track": [
+       {
+        "t": "2030-01-15T10:30:12+00:00",
+        "latitude_deg": 57.0,
+        "longitude_deg": -175.2
+       },
+       {
+        "t": "2030-01-15T10:41:50+00:00",
+        "latitude_deg": 75.1,
+        "longitude_deg": -163.0
+       }
+      ]
+     },
+     "target_at": "2030-01-15T10:30:12+00:00",
+     "until": "2030-01-15T10:41:50+00:00",
+     "value": {
+      "p10": 12.0,
+      "p50": 16.4,
+      "p90": 19.1
+     },
+     "explain": {
+      "passes": {
+       "value": 33.8,
+       "unit": "deg",
+       "source": "orbit"
+      },
+      "expected_gb": {
+       "value": {
+        "p10": 12.0,
+        "p50": 16.4,
+        "p90": 19.1
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      }
+     },
+     "workflow_version": 3,
+     "forecast_quality": {
+      "skill": 0.82
+     }
+    }
+   ]
+  },
+  {
+   "phase": 1,
+   "published": "20300115T063021.774560",
+   "run_id": "run_20300115T062800_19c6ad53",
+   "workflow": "ka-rain-fade-swap",
+   "template": "rain-fade-swap",
+   "window": [
+    "2030-01-15T06:00:00+00:00",
+    "2030-01-16T06:00:00+00:00"
+   ],
+   "items": [
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_51a0e7c2b9d3",
+      "link_id": "SITE-437a27f30da8__ant0:norad-41893",
+      "satellite_id": "norad-41893",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T14:00:00+00:00",
+     "until": "2030-01-15T16:00:00+00:00",
+     "value": {
+      "p10": 2.1,
+      "p50": 9.4,
+      "p90": 14.8
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 2.1,
+        "p50": 9.4,
+        "p90": 14.8
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "suggest",
+      "from": "pass_51a0e7c2b9d3",
+      "to": "pass_3d9b2c7e0a15",
+      "to_antenna_id": "SITE-5c44ebc4a84e__ant3",
+      "to_at": "2030-01-15T14:00:00+00:00",
+      "deadline": "2030-01-15T13:15:00+00:00",
+      "gain_gb_p10": 7.5
+     }
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_6d2f18a4c0e7",
+      "link_id": "SITE-437a27f30da8__ant0:norad-42740",
+      "satellite_id": "norad-42740",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T17:00:00+00:00",
+     "until": "2030-01-15T18:30:00+00:00",
+     "value": {
+      "p10": 1.4,
+      "p50": 6.0,
+      "p90": 10.2
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 1.4,
+        "p50": 6.0,
+        "p90": 10.2
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action_status": "pending"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_a7c3e5091f62",
+      "link_id": "SITE-437a27f30da8__ant0:norad-37843",
+      "satellite_id": "norad-37843",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T19:00:00+00:00",
+     "until": "2030-01-15T20:00:00+00:00",
+     "value": {
+      "p10": 0.9,
+      "p50": 4.7,
+      "p90": 8.3
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 0.9,
+        "p50": 4.7,
+        "p90": 8.3
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action_status": "pending"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_0e94b2d7f3a1",
+      "link_id": "SITE-437a27f30da8__ant0:norad-38551",
+      "satellite_id": "norad-38551",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T15:00:00+00:00",
+     "until": "2030-01-15T16:30:00+00:00",
+     "value": {
+      "p10": 1.8,
+      "p50": 7.7,
+      "p90": 12.6
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 1.8,
+        "p50": 7.7,
+        "p90": 12.6
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "approve",
+      "from": "pass_0e94b2d7f3a1",
+      "to": "pass_1a3f7d2b49e0",
+      "to_antenna_id": "SITE-5c44ebc4a84e__ant3",
+      "to_at": "2030-01-15T15:00:00+00:00",
+      "deadline": "2030-01-15T14:15:00+00:00",
+      "gain_gb_p10": 6.2
+     },
+     "action_status": "approved",
+     "action_id": "29a92528c8ffe03b",
+     "decision_id": "60da5db9bd110aca"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_3c8a61e4d05b",
+      "link_id": "SITE-437a27f30da8__ant0:norad-56370",
+      "satellite_id": "norad-56370",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T21:00:00+00:00",
+     "until": "2030-01-15T22:00:00+00:00",
+     "value": {
+      "p10": 2.6,
+      "p50": 8.1,
+      "p90": 11.9
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 2.6,
+        "p50": 8.1,
+        "p90": 11.9
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action_status": "rejected"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_f15b0c93e7d4",
+      "link_id": "SITE-437a27f30da8__ant0:norad-57479",
+      "satellite_id": "norad-57479",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T22:30:00+00:00",
+     "until": "2030-01-15T23:30:00+00:00",
+     "value": {
+      "p10": 1.1,
+      "p50": 5.2,
+      "p90": 9.0
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 1.1,
+        "p50": 5.2,
+        "p90": 9.0
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "approve",
+      "from": "pass_f15b0c93e7d4",
+      "to": "pass_4d7e39c0b51f",
+      "to_antenna_id": "SITE-5c44ebc4a84e__ant3",
+      "to_at": "2030-01-15T22:30:00+00:00",
+      "deadline": "2030-01-15T21:15:00+00:00",
+      "gain_gb_p10": 4.2
+     },
+     "action_status": "expired"
+    }
+   ]
+  },
+  {
+   "phase": 1,
+   "published": "20300115T064733.120044",
+   "run_id": "run_20300115T062800_19c6ad53",
+   "workflow": "ka-rain-fade-swap",
+   "template": "rain-fade-swap",
+   "window": [
+    "2030-01-15T06:00:00+00:00",
+    "2030-01-16T06:00:00+00:00"
+   ],
+   "items": [
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_51a0e7c2b9d3",
+      "link_id": "SITE-437a27f30da8__ant0:norad-41893",
+      "satellite_id": "norad-41893",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T14:00:00+00:00",
+     "until": "2030-01-15T16:00:00+00:00",
+     "value": {
+      "p10": 2.1,
+      "p50": 9.4,
+      "p90": 14.8
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 2.1,
+        "p50": 9.4,
+        "p90": 14.8
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "suggest",
+      "from": "pass_51a0e7c2b9d3",
+      "to": "pass_3d9b2c7e0a15",
+      "to_antenna_id": "SITE-5c44ebc4a84e__ant3",
+      "to_at": "2030-01-15T14:00:00+00:00",
+      "deadline": "2030-01-15T13:15:00+00:00",
+      "gain_gb_p10": 7.5
+     }
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_6d2f18a4c0e7",
+      "link_id": "SITE-437a27f30da8__ant0:norad-42740",
+      "satellite_id": "norad-42740",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T17:00:00+00:00",
+     "until": "2030-01-15T18:30:00+00:00",
+     "value": {
+      "p10": 1.4,
+      "p50": 6.0,
+      "p90": 10.2
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 1.4,
+        "p50": 6.0,
+        "p90": 10.2
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action_status": "pending"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_a7c3e5091f62",
+      "link_id": "SITE-437a27f30da8__ant0:norad-37843",
+      "satellite_id": "norad-37843",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T19:00:00+00:00",
+     "until": "2030-01-15T20:00:00+00:00",
+     "value": {
+      "p10": 0.9,
+      "p50": 4.7,
+      "p90": 8.3
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 0.9,
+        "p50": 4.7,
+        "p90": 8.3
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "approve",
+      "from": "pass_a7c3e5091f62",
+      "to": "pass_26f1905e3c7a",
+      "to_antenna_id": "SITE-5c44ebc4a84e__ant3",
+      "to_at": "2030-01-15T19:00:00+00:00",
+      "deadline": "2030-01-15T18:15:00+00:00",
+      "gain_gb_p10": 3.8
+     },
+     "action_status": "approved",
+     "action_id": "01440f9b22050c7d",
+     "decision_id": "c767ebea55d9aee1"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_0e94b2d7f3a1",
+      "link_id": "SITE-437a27f30da8__ant0:norad-38551",
+      "satellite_id": "norad-38551",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T15:00:00+00:00",
+     "until": "2030-01-15T16:30:00+00:00",
+     "value": {
+      "p10": 1.8,
+      "p50": 7.7,
+      "p90": 12.6
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 1.8,
+        "p50": 7.7,
+        "p90": 12.6
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "approve",
+      "from": "pass_0e94b2d7f3a1",
+      "to": "pass_1a3f7d2b49e0",
+      "to_antenna_id": "SITE-5c44ebc4a84e__ant3",
+      "to_at": "2030-01-15T15:00:00+00:00",
+      "deadline": "2030-01-15T14:15:00+00:00",
+      "gain_gb_p10": 6.2
+     },
+     "action_status": "approved",
+     "action_id": "29a92528c8ffe03b",
+     "decision_id": "60da5db9bd110aca"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_3c8a61e4d05b",
+      "link_id": "SITE-437a27f30da8__ant0:norad-56370",
+      "satellite_id": "norad-56370",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T21:00:00+00:00",
+     "until": "2030-01-15T22:00:00+00:00",
+     "value": {
+      "p10": 2.6,
+      "p50": 8.1,
+      "p90": 11.9
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 2.6,
+        "p50": 8.1,
+        "p90": 11.9
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action_status": "rejected"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_f15b0c93e7d4",
+      "link_id": "SITE-437a27f30da8__ant0:norad-57479",
+      "satellite_id": "norad-57479",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T22:30:00+00:00",
+     "until": "2030-01-15T23:30:00+00:00",
+     "value": {
+      "p10": 1.1,
+      "p50": 5.2,
+      "p90": 9.0
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 1.1,
+        "p50": 5.2,
+        "p90": 9.0
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "approve",
+      "from": "pass_f15b0c93e7d4",
+      "to": "pass_4d7e39c0b51f",
+      "to_antenna_id": "SITE-5c44ebc4a84e__ant3",
+      "to_at": "2030-01-15T22:30:00+00:00",
+      "deadline": "2030-01-15T21:15:00+00:00",
+      "gain_gb_p10": 4.2
+     },
+     "action_status": "expired"
+    }
+   ]
+  },
+  {
+   "phase": 2,
+   "published": "20300115T123018.009377",
+   "run_id": "run_20300115T122800_6a0f93b1",
+   "workflow": "ka-rain-fade-swap",
+   "template": "rain-fade-swap",
+   "window": [
+    "2030-01-15T12:00:00+00:00",
+    "2030-01-16T12:00:00+00:00"
+   ],
+   "items": [
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_0e94b2d7f3a1",
+      "link_id": "SITE-437a27f30da8__ant0:norad-38551",
+      "satellite_id": "norad-38551",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T15:00:00+00:00",
+     "until": "2030-01-15T16:30:00+00:00",
+     "value": {
+      "p10": 1.8,
+      "p50": 7.7,
+      "p90": 12.6
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 1.8,
+        "p50": 7.7,
+        "p90": 12.6
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 6,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "approve",
+      "from": "pass_0e94b2d7f3a1",
+      "to": "pass_1a3f7d2b49e0",
+      "to_antenna_id": "SITE-5c44ebc4a84e__ant3",
+      "to_at": "2030-01-15T15:00:00+00:00",
+      "deadline": "2030-01-15T14:15:00+00:00",
+      "gain_gb_p10": 6.2
+     },
+     "action_status": "approved",
+     "action_id": "29a92528c8ffe03b",
+     "decision_id": "60da5db9bd110aca"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_a7c3e5091f62",
+      "link_id": "SITE-437a27f30da8__ant0:norad-37843",
+      "satellite_id": "norad-37843",
+      "ground_station_id": "SITE-437a27f30da8",
+      "antenna_id": "SITE-437a27f30da8__ant0",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T19:00:00+00:00",
+     "until": "2030-01-15T20:00:00+00:00",
+     "value": {
+      "p10": 0.9,
+      "p50": 4.7,
+      "p90": 8.3
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 0.9,
+        "p50": 4.7,
+        "p90": 8.3
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 5,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "approve",
+      "from": "pass_a7c3e5091f62",
+      "to": "pass_26f1905e3c7a",
+      "to_antenna_id": "SITE-5c44ebc4a84e__ant3",
+      "to_at": "2030-01-15T19:00:00+00:00",
+      "deadline": "2030-01-15T18:15:00+00:00",
+      "gain_gb_p10": 3.8
+     },
+     "action_status": "approved",
+     "action_id": "01440f9b22050c7d",
+     "decision_id": "c5c32e125905fcf7"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_7b2e4d9a1c08",
+      "link_id": "SITE-d7c79f814522__ant1:norad-41893",
+      "satellite_id": "norad-41893",
+      "ground_station_id": "SITE-d7c79f814522",
+      "antenna_id": "SITE-d7c79f814522__ant1",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-16T03:00:00+00:00",
+     "until": "2030-01-16T04:30:00+00:00",
+     "value": {
+      "p10": 1.6,
+      "p50": 7.1,
+      "p90": 11.8
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 1.6,
+        "p50": 7.1,
+        "p90": 11.8
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 6,
+     "severity": "warning",
+     "action": {
+      "verb": "swap",
+      "mode": "approve",
+      "from": "pass_7b2e4d9a1c08",
+      "to": "pass_80c1a9d4e2b7",
+      "to_antenna_id": "SITE-d7c79f814522__ant2",
+      "to_at": "2030-01-16T03:00:00+00:00",
+      "deadline": "2030-01-16T02:15:00+00:00",
+      "gain_gb_p10": 5.4
+     },
+     "action_status": "approved",
+     "action_id": "9be78179d89d5dfb",
+     "decision_id": "eaf3b1d6a811e3c5"
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_e3d07c5a9b14",
+      "link_id": "SITE-d7c79f814522__ant1:norad-42740",
+      "satellite_id": "norad-42740",
+      "ground_station_id": "SITE-d7c79f814522",
+      "antenna_id": "SITE-d7c79f814522__ant1",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-16T05:00:00+00:00",
+     "until": "2030-01-16T06:00:00+00:00",
+     "value": {
+      "p10": 6.8,
+      "p50": 11.3,
+      "p90": 14.0
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 6.8,
+        "p50": 11.3,
+        "p90": 14.0
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      }
+     },
+     "workflow_version": 6
+    },
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_7b1e4f0a62c8",
+      "link_id": "SITE-d7c79f814522__ant1:norad-41893",
+      "satellite_id": "norad-41893",
+      "ground_station_id": "SITE-d7c79f814522",
+      "antenna_id": "SITE-d7c79f814522__ant1",
+      "source": "scheduled"
+     },
+     "target_at": "2030-01-15T21:00:00+00:00",
+     "until": "2030-01-15T22:00:00+00:00",
+     "value": {
+      "p10": 1.9,
+      "p50": 7.2,
+      "p90": 12.1
+     },
+     "explain": {
+      "expected_gb": {
+       "value": {
+        "p10": 1.9,
+        "p50": 7.2,
+        "p90": 12.1
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      },
+      "rain_fade_db": {
+       "value": {
+        "p50": 4.2,
+        "p90": 7.9
+       },
+       "unit": "dB",
+       "source": "weather"
+      },
+      "swap": {
+       "value": 0.0,
+       "unit": "GB",
+       "source": "backup-search"
+      }
+     },
+     "workflow_version": 6,
+     "severity": "warning",
+     "note": "No backup pass in the window"
+    }
+   ]
+  },
+  {
+   "phase": 2,
+   "published": "20300115T130512.204871",
+   "run_id": "run_20300115T130000_c4a91e27",
+   "workflow": "ka-rfi-watch",
+   "template": "rfi-watch",
+   "window": [
+    "2030-01-15T13:00:00+00:00",
+    "2030-01-15T14:00:00+00:00"
+   ],
+   "items": [
+    {
+     "entity": {
+      "type": "link",
+      "id": "SITE-d7c79f814522__ant1:norad-42740",
+      "satellite_id": "norad-42740",
+      "ground_station_id": "SITE-d7c79f814522",
+      "antenna_id": "SITE-d7c79f814522__ant1"
+     },
+     "target_at": "2030-01-15T13:00:00+00:00",
+     "until": "2030-01-15T14:00:00+00:00",
+     "value": {
+      "p10": 0.6,
+      "p50": 2.4,
+      "p90": 5.1
+     },
+     "explain": {
+      "rfi_db": {
+       "value": {
+        "p10": 0.6,
+        "p50": 2.4,
+        "p90": 5.1
+       },
+       "unit": "dB",
+       "source": "rfi-worst-step"
+      },
+      "lock_loss_risk": {
+       "value": 0.167,
+       "unit": "share",
+       "source": "acm"
+      }
+     },
+     "workflow_version": 1,
+     "severity": "critical",
+     "action": {
+      "verb": "reroute",
+      "from": "SITE-d7c79f814522__ant1:norad-42740",
+      "mode": "suggest"
+     }
+    }
+   ]
+  },
+  {
+   "phase": 2,
+   "published": "20300116T060009.553102",
+   "run_id": "run_20300116T055800_d2e7a0c4",
+   "workflow": "fairbanks-pass-yield",
+   "template": "pass-yield",
+   "window": [
+    "2030-01-16T06:00:00+00:00",
+    "2030-01-17T06:00:00+00:00"
+   ],
+   "items": [
+    {
+     "entity": {
+      "type": "pass",
+      "id": "pass_9e05b3f7a218",
+      "link_id": "NASA-FAIRBANKS__dbs3m:norad-43013",
+      "satellite_id": "norad-43013",
+      "ground_station_id": "NASA-FAIRBANKS",
+      "antenna_id": "NASA-FAIRBANKS__dbs3m",
+      "source": "computed",
+      "track": [
+       {
+        "t": "2030-01-16T06:59:51+00:00",
+        "latitude_deg": 55.7,
+        "longitude_deg": -149.9
+       },
+       {
+        "t": "2030-01-16T07:11:29+00:00",
+        "latitude_deg": 74.4,
+        "longitude_deg": -137.2
+       }
+      ]
+     },
+     "target_at": "2030-01-16T06:59:51+00:00",
+     "until": "2030-01-16T07:11:29+00:00",
+     "value": {
+      "p10": 17.6,
+      "p50": 22.4,
+      "p90": 25.9
+     },
+     "explain": {
+      "passes": {
+       "value": 66.3,
+       "unit": "deg",
+       "source": "orbit"
+      },
+      "expected_gb": {
+       "value": {
+        "p10": 17.6,
+        "p50": 22.4,
+        "p90": 25.9
+       },
+       "unit": "GB",
+       "source": "expected_gb"
+      }
+     },
+     "workflow_version": 3
+    }
+   ]
+  }
+ ]
+}

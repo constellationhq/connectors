@@ -1,0 +1,187 @@
+name: Install
+
+# Installs each platform's release artifact into the real platform, as a customer would, against
+# the stub API (tests/stub_api.py): Yamcs with only the jar in lib/ext and the bridge image, stock
+# Open MCT with the one-file plugin (reading the API, and Yamcs on another origin), the Lattice image with no decision settings, and a bridge
+# restarted on its volume. CI runs it on every pull request; a release is mirrored to the public
+# repository only once it passes.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  yamcs:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # The Yamcs versions the README's Compatibility table lists (tests/test_release.py keeps them the same).
+        yamcs: ["5.14.0", "5.13.7"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: The jar, the bridge image and the stub API
+        env:
+          YAMCS: ${{ matrix.yamcs }}
+        run: |
+          bridges/yamcs/widget/build.sh dist "$YAMCS"
+          docker build -q -t yamcs-bridge -f bridges/yamcs/deploy/Dockerfile .
+          PYTHONPATH=clients/python/src nohup python tests/stub_api.py 8080 > "$RUNNER_TEMP/stub.log" 2>&1 &
+      - name: Yamcs with only the jar in lib/ext has the page and the parameters
+        env:
+          YAMCS: ${{ matrix.yamcs }}
+        run: |
+          docker run -d --name yamcs --network host \
+            -v "$PWD/dist/constellation-yamcs.jar:/opt/yamcs/lib/ext/constellation-yamcs.jar:ro" \
+            "yamcs/example-simulation:$YAMCS"
+          timeout 300 sh -c 'until curl -sf localhost:8090/api > /dev/null; do sleep 2; done'
+          curl -sf localhost:8090/api | jq -e '.plugins | any(.name == "constellation-yamcs")'
+          curl -sf localhost:8090/api/mdb/simulator/parameters/ConstellationForecast/next_pass_expected_gb_p50
+      - name: Yamcs holds more than 500 timeline items in the run's window, one a pass the bridge withdrew
+        run: |
+          item() {
+            curl -sf -o /dev/null -X POST localhost:8090/api/timeline/simulator/items \
+              -H 'Content-Type: application/json' -d "$1"
+          }
+          for n in $(seq 600); do
+            item "{\"type\": \"EVENT\", \"name\": \"theirs $n\", \"start\": \"$(date -u -d "+2 hours +$n minutes" +%FT%TZ)\", \"duration\": \"60s\", \"tags\": [\"ops\"]}"
+          done
+          item "{\"id\": \"$(cat /proc/sys/kernel/random/uuid)\", \"type\": \"EVENT\", \"name\": \"withdrawn\", \"start\": \"$(date -u -d '+3 hours' +%FT%TZ)\", \"duration\": \"60s\", \"tags\": [\"constellation-bridge\", \"band-forecast-predicted-passes\"], \"properties\": {\"workflow\": \"pass-yield\"}}"
+      - name: The bridge writes the run into Yamcs and reports it
+        run: |
+          docker run -d --name bridge --network host -v yamcs-bridge-state:/var/lib/constellation \
+            -e CONSTELLATION_API_URL=http://127.0.0.1:8080 -e CONSTELLATION_API_KEY=test \
+            -e YAMCS_URL=http://127.0.0.1:8090 -e POLL_SECONDS=2 yamcs-bridge
+          timeout 120 sh -c 'until curl -sf localhost:8090/api/storage/buckets/constellation/objects/index.json | grep -q pass-yield; do sleep 2; done'
+          curl -sf localhost:8090/api/processors/simulator/realtime/parameters/ConstellationForecast/next_pass_expected_gb_p50 \
+            | jq -e '.engValue.floatValue == 10'
+          curl -sf localhost:8080/_calls | jq -e 'any(.[]; . == ["POST", "/predictions/feed/deliveries"])'
+          tl="localhost:8090/api/timeline/simulator/items?source=rdb&limit=1000&start=$(date -u +%FT%TZ)&stop=$(date -u -d '+1 day' +%FT%TZ)"
+          curl -sf "$tl" | jq -e '[.items[] | select(.name == "withdrawn")] == [] and ([.items[] | select(.tags | index("ops"))] | length) == 600'
+      - if: failure()
+        run: |
+          docker logs yamcs 2>&1 | tail -100
+          docker logs bridge 2>&1 || true
+          cat "$RUNNER_TEMP/stub.log"
+
+  lattice:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: The bridge image and the stub API, which also answers as Lattice
+        run: |
+          docker build -q -t lattice-bridge -f bridges/lattice/deploy/Dockerfile .
+          PYTHONPATH=clients/python/src nohup python tests/stub_api.py 8080 > "$RUNNER_TEMP/stub.log" 2>&1 &
+      - name: Without decision settings it starts on the defaults and publishes; a new container on its volume resumes
+        run: |
+          start() {
+            docker run -d --name lattice --network host -v lattice-bridge-state:/var/lib/constellation \
+              -e CONSTELLATION_API_URL=http://127.0.0.1:8080 -e CONSTELLATION_API_KEY=test \
+              -e LATTICE_URL=http://127.0.0.1:8080 -e LATTICE_TOKEN=test -e POLL_SECONDS=2 lattice-bridge
+          }
+          reported() {
+            curl -sf localhost:8080/_calls | jq '[.[] | select(. == ["POST", "/predictions/feed/deliveries"])] | length'
+          }
+          start
+          timeout 120 sh -c 'until docker logs lattice 2>&1 | grep -q "published"; do sleep 2; done'
+          docker logs lattice 2>&1 | grep -F "MIN_P10_GB=0 (default), MAX_FORECAST_AGE_S=21600 (default)"
+          curl -sf localhost:8080/_calls | jq -e 'any(.[]; . == ["PUT", "/api/v1/entities"])'
+          docker exec lattice test -f /var/lib/constellation/heartbeat
+          before="$(reported)"
+          docker rm -f lattice
+          start
+          timeout 60 sh -c 'until docker logs lattice 2>&1 | grep -q "listening for tasks"; do sleep 2; done'
+          docker logs lattice 2>&1 | grep -F "resuming the feed after"
+          if docker logs lattice 2>&1 | grep -q "first start"; then exit 1; fi
+          sleep 6
+          [ "$(reported)" = "$before" ]
+      - if: failure()
+        run: |
+          docker logs lattice 2>&1 || true
+          cat "$RUNNER_TEMP/stub.log"
+
+  openmct:
+    runs-on: ubuntu-24.04
+    env:
+      OPENMCT_VERSION: 4.3.1
+      PLAYWRIGHT_VERSION: 1.65.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: The one-file plugin (esbuild, from the TypeScript client's lockfile)
+        run: |
+          (cd clients/typescript && npm ci --no-audit --no-fund --ignore-scripts)
+          bridges/openmct/widget/build.sh "$RUNNER_TEMP/site"
+      - name: Stock Open MCT, the plugin added with a script tag and one install line, per source
+        working-directory: ${{ runner.temp }}/site
+        run: |
+          npm pack --silent "openmct@$OPENMCT_VERSION"
+          tar -xzf openmct-*.tgz --strip-components=1 package/index.html package/dist
+          sed -i 's#<script src="dist/openmct.js"></script>#&\n    <script src="constellation-openmct.js"></script>#' index.html
+          # The package's page expects a dev server serving dist/ at the root.
+          sed -i 's#^\( *\)openmct.install(openmct.plugins.LocalStorage());#\1openmct.setAssetPath("dist");\n&#' index.html
+          cp index.html yamcs.html
+          sed -i "s#^\( *\)openmct.start();#\1openmct.install(ConstellationForecast({ source: 'api', apiUrl: 'http://127.0.0.1:8080', token: 'cos_live_test' }));\n&#" index.html
+          sed -i "s#^\( *\)openmct.start();#\1openmct.install(ConstellationForecast({ yamcsUrl: 'http://127.0.0.1:8090' }));\n&#" yamcs.html
+          for page in index.html yamcs.html; do
+            grep -q 'src="constellation-openmct.js"' "$page" && grep -q 'setAssetPath' "$page" && grep -q 'ConstellationForecast(' "$page"
+          done
+          nohup python -m http.server 8081 --bind 127.0.0.1 > /dev/null 2>&1 &
+      - name: In Chromium, the tree, the overview and the plan show the stub run read from the API
+        run: |
+          PYTHONPATH=clients/python/src nohup python tests/stub_api.py 8080 > "$RUNNER_TEMP/stub.log" 2>&1 &
+          pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
+          python -m playwright install --with-deps chromium
+          python tests/openmct_install.py http://127.0.0.1:8081/index.html
+      - name: Stock Yamcs answering the Open MCT origin (the cors setting the README gives), and the bridge
+        env:
+          YAMCS: 5.14.0
+        run: |
+          bridges/yamcs/widget/build.sh dist "$YAMCS"
+          docker build -q -t yamcs-bridge -f bridges/yamcs/deploy/Dockerfile .
+          docker run --rm --entrypoint cat "yamcs/example-simulation:$YAMCS" /opt/yamcs/etc/yamcs.yaml \
+            | sed 's#^  - class: org.yamcs.http.HttpServer$#&\n    args:\n      cors:\n        allowOrigin: "http://127.0.0.1:8081"\n        allowCredentials: false#' \
+            > "$RUNNER_TEMP/yamcs.yaml"
+          grep -q 'allowOrigin: "http://127.0.0.1:8081"' "$RUNNER_TEMP/yamcs.yaml"
+          docker run -d --name yamcs --network host \
+            -v "$PWD/dist/constellation-yamcs.jar:/opt/yamcs/lib/ext/constellation-yamcs.jar:ro" \
+            -v "$RUNNER_TEMP/yamcs.yaml:/opt/yamcs/etc/yamcs.yaml:ro" \
+            "yamcs/example-simulation:$YAMCS"
+          timeout 300 sh -c 'until curl -sf localhost:8090/api > /dev/null; do sleep 2; done'
+          docker run -d --name bridge --network host \
+            -e CONSTELLATION_API_URL=http://127.0.0.1:8080 -e CONSTELLATION_API_KEY=test \
+            -e YAMCS_URL=http://127.0.0.1:8090 -e POLL_SECONDS=2 yamcs-bridge
+          timeout 120 sh -c 'until curl -sf localhost:8090/api/storage/buckets/constellation/objects/index.json | grep -q pass-yield; do sleep 2; done'
+      - name: In Chromium, the same read from Yamcs on another origin
+        run: python tests/openmct_install.py http://127.0.0.1:8081/yamcs.html
+      - if: failure()
+        run: |
+          docker logs yamcs 2>&1 | tail -100 || true
+          docker logs bridge 2>&1 || true
+          cat "$RUNNER_TEMP/stub.log"

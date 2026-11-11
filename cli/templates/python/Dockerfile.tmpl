@@ -1,0 +1,12 @@
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
+COPY . .
+# The cursor and the approvals carried out live in a volume the bridge's user can write, so a
+# rebuilt container resumes where it stopped and never acts twice.
+RUN mkdir -p /var/lib/constellation && chown nobody /var/lib/constellation
+ENV CURSOR_FILE=/var/lib/constellation/cursor.txt
+VOLUME /var/lib/constellation
+USER nobody
+CMD ["python", "bridge.py"]

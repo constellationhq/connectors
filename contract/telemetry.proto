@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+// v2: one ground-to-satellite link record keyed by network config ids, the shape
+// POST /telemetry takes. Every id is checked against the tenant's latest
+// network config; the records that pass are written and the rest reported. The v1 package (free-form measurement and tags) is retired, so
+// a v1 client gets UNIMPLEMENTED rather than a misread record.
+package constellation.ingest.v2;
+
+option go_package = "constellation/contracts/telemetry/ingestpb";
+
+// One telemetry field's value. Influx line protocol needs to know the type
+// to encode correctly (float vs integer vs quoted string vs boolean) -- a
+// plain string map can't carry that, so this is a oneof instead of
+// map<string, string>.
+message FieldValue {
+  oneof value {
+    double double_value = 1;
+    int64 int_value = 2;
+    string string_value = 3;
+    bool bool_value = 4;
+  }
+}
+
+message TelemetryRecordV2 {
+  int64 time_unix_nanos = 1;
+  string ground_station_id = 4;
+  string ground_antenna_id = 2;
+  string satellite_id = 3;
+  optional string contact_id = 5;
+  map<string, FieldValue> fields = 6;
+  // One of the satellite's radios in the network config; unset keeps the record's
+  // series as before.
+  optional string radio_id = 7;
+}
+
+message WriteRequest {
+  repeated TelemetryRecordV2 records = 1;
+}
+
+// One problem with one record. `field` names the id or field at fault; a
+// rejection whose reason is unknown_field dropped only that field.
+message RecordRejection {
+  int32 index = 1;
+  string field = 2;
+  string reason = 3;
+}
+
+message WriteResponse {
+  string write_id = 1;
+  int32 accepted_count = 2;
+  // Records not written. A rejection that only dropped a field is not counted.
+  int32 rejected_count = 3;
+  repeated RecordRejection rejections = 4;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  // Always true -- do NOT branch on it. Liveness travels in the grpc-status,
+  // not the body: the ALB target group matches on grpc-status alone, so an
+  // unhealthy server aborts with UNAVAILABLE rather than returning ok=false
+  // (which would carry status 0 and read as healthy). Retained only because
+  // ground-station clients already compile this contract; a client checking
+  // health must catch the RPC error, not inspect this field.
+  bool ok = 1;
+}
+
+service TelemetryIngest {
+  rpc Write(WriteRequest) returns (WriteResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}

@@ -1,0 +1,237 @@
+{
+  "schema_version": "constellation.item/v2",
+  "mapping_version": 2,
+  "tokens": {
+    "satellite": "entity.satellite_id",
+    "antenna": "entity.antenna_id",
+    "station": "entity.ground_station_id",
+    "entity": "entity.id",
+    "at": "target_at",
+    "until": "until",
+    "day": "target_at",
+    "expected_gb.p10": "value.p10",
+    "expected_gb.p50": "value.p50",
+    "expected_gb.p90": "value.p90",
+    "max_elevation_deg": "explain.passes.value",
+    "passes": "value.passes",
+    "sellable_min": "value.sellable_min",
+    "modcod_changes": "value.modcod_changes",
+    "backup": "action.to_antenna_id",
+    "action.deadline": "action.deadline",
+    "possible_gb": "value.possible_gb",
+    "delivered_gb": "value.delivered_gb",
+    "status": "value.status",
+    "rfi_db.p90": "value.p90",
+    "lock_loss_risk": "value.lock_loss_risk"
+  },
+  "yamcs_defaults": {
+    "pass-yield": {
+      "mapping": {
+        "system": "yamcs",
+        "events": {
+          "on": true,
+          "source": "Constellation forecast",
+          "message": "Forecast: predicted pass {satellite} over {antenna} at {at}, {expected_gb.p50} GB expected (p10 {expected_gb.p10}, p90 {expected_gb.p90})",
+          "severity": "INFO",
+          "warn_if": null
+        },
+        "timeline": {
+          "on": true,
+          "band": "Forecast · predicted passes",
+          "name": "Forecast · {satellite} @ {antenna}: {expected_gb.p50} GB expected",
+          "tags": [
+            "constellation",
+            "forecast",
+            "pass-yield"
+          ]
+        },
+        "parameters": {
+          "on": true
+        }
+      },
+      "widget": {
+        "on": true,
+        "blocks": [
+          "tiles",
+          "chart",
+          "breakdown",
+          "list",
+          "ledger"
+        ]
+      }
+    },
+    "antenna-capacity": {
+      "mapping": {
+        "system": "yamcs",
+        "events": {
+          "on": true,
+          "source": "Constellation forecast",
+          "message": "Forecast capacity {entity} on {day}: {passes} passes, {sellable_min} min, {expected_gb.p50} GB expected (p10 {expected_gb.p10})",
+          "severity": "INFO",
+          "warn_if": null
+        },
+        "timeline": {
+          "on": false,
+          "band": "Forecast · predicted passes",
+          "name": "Forecast capacity · {entity} {day}",
+          "tags": [
+            "constellation",
+            "forecast"
+          ]
+        },
+        "parameters": {
+          "on": false
+        }
+      },
+      "widget": {
+        "on": true,
+        "blocks": [
+          "tiles",
+          "chart",
+          "breakdown",
+          "list"
+        ]
+      }
+    },
+    "modcod-plan": {
+      "mapping": {
+        "system": "yamcs",
+        "events": {
+          "on": false,
+          "source": "Constellation forecast",
+          "message": "Forecast MODCOD plan for {satellite} @ {antenna}: {modcod_changes} changes",
+          "severity": "INFO",
+          "warn_if": null
+        },
+        "timeline": {
+          "on": true,
+          "band": "Forecast · MODCOD plan",
+          "name": "Forecast MODCOD plan · {satellite} @ {antenna}",
+          "tags": [
+            "constellation",
+            "forecast",
+            "modcod-plan"
+          ]
+        },
+        "parameters": {
+          "on": false
+        }
+      },
+      "widget": {
+        "on": true,
+        "blocks": [
+          "tiles",
+          "chart",
+          "list",
+          "ledger"
+        ]
+      }
+    },
+    "rain-fade-swap": {
+      "mapping": {
+        "system": "yamcs",
+        "events": {
+          "on": true,
+          "source": "Constellation forecast",
+          "message": "Recommendation (forecast): rain fade risk for {satellite} over {antenna} at {at}, keeps {expected_gb.p10} of {expected_gb.p50} GB at p10; backup {backup}; cancel by {action.deadline}",
+          "severity": "WARNING",
+          "warn_if": null
+        },
+        "timeline": {
+          "on": false,
+          "band": "Forecast · rain-fade risk",
+          "name": "Forecast · {satellite} @ {antenna}: {expected_gb.p50} GB expected",
+          "tags": [
+            "constellation",
+            "forecast"
+          ]
+        },
+        "parameters": {
+          "on": false
+        }
+      },
+      "widget": {
+        "on": true,
+        "blocks": [
+          "tiles",
+          "warnings",
+          "chart",
+          "list",
+          "ledger"
+        ]
+      }
+    },
+    "audit-ledger": {
+      "mapping": {
+        "system": "yamcs",
+        "events": {
+          "on": true,
+          "source": "Constellation forecast",
+          "message": "Audit: {satellite} over {antenna} at {at}: {status}, delivered {delivered_gb} of {possible_gb} GB possible",
+          "severity": "INFO",
+          "warn_if": null
+        },
+        "timeline": {
+          "on": false,
+          "band": "Audit · past passes",
+          "name": "Audit · {satellite} @ {antenna}: {status}",
+          "tags": [
+            "constellation",
+            "forecast"
+          ]
+        },
+        "parameters": {
+          "on": false
+        }
+      },
+      "widget": {
+        "on": true,
+        "blocks": [
+          "tiles",
+          "chart",
+          "list"
+        ]
+      }
+    },
+    "rfi-watch": {
+      "mapping": {
+        "system": "yamcs",
+        "events": {
+          "on": true,
+          "source": "Constellation forecast",
+          "message": "Forecast RFI: {satellite} over {antenna} at {at}, up to {rfi_db.p90} dB at p90, lock-loss risk {lock_loss_risk}",
+          "severity": "WARNING",
+          "warn_if": null
+        },
+        "timeline": {
+          "on": false,
+          "band": "Forecast · RFI",
+          "name": "Forecast RFI · {satellite} @ {antenna}",
+          "tags": [
+            "constellation",
+            "forecast"
+          ]
+        },
+        "parameters": {
+          "on": false
+        }
+      },
+      "widget": {
+        "on": true,
+        "blocks": [
+          "tiles",
+          "warnings",
+          "list"
+        ]
+      }
+    }
+  },
+  "lattice_default": {
+    "system": "lattice",
+    "min_p10_gb": 5.0,
+    "passes_listed": 3,
+    "advisories": true,
+    "pass_entities": true,
+    "antennas": null
+  }
+}

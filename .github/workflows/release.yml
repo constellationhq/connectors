@@ -1,0 +1,454 @@
+name: Release
+
+# One tag, vX.Y.Z, releases everything here: the CLI, the jar and the Yamcs tarball (jar and
+# compose file), the gem, the bridge .pyz files and images, the Open MCT plugin (one file, and as
+# ES modules), the Python and npm packages, each with an SBOM, and SHA256SUMS over them. Every
+# platform install (install.yml) must pass first. SHA256SUMS and the images are signed keyless
+# with Sigstore (the certificate names this workflow and the tag) and every artifact gets a build
+# provenance attestation; a signature that fails fails the release, and the released CLI must
+# verify the release before it exists. Only constellationhq/connectors publishes: in a fork,
+# every job that publishes is skipped.
+#
+# The GitHub release is made as a draft, the registries publish, and only then is it made live,
+# so a live release never names a package (as the CLI's scaffolds pin them) that is not
+# published. A registry that fails leaves the release a draft; run the failed jobs again.
+#
+# The repository needs:
+#   ghcr.io/constellationhq/yamcs-bridge and lattice-bridge set public (organization Packages,
+#     each package's settings > Change visibility). ghcr makes them private on the first push, so
+#     the first release stops before going live: set both public, then re-run the live job.
+#   variable PUBLIC_REGISTRIES = true, once the four environments below are ready (a release
+#   fails before it builds anything until it is set):
+#     environment pypi           no secret: a PyPI trusted publisher for constellation-space, with
+#                                owner constellationhq, repository connectors, workflow release.yml,
+#                                environment pypi (a "pending publisher" until the first upload)
+#     environment npm            secret NPM_TOKEN: an automation token that may publish
+#                                @constellationspace/client (published with --provenance)
+#     environment rubygems       no secret: a RubyGems trusted publisher for openc3-cosmos-constellation,
+#                                repository constellationhq/connectors, workflow release.yml,
+#                                environment rubygems (a pending publisher until the first push),
+#                                and the repository variable RUBYGEMS_OWNER_ID: the rubygems.org
+#                                account id the first push asserts as the gem's owner
+#     (npm takes a token only until the package exists; then it can move to npm trusted publishing)
+#     environment maven-central  secrets MAVEN_CENTRAL_USERNAME, MAVEN_CENTRAL_PASSWORD (a Central
+#                                Portal user token for space.constellation), MAVEN_GPG_PRIVATE_KEY,
+#                                MAVEN_GPG_PASSPHRASE (the key the artifacts are signed with,
+#                                its public key on keys.openpgp.org), and the space.constellation
+#                                namespace verified in the Central Portal
+#   optional: variables RELEASE_PUBLISH_ROLE_ARN and INSTALL_BUCKET copy the release to
+#     install.constellation.space; skipped with a notice until both are set.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+
+permissions: {}
+
+env:
+  TAG: ${{ github.ref_name }}
+  SYFT_VERSION: v1.55.0
+  COSIGN_VERSION: v3.1.4
+  # The newest Yamcs CI builds the jar against; the README's Compatibility table lists every one it is tested on.
+  YAMCS_VERSION: 5.14.0
+
+jobs:
+  artifacts:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: The registries are ready
+        if: github.repository == 'constellationhq/connectors' && vars.PUBLIC_REGISTRIES != 'true'
+        run: |
+          echo "::error::Set the repository variable PUBLIC_REGISTRIES to true once the registry environments are ready (see the top of release.yml): a release without its packages would pin ones that do not exist."
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check contract/ against contract.lock
+        run: make contract
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          ruby-version: "3.3"
+      - uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        id: syft
+        with:
+          syft-version: ${{ env.SYFT_VERSION }}
+      - name: The tag is the version every package carries
+        run: |
+          python -m pip install --quiet pytest==9.2.0
+          python -m pytest -q tests/test_versions.py
+          carried="$(sed -n 's/^version = "\(.*\)"$/\1/p' clients/python/pyproject.toml)"
+          if [ "${TAG#v}" != "$carried" ]; then
+            echo "::error::$TAG is not the version the packages carry ($carried): bump them (tests/test_versions.py lists where), merge, then tag."
+            exit 1
+          fi
+      - name: Python and npm packages
+        run: |
+          python -m pip install --quiet build==1.6.1
+          python -m build --outdir dist clients/python
+          (cd clients/typescript && npm ci --no-audit --no-fund && npm run build && npm pack --pack-destination ../../dist)
+      - name: CLI, with the hashes of the packages its scaffolds install
+        working-directory: cli
+        run: |
+          templates="github.com/constellationhq/connectors/cli/templates"
+          python_hashes="$(cd ../dist && sha256sum constellation_space-* | awk '{printf "%ssha256:%s", (NR > 1 ? "," : ""), $1}')"
+          npm_integrity="sha512-$(openssl dgst -sha512 -binary ../dist/constellationspace-client-*.tgz | base64 -w0)"
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" go build -trimpath \
+              -ldflags "-s -w -X main.version=$TAG -X $templates.PythonHashes=$python_hashes -X $templates.NPMIntegrity=$npm_integrity" \
+              -o "../dist/constellation-${target%/*}-${target#*/}" ./cmd/constellation
+          done
+      - name: Yamcs page, COSMOS plugin, bridges, Open MCT plugin
+        run: |
+          version="${TAG#v}"
+          bridges/yamcs/widget/build.sh dist "$YAMCS_VERSION"
+          (cd bridges/cosmos && rake build VERSION="$version")
+          mv "bridges/cosmos-$version.gem" dist/
+          # Each bridge with the constellation package it imports, as one file: python3 yamcs-bridge.pyz
+          for bridge in yamcs lattice; do
+            python -m pip install --quiet --no-deps --no-compile --target "build/$bridge-bridge" clients/python
+            python -m zipapp "build/$bridge-bridge" -m "constellation_space.bridges.$bridge.bridge:main" \
+              -p "/usr/bin/env python3" -o "dist/$bridge-bridge.pyz"
+          done
+          zip -j dist/openmct-constellation-forecast.zip bridges/openmct/widget/constellation-forecast.js bridges/shared/forecast-view.js
+          # One file an Open MCT page loads with a <script> tag (esbuild from the npm ci above).
+          bridges/openmct/widget/build.sh dist
+          # Yamcs in one download: the jar for lib/ext, the bridge's compose file and its .env.example.
+          mkdir -p build/yamcs-constellation
+          cp dist/constellation-yamcs.jar bridges/yamcs/deploy/compose.yaml bridges/yamcs/deploy/.env.example build/yamcs-constellation/
+          tar -czf "dist/yamcs-constellation-$version.tar.gz" -C build yamcs-constellation
+      - name: An SBOM per artifact
+        env:
+          SYFT: ${{ steps.syft.outputs.cmd }}
+        run: |
+          for file in dist/*; do
+            "$SYFT" scan "file:$file" -o "spdx-json=$file.spdx.json"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: artifacts
+          path: dist/
+          if-no-files-found: error
+
+  install:
+    uses: ./.github/workflows/install.yml
+    permissions:
+      contents: read
+
+  # Everything below publishes, so runs only in constellationhq/connectors, never in a fork.
+  images:
+    needs: [artifacts, install]
+    if: github.repository == 'constellationhq/connectors'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        bridge: [yamcs, lattice]
+    permissions:
+      contents: read
+      packages: write
+      # Keyless signing and the provenance attestation: a certificate naming this workflow.
+      id-token: write
+      attestations: write
+    env:
+      IMAGE: ghcr.io/constellationhq/${{ matrix.bridge }}-bridge
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: ${{ env.COSIGN_VERSION }}
+      - uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        id: syft
+        with:
+          syft-version: ${{ env.SYFT_VERSION }}
+      - name: Log in to GitHub Container Registry
+        env:
+          TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      - name: Build, push, sign, SBOM
+        id: push
+        env:
+          SYFT: ${{ steps.syft.outputs.cmd }}
+          BRIDGE: ${{ matrix.bridge }}
+        run: |
+          version="${TAG#v}"
+          # :latest only from 1.0 on, and never for a -suffixed version: 0.x releases are pre-releases.
+          tags=(-t "$IMAGE:$version")
+          case "$version" in 0.*|*-*) ;; *) tags+=(-t "$IMAGE:latest") ;; esac
+          docker buildx create --use
+          docker buildx build --platform linux/amd64,linux/arm64 --push --metadata-file meta.json \
+            --build-arg VERSION="$version" "${tags[@]}" -f "bridges/$BRIDGE/Dockerfile" .
+          digest="$(jq -r '."containerimage.digest"' meta.json)"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          cosign sign --yes "$IMAGE@$digest"
+          mkdir -p sboms
+          "$SYFT" scan "registry:$IMAGE@$digest" -o "spdx-json=sboms/$BRIDGE-bridge-$version.image.spdx.json"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-sbom-${{ matrix.bridge }}
+          path: sboms/
+          if-no-files-found: error
+
+  release:
+    needs: [artifacts, images]
+    if: github.repository == 'constellationhq/connectors'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      # Keyless signing and the attestation, through GitHub OIDC.
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: SHA256SUMS
+        working-directory: dist
+        run: sha256sum -- * > SHA256SUMS
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: ${{ env.COSIGN_VERSION }}
+      - name: Sign SHA256SUMS keyless
+        working-directory: dist
+        run: cosign sign-blob --yes --bundle SHA256SUMS.sigstore.json SHA256SUMS
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: dist/SHA256SUMS
+      - name: The released CLI verifies the release
+        working-directory: dist
+        run: |
+          cp constellation-linux-amd64 "$RUNNER_TEMP/constellation" && chmod +x "$RUNNER_TEMP/constellation"
+          "$RUNNER_TEMP/constellation" verify .
+      - name: GitHub Release, as a draft until the registries have published
+        run: |
+          # 0.x and -suffixed versions are pre-releases.
+          prerelease=""
+          case "${TAG#v}" in 0.*|*-*) prerelease="--prerelease" ;; esac
+          # The notes are the tag's CHANGELOG.md section: the pull requests are not in this repository.
+          gh api "repos/$GH_REPO/contents/CHANGELOG.md?ref=$TAG" -H "Accept: application/vnd.github.raw" \
+            | awk -v h="## $TAG" 'index($0, h) == 1 {f = 1; next} /^## v/ {f = 0} f' > notes.md
+          [ -s notes.md ] || { echo "::error::CHANGELOG.md has no '## $TAG' section"; exit 1; }
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --verify-tag --notes-file notes.md $prerelease
+          gh release upload "$TAG" dist/* --clobber
+      - name: Tag the Go module (cli/vX.Y.Z), so go get resolves this release
+        run: |
+          if ! gh api "repos/$GH_REPO/git/ref/tags/cli/$TAG" >/dev/null 2>&1; then
+            gh api "repos/$GH_REPO/git/refs" -f ref="refs/tags/cli/$TAG" -f sha="$GITHUB_SHA" >/dev/null
+          fi
+
+  # The release goes live only once every registry has its packages.
+  live:
+    needs: [release, pypi, npm, rubygems, maven-central]
+    if: github.repository == 'constellationhq/connectors'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      # The AWS role below, through GitHub OIDC.
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PUBLISH_ROLE: ${{ vars.RELEASE_PUBLISH_ROLE_ARN }}
+      INSTALL_BUCKET: ${{ vars.INSTALL_BUCKET }}
+    steps:
+      - name: Anyone can pull the bridge images
+        run: |
+          for b in yamcs lattice; do
+            image="constellationhq/$b-bridge"
+            token="$(curl -fsS "https://ghcr.io/token?scope=repository:$image:pull" | jq -r .token)" &&
+              curl -fsSI -o /dev/null -H "Authorization: Bearer $token" \
+                -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json" \
+                "https://ghcr.io/v2/$image/manifests/${TAG#v}" ||
+              { echo "::error::ghcr.io/$image:${TAG#v} cannot be pulled anonymously: set it public (organization Packages, $b-bridge, Package settings > Change visibility), then re-run this job"; exit 1; }
+          done
+      - name: Make the GitHub release live
+        run: gh release edit "$TAG" --draft=false
+      - if: env.PUBLISH_ROLE == '' || env.INSTALL_BUCKET == ''
+        run: echo "::notice::RELEASE_PUBLISH_ROLE_ARN or INSTALL_BUCKET is not set, so the release is not copied to install.constellation.space."
+      - if: env.PUBLISH_ROLE != '' && env.INSTALL_BUCKET != ''
+        run: gh release download "$TAG" --dir dist
+      - if: env.PUBLISH_ROLE != '' && env.INSTALL_BUCKET != ''
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ env.PUBLISH_ROLE }}
+          aws-region: us-east-1
+      - name: Copy to install.constellation.space/connectors/releases/
+        if: env.PUBLISH_ROLE != '' && env.INSTALL_BUCKET != ''
+        run: aws s3 cp --recursive dist/ "s3://$INSTALL_BUCKET/connectors/releases/$TAG/"
+
+  # The registries, while the release is still a draft.
+  pypi:
+    needs: release
+    if: github.repository == 'constellationhq/connectors'
+    runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      # PyPI trusted publishing: no token, PyPI checks this workflow's OIDC identity.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: artifacts
+          path: dist
+      - run: mkdir pypi && mv dist/constellation_space-* pypi/ && rm -f pypi/*.spdx.json
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: pypi/
+
+  npm:
+    needs: release
+    if: github.repository == 'constellationhq/connectors'
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      # npm provenance: the package links to this repository and the run that built it.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: artifacts
+          path: dist
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+      - env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public dist/constellationspace-client-*.tgz
+
+  rubygems:
+    needs: release
+    if: github.repository == 'constellationhq/connectors'
+    runs-on: ubuntu-24.04
+    environment: rubygems
+    permissions:
+      # RubyGems trusted publishing: no key, rubygems.org checks this workflow's OIDC identity.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: artifacts
+          path: dist
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          ruby-version: "3.3"
+      # The trusted-publisher exchange, asserting the account that owns the gem: rubygems.org
+      # refuses a first push that names no owner, and no release of
+      # rubygems/configure-rubygems-credentials sends one yet.
+      - name: Push with a 15 minute key from rubygems.org's trusted publisher exchange
+        env:
+          OWNER: ${{ vars.RUBYGEMS_OWNER_ID }}
+        run: |
+          if [ -z "$OWNER" ]; then
+            echo "::error::Set the repository variable RUBYGEMS_OWNER_ID (the rubygems.org account id that owns openc3-cosmos-constellation)."
+            exit 1
+          fi
+          jwt="$(curl -fsS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=rubygems.org" | jq -r .value)"
+          key="$(jq -n --arg jwt "$jwt" --arg owner "$OWNER" '{jwt: $jwt, owner: $owner}' \
+            | curl --fail-with-body -sS -X POST -H "Content-Type: application/json" --data @- \
+              https://rubygems.org/api/v1/oidc/trusted_publisher/exchange_token | jq -r .rubygems_api_key)"
+          echo "::add-mask::$key"
+          GEM_HOST_API_KEY="$key" gem push dist/openc3-cosmos-constellation-*.gem
+
+  maven-central:
+    needs: release
+    if: github.repository == 'constellationhq/connectors'
+    runs-on: ubuntu-24.04
+    environment: maven-central
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: artifacts
+          path: dist
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Upload space.constellation:constellation-yamcs to the Central Portal
+        env:
+          GPG_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          CENTRAL_USER: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        run: |
+          version="${TAG#v}"
+          dir="bundle/space/constellation/constellation-yamcs/$version"
+          base="$dir/constellation-yamcs-$version"
+          mkdir -p "$dir" empty
+          cp dist/constellation-yamcs.jar "$base.jar"
+          jar --create --file "$base-sources.jar" -C bridges/yamcs/widget/src .
+          # Central requires a javadoc jar; the plugin's API is Yamcs's, so it points to the docs.
+          echo "Constellation for Yamcs: https://platform.constellation.space/docs/connectors/yamcs" > empty/README.txt
+          jar --create --file "$base-javadoc.jar" -C empty .
+          cat > "$base.pom" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>space.constellation</groupId>
+            <artifactId>constellation-yamcs</artifactId>
+            <version>$version</version>
+            <name>Constellation for Yamcs</name>
+            <description>The Constellation Forecast page and parameters for Yamcs.</description>
+            <url>https://platform.constellation.space/docs/connectors/yamcs</url>
+            <licenses><license><name>Apache-2.0</name><url>https://www.apache.org/licenses/LICENSE-2.0</url></license></licenses>
+            <developers><developer><name>Constellation</name><email>security@constellation.space</email></developer></developers>
+            <scm><url>https://github.com/constellationhq/connectors</url></scm>
+          </project>
+          EOF
+          echo "$GPG_KEY" | gpg --batch --import
+          for f in "$dir"/*; do
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --armor --detach-sign "$f"
+          done
+          for f in "$dir"/*.jar "$dir"/*.pom; do
+            md5sum "$f" | cut -d' ' -f1 > "$f.md5"
+            sha1sum "$f" | cut -d' ' -f1 > "$f.sha1"
+          done
+          (cd bundle && zip -qr ../central.zip .)
+          id="$(curl -fsS -X POST -u "$CENTRAL_USER:$CENTRAL_TOKEN" -F "bundle=@central.zip" \
+            "https://central.sonatype.com/api/v1/publisher/upload?name=constellation-yamcs-$version&publishingType=AUTOMATIC")"
+          # Central validates after the upload (signatures, the key on a keyserver, the POM, the
+          # namespace): wait up to 30 minutes for it to publish, or the release stays a draft.
+          for _ in $(seq 60); do
+            sleep 30
+            status="$(curl -fsS -X POST -u "$CENTRAL_USER:$CENTRAL_TOKEN" \
+              "https://central.sonatype.com/api/v1/publisher/status?id=$id")"
+            state="$(jq -r .deploymentState <<<"$status")"
+            echo "deployment $id: $state"
+            case "$state" in
+              PUBLISHED) exit 0 ;;
+              FAILED) echo "::error::Central refused deployment $id: $(jq -c .errors <<<"$status")"; exit 1 ;;
+            esac
+          done
+          echo "::error::Central deployment $id is still $state after 30 minutes; see central.sonatype.com/publishing/deployments"
+          exit 1

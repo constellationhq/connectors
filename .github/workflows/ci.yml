@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check contract/ against contract.lock
+        run: make contract
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install --quiet -r tests/requirements.txt
+      - name: Lint
+        run: ruff check .
+      - name: Tests
+        run: python -m pytest
+
+  typescript:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: clients/typescript
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check contract/ against contract.lock
+        working-directory: .
+        run: make contract
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - run: npm ci --no-audit --no-fund
+      - run: npm run generate
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Build the dashboard example
+        working-directory: examples/typescript-results-dashboard
+        run: npm ci --no-audit --no-fund && node --check dashboard.mjs
+
+  go:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The oldest Go the module claims (go.mod), so a bridge on it builds.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: Cross-build
+        run: |
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" \
+              go build -trimpath -o "$RUNNER_TEMP/constellation-${target%/*}-${target#*/}" ./cmd/constellation
+          done
+
+  # constellation conformance against every bridge scaffold and example, each as a user gets it.
+  conformance:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check contract/ against contract.lock
+        run: make contract
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: Build the CLI and the clients
+        run: |
+          (cd cli && go build -o "$RUNNER_TEMP/bin/constellation" ./cmd/constellation)
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          pip install --quiet ./clients/python pytest
+          (cd clients/typescript && npm ci --no-audit --no-fund && npm run build)
+      - name: Python scaffold
+        run: |
+          constellation bridge new py-bridge --lang python --dir "$RUNNER_TEMP/py-bridge"
+          cd "$RUNNER_TEMP/py-bridge" && python -m pytest -q
+          constellation conformance -- python bridge.py
+      - name: TypeScript scaffold
+        run: |
+          constellation bridge new ts-bridge --lang ts --dir "$RUNNER_TEMP/ts-bridge"
+          cd "$RUNNER_TEMP/ts-bridge"
+          npm install --no-audit --no-fund "$GITHUB_WORKSPACE/clients/typescript"
+          npm test
+          constellation conformance -- node --experimental-strip-types bridge.ts
+      - name: Go scaffold
+        run: |
+          constellation bridge new go-bridge --lang go --dir "$RUNNER_TEMP/go-bridge"
+          cd "$RUNNER_TEMP/go-bridge"
+          go mod edit -replace "github.com/constellationhq/connectors/cli=$GITHUB_WORKSPACE/cli"
+          go test ./... && go build -o bridge .
+          constellation conformance -- ./bridge
+      - name: examples/python-custom-bridge
+        # Its apply() and act() are for the user to write: stubbed here only.
+        run: >-
+          constellation conformance -- python -c "import sys; sys.path.insert(0, 'examples/python-custom-bridge');
+          import bridge; bridge.MyBridge.apply = lambda self, items, settings, run: {'passes': len(items)};
+          bridge.MyBridge.act = lambda self, item, settings, run: True;
+          bridge.MyBridge('examples/python-custom-bridge/connector.json').run_forever()"
+      - name: examples/go-custom-bridge
+        run: |
+          cd examples/go-custom-bridge
+          go test ./... && go build -o "$RUNNER_TEMP/go-custom-bridge" .
+          constellation conformance -- "$RUNNER_TEMP/go-custom-bridge"
+      - name: examples/typescript-results-dashboard against the mock
+        run: |
+          constellation mock --port 7070 &
+          cd examples/typescript-results-dashboard && npm ci --no-audit --no-fund
+          CONSTELLATION_API_URL=http://127.0.0.1:7070 timeout 15 npm start > "$RUNNER_TEMP/dashboard.txt" || true
+          grep -q "APPROVED: act" "$RUNNER_TEMP/dashboard.txt" || { cat "$RUNNER_TEMP/dashboard.txt"; exit 1; }
+
+  cosmos:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          ruby-version: "3.3"
+      - working-directory: bridges/cosmos
+        run: rake build VERSION=0.0.0
+
+  # Each platform's artifact installed into the real platform (the jar into Yamcs per
+  # Yamcs version the README lists, the images, the Open MCT plugin); the release waits on the same.
+  install:
+    uses: ./.github/workflows/install.yml
+
+  proto:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: bufbuild/buf-action@37ac33d8960807670a6e9719080e885197b09cc6 # v1.7.0
+        with:
+          setup_only: true
+          version: 1.71.0
+      - name: Lint the ReservePass proto
+        working-directory: bridges/lattice/proto
+        run: buf lint

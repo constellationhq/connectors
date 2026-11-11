@@ -1,0 +1,9 @@
+name: Feature request
+description: Something a connector should do or show
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want, and the operator question it answers
+    validations:
+      required: true

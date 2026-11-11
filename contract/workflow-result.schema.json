@@ -1,0 +1,328 @@
+{
+  "$defs": {
+    "Action": {
+      "description": "What a workflow suggests doing. Under an approve policy it is held until a person approves it: a held result carries action_status, and loses action until it is approved.",
+      "properties": {
+        "deadline": {
+          "format": "date-time",
+          "title": "Deadline",
+          "type": "string"
+        },
+        "from": {
+          "title": "From",
+          "type": "string"
+        },
+        "gain_gb_p10": {
+          "title": "Gain Gb P10",
+          "type": "number"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "suggest",
+                "approve"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Known values: suggest, approve.",
+          "title": "Mode"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To"
+        },
+        "to_antenna_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To Antenna Id"
+        },
+        "to_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To At"
+        },
+        "verb": {
+          "anyOf": [
+            {
+              "enum": [
+                "reroute",
+                "swap"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Known values: reroute, swap. A reader skips a verb it does not know.",
+          "title": "Verb"
+        }
+      },
+      "required": [
+        "verb",
+        "mode"
+      ],
+      "title": "Action",
+      "type": "object"
+    },
+    "Entity": {
+      "description": "What the result is about. type is pass or link for a pass or link, or the entity a sum is by (antenna, ...).",
+      "properties": {
+        "antenna_id": {
+          "title": "Antenna Id",
+          "type": "string"
+        },
+        "ground_station_id": {
+          "title": "Ground Station Id",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "link_id": {
+          "title": "Link Id",
+          "type": "string"
+        },
+        "satellite_id": {
+          "title": "Satellite Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "track": {
+          "description": "A pass's ground track, when known.",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Track",
+          "type": "array"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "title": "Entity",
+      "type": "object"
+    },
+    "Point": {
+      "properties": {
+        "t": {
+          "format": "date-time",
+          "title": "T",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value"
+        }
+      },
+      "required": [
+        "t",
+        "value"
+      ],
+      "title": "Point",
+      "type": "object"
+    },
+    "Value": {
+      "description": "The output columns, by name: p10, p50 and p90 for a column with quantiles.",
+      "properties": {
+        "p10": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "P10"
+        },
+        "p50": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "P50"
+        },
+        "p90": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "P90"
+        }
+      },
+      "title": "Value",
+      "type": "object"
+    }
+  },
+  "$id": "https://constellation.space/contract/workflow-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One result of a run, as the body of each OTLP log record GET /predictions/feed returns (attribute constellation.schema = constellation.item/v2), and as GET /predictions answers a run's or a lane's results. An entity at a time (or over a span) with a value, the per-node ledger that explains it, and the version that produced it. series, severity and action are optional facets. Their string values are open: a reader handles the known values each lists and does not reject a new one. A reader acts on an action only when there is no action_status or action_status is approved; any other or unknown status is held.",
+  "not": {
+    "required": [
+      "workflow_version",
+      "model_release_id"
+    ]
+  },
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/Action"
+    },
+    "action_id": {
+      "description": "A held action, the same on every run that suggests the same verb on the same entity to the same target.",
+      "title": "Action Id",
+      "type": "string"
+    },
+    "action_status": {
+      "anyOf": [
+        {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "description": "Where a held action stands. Known values: pending, approved, rejected. Only approved may be acted on: any other or unknown value is held.",
+      "title": "Action Status"
+    },
+    "decision_id": {
+      "description": "A person's decision on the held action, present once it is approved or rejected. It changes only when a new decision is made, so a reader acts once per decision_id.",
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "entity": {
+      "$ref": "#/$defs/Entity"
+    },
+    "explain": {
+      "additionalProperties": true,
+      "description": "The ledger: each node's value, unit and source behind the result.",
+      "title": "Explain",
+      "type": "object"
+    },
+    "model_release_id": {
+      "description": "The model release that produced a lane's result.",
+      "title": "Model Release Id",
+      "type": "string"
+    },
+    "note": {
+      "description": "What the item's action comes to, as a sentence for a person: the swap to make, or why there is none to act on (no backup pass, waiting for approval, rejected, shown for review).",
+      "title": "Note",
+      "type": "string"
+    },
+    "quantity": {
+      "description": "What a lane result's value measures, such as snr_db or rx_power_dbm.",
+      "title": "Quantity",
+      "type": "string"
+    },
+    "series": {
+      "description": "Values over the result's span, in time order.",
+      "items": {
+        "$ref": "#/$defs/Point"
+      },
+      "title": "Series",
+      "type": "array"
+    },
+    "severity": {
+      "anyOf": [
+        {
+          "enum": [
+            "info",
+            "warning",
+            "critical"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "description": "Absent means info. Known values: info, warning, critical; read any other as info.",
+      "title": "Severity"
+    },
+    "target_at": {
+      "description": "When the result applies (UTC, ISO 8601).",
+      "format": "date-time",
+      "title": "Target At",
+      "type": "string"
+    },
+    "unit": {
+      "description": "The unit of a lane result's value, such as dB or dBm.",
+      "title": "Unit",
+      "type": "string"
+    },
+    "until": {
+      "description": "The end of the result's span, for a result over a span.",
+      "format": "date-time",
+      "title": "Until",
+      "type": "string"
+    },
+    "value": {
+      "$ref": "#/$defs/Value"
+    },
+    "workflow_version": {
+      "description": "The workflow version that produced a workflow's result.",
+      "title": "Workflow Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "entity",
+    "target_at",
+    "value"
+  ],
+  "title": "Workflow result",
+  "type": "object"
+}

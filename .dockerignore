@@ -1,0 +1,8 @@
+# The bridge images are built from the repository root and take only these.
+*
+!clients/python/pyproject.toml
+!clients/python/README.md
+!clients/python/src/
+!bridges/lattice/deploy/requirements.txt
+**/__pycache__
+**/*.egg-info

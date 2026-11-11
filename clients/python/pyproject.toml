@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "constellation-space"
+version = "0.7.0"
+description = "Constellation's Python client, workflow results protocol, bridge template and bridges"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+# sgp4 places satellites as Constellation's pass engine does: the Lattice bridge's PUBLISH_SATELLITES needs it.
+lattice = ["sgp4>=2.20"]
+
+[project.urls]
+Homepage = "https://platform.constellation.space/docs/connectors"
+Source = "https://github.com/constellationhq/connectors"

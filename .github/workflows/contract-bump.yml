@@ -1,0 +1,91 @@
+name: Contract bump
+
+# Within the hour of the API publishing a newer contract, one PR "contract: bump to X.Y.Z" runs
+# make contract-update on the branch contract-bump, and that PR's CI shows whether the bridges
+# still build and pass. Nothing here merges it. While the PR is open a newer contract updates it
+# in place; once it is closed the next bump starts again from main.
+#
+# vars.CONTRACT_REPO is the API's repository (owner/name), secrets.OS_CONTRACTS_READ_TOKEN reads
+# its releases, and secrets.CONTRACT_BUMP_TOKEN (contents and pull requests: write, on this
+# repository only) pushes the branch and opens the PR: one opened with the workflow's own token
+# would run no CI.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contract-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+    env:
+      BRANCH: contract-bump
+      CONTRACT_REPO: ${{ vars.CONTRACT_REPO }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: The newest published contract, when main pins an older one
+        id: newest
+        env:
+          GH_TOKEN: ${{ secrets.OS_CONTRACTS_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${CONTRACT_REPO:?set the repository variable CONTRACT_REPO to the API repository, owner/name}"
+          newest="$(gh release list -R "$CONTRACT_REPO" --limit 200 --json tagName \
+            -q '[.[].tagName | select(startswith("contract-v"))][0] // ""')"
+          newest="${newest#contract-v}"
+          pinned="$(jq -r .version contract.lock)"
+          echo "Newest published contract: ${newest:-none}. main pins $pinned." >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$newest" ] && [ "$newest" != "$pinned" ] \
+            && [ "$(printf '%s\n%s\n' "$pinned" "$newest" | sort -V | tail -n 1)" = "$newest" ]; then
+            echo "version=$newest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update the bump PR
+        if: steps.newest.outputs.version
+        env:
+          VERSION: ${{ steps.newest.outputs.version }}
+          READ_TOKEN: ${{ secrets.OS_CONTRACTS_READ_TOKEN }}
+          GH_TOKEN: ${{ secrets.CONTRACT_BUMP_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${GH_TOKEN:?add the secret CONTRACT_BUMP_TOKEN: contents and pull requests write on this repository}"
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          pr="$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number // ""')"
+          if [ -n "$pr" ]; then
+            git fetch -q origin "$BRANCH"
+            git checkout -q -B "$BRANCH" "origin/$BRANCH"
+            # contract/ is rewritten next, so main's side of any clash there does not matter.
+            git merge -q --no-edit -X theirs origin/main
+          else
+            git push -q origin --delete "$BRANCH" 2> /dev/null || true
+            git checkout -q -B "$BRANCH" origin/main
+          fi
+          GH_TOKEN="$READ_TOKEN" make -s contract-update VERSION="$VERSION" > "$RUNNER_TEMP/diff.md"
+          git add -A contract contract.lock
+          git diff --cached --quiet || git commit -q -m "contract: bump to $VERSION"
+          git push -q origin "$BRANCH"
+          {
+            echo "\`make contract-update VERSION=$VERSION\`, by the contract-bump workflow. This PR's"
+            echo "CI shows whether the bridges still build and pass; merge it by hand once it is green."
+            echo
+            cat "$RUNNER_TEMP/diff.md"
+          } > "$RUNNER_TEMP/body.md"
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --title "contract: bump to $VERSION" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --head "$BRANCH" --base main --title "contract: bump to $VERSION" \
+              --body-file "$RUNNER_TEMP/body.md"
+          fi
+          echo "contract: bump to $VERSION is up to date." >> "$GITHUB_STEP_SUMMARY"

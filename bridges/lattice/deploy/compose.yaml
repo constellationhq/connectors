@@ -1,0 +1,24 @@
+# The Lattice bridge, self-hosted: cp .env.example .env, fill it in, docker compose up -d.
+# Any other variable on https://platform.constellation.space/docs/connectors/lattice (CONSUMER,
+# TASK_TYPE, ...) can go in .env.
+services:
+  lattice-bridge:
+    image: ghcr.io/constellationhq/lattice-bridge:0.7.0
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # The production API unless CONSTELLATION_API_URL (here or in .env) names another.
+      CONSTELLATION_API_URL: ${CONSTELLATION_API_URL:-https://api.constellation.space}
+    # Its cursor and forecast: a recreated container resumes from them instead of starting over.
+    volumes:
+      - lattice-bridge-state:/var/lib/constellation
+    # The bridge touches its heartbeat after every feed poll whose runs it applied and published, so
+    # this marks it unhealthy after 2 minutes without progress: the feed down, a run it cannot
+    # apply, or Lattice not taking what it publishes.
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import os,time,sys; sys.exit(time.time()-os.path.getmtime('/var/lib/constellation/heartbeat')>120)"]
+      interval: 30s
+      start_period: 60s
+
+volumes:
+  lattice-bridge-state:

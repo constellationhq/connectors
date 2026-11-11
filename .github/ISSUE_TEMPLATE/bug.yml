@@ -1,0 +1,25 @@
+name: Bug
+description: A connector does something wrong
+body:
+  - type: dropdown
+    id: connector
+    attributes:
+      label: Connector
+      options: [Yamcs, OpenC3 COSMOS, Open MCT, Anduril Lattice, Template / conformance check, Forecast view]
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: The connector release, and the version of the system it writes to.
+      placeholder: connectors 0.4.0, Yamcs 5.14.0
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+      description: Include the bridge's log lines. Remove API keys, tokens and hostnames first.
+    validations:
+      required: true

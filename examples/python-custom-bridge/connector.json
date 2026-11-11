@@ -1,0 +1,26 @@
+{
+  "name": "my-mcs-bridge",
+  "title": "My mission control",
+  "description": "Forecast passes proposed into my mission control's schedule.",
+  "version": "0.1.0",
+  "settings": {
+    "min_p10_gb": {
+      "type": "number",
+      "title": "Only passes forecast to deliver at least (GB, p10)",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "label": {
+      "type": "string",
+      "title": "Label on what the bridge writes",
+      "default": "Constellation forecast",
+      "max_length": 80
+    },
+    "show_swaps": {
+      "type": "boolean",
+      "title": "Write rain-fade swap advice",
+      "default": true
+    }
+  }
+}

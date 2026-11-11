@@ -1,0 +1,12 @@
+FROM node:22-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+# The cursor and the approvals carried out live in a volume the bridge's user can write, so a
+# rebuilt container resumes where it stopped and never acts twice.
+RUN mkdir -p /var/lib/constellation && chown node /var/lib/constellation
+ENV CURSOR_FILE=/var/lib/constellation/cursor.txt
+VOLUME /var/lib/constellation
+USER node
+CMD ["node", "--experimental-strip-types", "bridge.ts"]

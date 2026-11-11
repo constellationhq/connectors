@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Constellation's forecasts for a Yamcs mission database: predictions about upcoming passes,
+     never measured telemetry, which is why they sit under their own ConstellationForecast system. Local parameters: Yamcs accepts
+     values for them over its API, which is how Constellation's bridge sets them. page/build.sh
+     packs this file into constellation-yamcs.jar, which adds it to every instance's mission
+     database when Yamcs loads the jar (https://platform.constellation.space/docs/connectors/yamcs). -->
+<SpaceSystem name="ConstellationForecast" xmlns="http://www.omg.org/spec/XTCE/20180204">
+  <TelemetryMetaData>
+    <ParameterTypeSet>
+      <FloatParameterType name="gigabytes">
+        <UnitSet><Unit>GB</Unit></UnitSet>
+      </FloatParameterType>
+      <FloatParameterType name="degrees">
+        <UnitSet><Unit>deg</Unit></UnitSet>
+      </FloatParameterType>
+      <IntegerParameterType name="count" signed="false"/>
+      <StringParameterType name="text"/>
+    </ParameterTypeSet>
+    <ParameterSet>
+      <Parameter name="next_pass_expected_gb_p10" parameterTypeRef="gigabytes">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+      <Parameter name="next_pass_expected_gb_p50" parameterTypeRef="gigabytes">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+      <Parameter name="next_pass_expected_gb_p90" parameterTypeRef="gigabytes">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+      <Parameter name="next_pass_max_elevation" parameterTypeRef="degrees">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+      <Parameter name="next_pass_aos" parameterTypeRef="text">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+      <Parameter name="next_pass_satellite" parameterTypeRef="text">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+      <Parameter name="next_pass_station" parameterTypeRef="text">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+      <Parameter name="passes_next_24h" parameterTypeRef="count">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+      <Parameter name="expected_gb_next_24h_p50" parameterTypeRef="gigabytes">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+      <Parameter name="feed_cursor" parameterTypeRef="text">
+        <ParameterProperties dataSource="local"/>
+      </Parameter>
+    </ParameterSet>
+  </TelemetryMetaData>
+</SpaceSystem>

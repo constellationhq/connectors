@@ -1,0 +1,33 @@
+"""{{.Title}}: a Constellation bridge. Write workflow results into your system in apply(), and carry out
+approved actions in act(). Everything else (check-in, cursor, paging, reporting, retries) is the
+Bridge base class in the constellation-space package."""
+
+from pathlib import Path
+
+from constellation_space.bridges.template import Bridge
+
+
+class {{.Class}}(Bridge):
+    def apply(self, items, settings, run):
+        """Write one run's items into your system, keyed on item["entity"]["id"]; return what
+        you wrote. The run is the whole answer for its window: withdraw what you wrote earlier
+        for run["workflow"] inside the window that `items` no longer carries."""
+        kept = [i for i in items if (i.get("value") or {}).get("p10", 0) >= settings.get("min_p10_gb", 0)]
+        for item in kept:
+            print(f"{settings.get('label')}: {item['entity']['id']} at {item['target_at']}", flush=True)
+        return {"passes": len(kept)}
+
+    def act(self, item, settings, run):
+        """Carry out an approved action (book the backup pass, cancel the original) and return
+        True once done. Only approved actions arrive here; raise to retry the run."""
+        action = item["action"]
+        print(f"approved: {action['verb']} {action.get('from')} -> {action.get('to')}", flush=True)
+        return True
+
+
+def main():
+    {{.Class}}(Path(__file__).with_name("connector.json")).run_forever()
+
+
+if __name__ == "__main__":
+    main()

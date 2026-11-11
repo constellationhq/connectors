@@ -1,0 +1,11 @@
+{
+  "name": "typescript-results-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node dashboard.mjs"
+  },
+  "dependencies": {
+    "@constellationspace/client": "file:../../clients/typescript"
+  }
+}

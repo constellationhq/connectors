@@ -1,0 +1,13 @@
+{
+  "version": "1.5.1",
+  "tarball_sha256": "0e1bc5cb07707db0d22f7330299617c88c5f6733f82c94966f7d81c956fd5b53",
+  "files": {
+    "CHANGELOG.md": "d5611fd09790d4ebb856e497246718d1c5da8401bbd1bb5e9c8bc5ea37ff9d02",
+    "DEPRECATIONS.md": "77513ff65c810594610bc8f373aee358a2ed2d86f42f190e82fb70da2caa19a9",
+    "VERSION": "dfe7d71b3f428eb73ed853f8fded65e2986896e21d69f45ebf06bb623b450e14",
+    "mcp-tools.json": "9f8ab60d038ce38b0572b0ff1ffeeff121f4816ea0e415eb102bf2329e25e7e6",
+    "openapi.json": "d087dc850d314b7de5860e1f3df4f1f9cbdb6b81d2a46d6123fad09958ddf12a",
+    "telemetry.proto": "bc0f4b0fd3b252d558c40eae4dddb80d0cac7df4e20d6555e18f0071500b416d",
+    "workflow-result.schema.json": "84db895480f073bfc2d5b092baff514c64ece20b9c68fec3dd39bc7549b79915"
+  }
+}
