@@ -6,6 +6,12 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 1.5.2
+
+-            "description": "Credential scopes do not permit predictions:read."
+-            "description": "The prediction store is temporarily unreadable; retry later."
+-            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+
 ## 1.5.1
 
 -            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
