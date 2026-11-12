@@ -98,45 +98,6 @@
       "type": "object"
     }
   },
-  "get_fleet": {
-    "description": "The fleet as declared and as observed, from GET /topology: config is the latest network config ({version, document}; null when there is none or the key lacks config:read), and state is the newest value of each field per ground antenna and satellite reported within freshness_seconds (default 300, at most 3600). An empty state means nothing has reported in the window. Requires the topology:read scope.",
-    "inputSchema": {
-      "additionalProperties": false,
-      "properties": {
-        "as_of_utc": {
-          "format": "date-time",
-          "type": "string"
-        },
-        "freshness_seconds": {
-          "maximum": 3600,
-          "minimum": 1,
-          "type": "number"
-        },
-        "ground_antenna_id": {
-          "description": "Only these ground_antenna_ids.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "ground_station_id": {
-          "description": "Only these ground_station_ids.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "satellite_id": {
-          "description": "Only these satellite_ids.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    }
-  },
   "get_network_config": {
     "description": "The caller's network config: its ground stations with their antennas, and its satellites with their radios. version picks an older one; the latest otherwise. Contact predictions run over the antennas and satellites named here.",
     "inputSchema": {
@@ -189,7 +150,7 @@
     }
   },
   "get_predictions": {
-    "description": "Forecasts from Constellation's models. For snr (the default family), ask by instant: pass at (a future UTC instant) with a satellite_id, a ground_station_id or ground_antenna_id, or both sides, and no link_ids. Each link up at that instant comes back with its snr_db_p50 in dB, named by ground_station_id, ground_antenna_id and satellite_id; optical links (3000 GHz or more) return rx_power_dbm_p50, received power in dBm under clear sky. A link that is not up at that instant is listed in entity_errors (below_min_elevation), so pick a time in a pass. link_ids is the other snr form, for links sending telemetry now: ground antenna ids from the caller's network config (see get_topology), forecast a few minutes past their latest telemetry. A link without telemetry from the last minute answers no_telemetry, so use at for a link that is not in a pass right now. Up to 100 ids per call, of which at most 25 without a stored forecast are computed in one call. Entities that cannot be answered are listed in entity_errors with a code: no_telemetry or insufficient_telemetry means the input telemetry is missing or stale, and prediction_unavailable means the id was declined for now (the message says why, e.g. a per-call limit or a busy fill) and a later retry can answer it. Retry only the declined ids, after a short pause, not in a loop. weather-attenuation takes no link_ids: it prices the slant-path attenuation in dB of the links of the caller's network config at one future instant, at, for a ground_station_id, a satellite_id or both. With both, every antenna at the station is priced against the satellite; with one, only the links in view and on a common band. Each item names its ground_station_id, ground_antenna_id and satellite_id. Requires the predictions:read scope.",
+    "description": "Forecasts from Constellation's models. For snr (the default family), ask by instant: pass at (a future UTC instant) with a satellite_id, a ground_station_id or ground_antenna_id, or both sides, and no link_ids. Each link up at that instant comes back with its snr_db_p50 in dB, named by ground_station_id, ground_antenna_id and satellite_id; optical links (3000 GHz or more) return rx_power_dbm_p50, received power in dBm under clear sky. A link that is not up at that instant is listed in entity_errors (below_min_elevation), so pick a time in a pass. link_ids is the other snr form, for links sending telemetry now: ground antenna ids from the caller's network config (see get_topology), forecast a few minutes past their latest telemetry. A link without telemetry from the last minute answers no_telemetry, so use at for a link that is not in a pass right now. Up to 100 ids per call, of which at most 25 without a stored forecast are computed in one call. Entities that cannot be answered are listed in entity_errors with a code: no_telemetry or insufficient_telemetry means the input telemetry is missing or stale, and prediction_unavailable means the id was declined for now (the message says why, e.g. a per-call limit or a busy fill) and a later retry can answer it. Retry only the declined ids, after a short pause, not in a loop. weather-attenuation takes no link_ids: it prices the slant-path attenuation in dB of the links of the caller's network config at one future instant, at, for a ground_station_id, a satellite_id or both. With both, every antenna at the station is priced against the satellite; with one, only the links in view and on a common band. Each item names its ground_station_id, ground_antenna_id and satellite_id. rfi takes no link_ids: one link's interference at one instant, at, named by its ground_station_id, one ground_antenna_id and its satellite_id; its value carries rfi_penalty_db, the loss in dB, and p_interference. ssa takes no link_ids: the contacts of one satellite_id in progress at at (within 7 days of now), at one ground_station_id or, without one, at every station; each value carries the pass start and end, peak elevation, the orbit's age and error, and p_track, the probability the antenna holds the satellite through the pass. demand takes target_at in place of at, with one satellite_id and optionally one ground_station_id, and nothing else: the satellite's pass at target_at over each station on its band; its value carries p_free, the share of the pass's antenna time the satellite can expect under contention, and the competing links in view. Requires the predictions:read scope.",
     "inputSchema": {
       "additionalProperties": false,
       "anyOf": [
@@ -202,6 +163,11 @@
           "required": [
             "at"
           ]
+        },
+        {
+          "required": [
+            "target_at"
+          ]
         }
       ],
       "properties": {
@@ -211,12 +177,12 @@
           "type": "string"
         },
         "at": {
-          "description": "weather-attenuation (required there), or snr: the future UTC instant to forecast the links at.",
+          "description": "The UTC instant to forecast at: required for weather-attenuation, rfi and snr by instant, which need it later than now, and for ssa, which takes it within 7 days of now, past or future. Not taken by demand, which takes target_at.",
           "format": "date-time",
           "type": "string"
         },
         "ground_antenna_id": {
-          "description": "snr with at: ground antenna ids from the network config; not with ground_station_id.",
+          "description": "Ground antenna ids from the network config: for snr with at (not with ground_station_id), and exactly one for rfi.",
           "items": {
             "type": "string"
           },
@@ -224,7 +190,7 @@
           "type": "array"
         },
         "ground_station_id": {
-          "description": "weather-attenuation, or snr with at: a ground station id from the network config.",
+          "description": "A ground station id from the network config: required for rfi, optional for weather-attenuation, ssa, demand and snr with at.",
           "type": "string"
         },
         "horizon_minutes": {
@@ -233,7 +199,7 @@
           "type": "integer"
         },
         "link_ids": {
-          "description": "snr from live telemetry: ground antenna ids sending telemetry now. Not taken by weather-attenuation.",
+          "description": "snr from live telemetry: ground antenna ids sending telemetry now. Not taken by the other families.",
           "items": {
             "type": "string"
           },
@@ -242,11 +208,23 @@
           "type": "array"
         },
         "model_family": {
-          "description": "snr (default) for link SNR, or weather-attenuation for a link's attenuation at one instant.",
+          "description": "snr (default) for link SNR, weather-attenuation for a link's attenuation at one instant, rfi for a link's interference at one instant, ssa for a satellite's contacts in progress at one instant, or demand for a satellite's pass and its share of antenna time.",
+          "enum": [
+            "snr",
+            "weather-attenuation",
+            "rfi",
+            "ssa",
+            "demand"
+          ],
           "type": "string"
         },
         "satellite_id": {
-          "description": "weather-attenuation, or snr with at: a satellite id from the network config.",
+          "description": "A satellite id from the network config: required for rfi, ssa and demand, optional for weather-attenuation and snr with at.",
+          "type": "string"
+        },
+        "target_at": {
+          "description": "demand only: the future UTC instant of the pass to price.",
+          "format": "date-time",
           "type": "string"
         }
       },
@@ -314,8 +292,8 @@
       "type": "object"
     }
   },
-  "get_telemetry_v2": {
-    "description": "Link telemetry written with send_telemetry_v2 between start and end, one record per time and id set, oldest first. Set interval and agg to aggregate numeric fields into windows; a raw read spans at most an hour. Requires the topology:read scope.",
+  "get_telemetry": {
+    "description": "Link telemetry written with send_telemetry between start and end, one record per time and id set, oldest first. Set interval and agg to aggregate numeric fields into windows; a raw read spans at most an hour. Requires the topology:read scope.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -383,7 +361,7 @@
     }
   },
   "get_topology": {
-    "description": "The newest value of each field per ground antenna and satellite reported within freshness_seconds (default 300, at most 3600). An empty list means nothing has reported in the window. Requires the topology:read scope.",
+    "description": "The fleet as declared and as observed, from GET /topology: config is the latest network config ({version, document}; null when there is none or the key lacks config:read), and state is the newest value of each field per ground antenna and satellite reported within freshness_seconds (default 300, at most 3600). An empty state means nothing has reported in the window. Requires the topology:read scope.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -457,7 +435,7 @@
     }
   },
   "load_demo_fleet": {
-    "description": "Load a ready-made demo fleet into the caller's account, so the other tools have data: 5 ground stations with 6 antennas and 5 sun-synchronous Earth observation satellites on X and Ka band (ids norad-<NORAD id>) in the network config, and the link telemetry of every pass in the last two hours at a 5 second cadence (es_n0_db, elevation_deg, range_m, frequency_ghz and the rfi noise channel: system_noise_temp_k, noise_diode_on and a contact_id per pass), from the live orbit catalog. The call merges the demo stations, antennas and satellites, with their RF terms, into the caller's network config with PATCH /topology/config, unless the config already holds a demo id (as on a reload), so no tenant entity is overwritten. The telemetry names the demo ids, so on a fresh account a key without config:write fails the call, and the error says so. The SNR is synthetic: a planted offset per link (a known answer for calibration, not a measured loss), plus a slow wander and noise. Each link's es_n0_db also drops by the rain attenuation its ground station stored for the last 30 minutes, scaled to the link's elevation. Older records are not faded, nor is a link with no stored terms; rain_note counts those links, or says the stored terms could not be read. The data ends at the present and does not advance; calling again rewrites the same points, so it is safe to repeat. The demo satellites are in low orbit, so a link is up only during its passes: ask snr with get_predictions and at, at a time in a pass (get_passes lists them). link_ids answers only while a pass is under way, right after this call. Requires the telemetry:write scope.",
+    "description": "Load a ready-made demo fleet into the caller's account, so the other tools have data: 5 ground stations with 7 antennas, 5 sun-synchronous Earth observation satellites on X and Ka band and 1 geostationary one (GOES 19) on L band (ids norad-<NORAD id>) in the network config, and the simulated link telemetry of every pass in the last two hours at a 5 second cadence (es_n0_db, elevation_deg, range_m, frequency_ghz and the rfi noise channel: system_noise_temp_k, noise_diode_on and a contact_id per pass), from the live orbit catalog. The call merges the demo stations, antennas and satellites, with their RF terms, into the caller's network config with PATCH /topology/config, unless the config already holds a demo id (as on a reload), so no tenant entity is overwritten. The telemetry names the demo ids, so on a fresh account a key without config:write fails the call, and the error says so. Mission names are real; the telemetry is simulated and implies no access to those missions. The SNR is synthetic: a planted offset per link (a known answer for calibration, not a measured loss), plus a slow wander, noise and a planted evening rain cell over the Singapore antenna. It has gaps a real feed has: none before a pass's modem locks, none while Troll is in its daily 06:00 to 09:00 UTC maintenance, and a modem dropout on about one pass in five. Each link's es_n0_db also drops by the rain attenuation its ground station stored for the last 30 minutes, scaled to the link's elevation, where that is more than the planted rain. Older records are not faded, nor is a link with no stored terms; rain_note counts those links, or says the stored terms could not be read. The data ends at the present and does not advance; calling again rewrites the same points, so it is safe to repeat. The low-orbit demo satellites' links are up only during their passes: ask snr with get_predictions and at, at a time in a pass (get_passes lists them). link_ids answers only while a pass is under way, right after this call. Requires the telemetry:write scope.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -828,7 +806,7 @@
       "type": "object"
     }
   },
-  "send_telemetry_v2": {
+  "send_telemetry": {
     "description": "Write link telemetry keyed by the caller's network config: up to 1,000 records per call. Each record names a ground_station_id, one of its ground_antenna_ids and a satellite_id, as the network config has them. Antenna fields: azimuth_deg, elevation_deg, tracking_error_az_deg, tracking_error_el_deg, track_mode, range_m, range_rate_m_s. Carrier fields: carrier_locked, subcarrier_locked, symbol_locked, frame_locked, c_n0_dbhz, es_n0_db, rx_power_dbm, frequency_ghz, carrier_offset_hz, frames_delivered, frames_good, uplink_status, modcod, tx_power_dbm, ber, per, system_noise_temp_k, noise_power_dbm, noise_diode_on. The records that pass are written; rejected_indices and rejections name the rest with each index, field and reason. The call is an error only when no record passes, or a record does not match the schema. Requires the telemetry:write scope.",
     "inputSchema": {
       "$defs": {

@@ -1487,7 +1487,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "1.6.3"
+    "version": "2.0.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2290,7 +2290,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), the plan does not include the feature (plan_required names the plan that does), or staff disabled the account (account_disabled)."
@@ -2354,7 +2354,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -2415,7 +2415,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -2484,7 +2484,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -2555,7 +2555,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -2604,7 +2604,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -2646,7 +2646,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -2715,7 +2715,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -2764,7 +2764,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -2811,7 +2811,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -2853,6 +2853,7 @@
             "required": false,
             "schema": {
               "default": "",
+              "maxLength": 128,
               "title": "After",
               "type": "string"
             }
@@ -2965,7 +2966,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3015,7 +3016,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3065,7 +3066,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3114,7 +3115,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3196,7 +3197,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3255,7 +3256,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3304,7 +3305,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3348,7 +3349,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3399,7 +3400,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3466,7 +3467,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3527,7 +3528,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3567,6 +3568,7 @@
             "name": "slug",
             "required": true,
             "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
               "title": "Slug",
               "type": "string"
             }
@@ -3602,7 +3604,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3669,7 +3671,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -3733,7 +3735,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -4019,7 +4021,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "A record the store refuses (invalid_input, field_type_conflict), or the body is not UTF-8 text."
           },
           "404": {
             "description": "No network config to check the log's ids against."
@@ -4297,8 +4299,22 @@
     },
     "/topology/demo-fleet": {
       "post": {
-        "description": "Load the demo fleet into the caller's account: demo_network_config.json (5 ground\nstations, 6 antennas and 5 sun-synchronous Earth observation satellites) as its network\nconfig, then the telemetry of its passes in the last two hours, then the demo workflows\nwith a first run of each. Safe to repeat: a config that holds the demo is kept, the\ntelemetry rewritten, and a workflow already saved under a demo slug left as it is.",
+        "description": "Load the demo fleet into the caller's account: demo_network_config.json (5 ground\nstations, 7 antennas, 5 sun-synchronous Earth observation satellites and 1 geostationary\none, real mission names\nwith simulated telemetry) as its network config, then the telemetry of its passes in the\nlast two hours, then the demo workflows with a run of each. Safe to repeat: a config that\nholds the demo keeps the account's edits, the telemetry is rewritten to end now, a workflow\nalready saved under a demo slug is left as it is, and a demo workflow whose newest run ends\nwithin DEMO_RUN_FRESH_HOURS gets a new one.",
         "operationId": "load_demo_fleet_topology_demo_fleet_post",
+        "parameters": [
+          {
+            "description": "Put today's demo definition back over every demo satellite and station the account edited, and start a fresh run of each demo workflow. The account's own assets and workflows stay.",
+            "in": "query",
+            "name": "reset",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Put today's demo definition back over every demo satellite and station the account edited, and start a fresh run of each demo workflow. The account's own assets and workflows stay.",
+              "title": "Reset",
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -4313,6 +4329,16 @@
           },
           "409": {
             "description": "The account has a network config of its own, holding a station, antenna or satellite (network_config_exists)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Load Demo Fleet"
@@ -4404,7 +4430,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -4445,7 +4471,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
@@ -4491,7 +4517,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Malformed request body (not valid JSON)."
+            "description": "The body is not UTF-8 text."
           },
           "403": {
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."

@@ -6,6 +6,167 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.0.0
+
+- added `enum mcp-tools.json/get_predictions/inputSchema/properties/model_family "demand"`
+- added `enum mcp-tools.json/get_predictions/inputSchema/properties/model_family "rfi"`
+- added `enum mcp-tools.json/get_predictions/inputSchema/properties/model_family "snr"`
+- added `enum mcp-tools.json/get_predictions/inputSchema/properties/model_family "ssa"`
+- added `enum mcp-tools.json/get_predictions/inputSchema/properties/model_family "weather-attenuation"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/agg "last"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/agg "max"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/agg "mean"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/agg "min"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/interval "15m"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/interval "15s"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/interval "1h"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/interval "1m"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/interval "30s"`
+- added `enum mcp-tools.json/get_telemetry/inputSchema/properties/interval "5m"`
+- added `enum mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/dataset/anyOf/0 "audit"`
+- added `enum mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/dataset/anyOf/0 "live"`
+- added `enum mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/dataset/anyOf/0 "sim"`
+- added `field mcp-tools.json/get_predictions/inputSchema/properties/target_at`
+- added `field mcp-tools.json/get_telemetry/inputSchema/properties/agg`
+- added `field mcp-tools.json/get_telemetry/inputSchema/properties/end`
+- added `field mcp-tools.json/get_telemetry/inputSchema/properties/field`
+- added `field mcp-tools.json/get_telemetry/inputSchema/properties/ground_antenna_id`
+- added `field mcp-tools.json/get_telemetry/inputSchema/properties/ground_station_id`
+- added `field mcp-tools.json/get_telemetry/inputSchema/properties/interval`
+- added `field mcp-tools.json/get_telemetry/inputSchema/properties/satellite_id`
+- added `field mcp-tools.json/get_telemetry/inputSchema/properties/start`
+- added `field mcp-tools.json/send_telemetry/inputSchema/properties/records`
+- added `field mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/contact_id`
+- added `field mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/dataset`
+- added `field mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/fields`
+- added `field mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/ground_antenna_id`
+- added `field mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/ground_station_id`
+- added `field mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/radio_id`
+- added `field mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/satellite_id`
+- added `field mcp-tools.json/send_telemetry/inputSchema/properties/records/items/properties/time`
+- added `tool get_telemetry`
+- added `tool send_telemetry`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/agg "last"`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/agg "max"`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/agg "mean"`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/agg "min"`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/interval "15m"`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/interval "15s"`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/interval "1h"`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/interval "1m"`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/interval "30s"`
+- removed `enum mcp-tools.json/get_telemetry_v2/inputSchema/properties/interval "5m"`
+- removed `enum mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/dataset/anyOf/0 "audit"`
+- removed `enum mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/dataset/anyOf/0 "live"`
+- removed `enum mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/dataset/anyOf/0 "sim"`
+- removed `field mcp-tools.json/get_fleet/inputSchema/properties/as_of_utc`
+- removed `field mcp-tools.json/get_fleet/inputSchema/properties/freshness_seconds`
+- removed `field mcp-tools.json/get_fleet/inputSchema/properties/ground_antenna_id`
+- removed `field mcp-tools.json/get_fleet/inputSchema/properties/ground_station_id`
+- removed `field mcp-tools.json/get_fleet/inputSchema/properties/satellite_id`
+- removed `field mcp-tools.json/get_telemetry_v2/inputSchema/properties/agg`
+- removed `field mcp-tools.json/get_telemetry_v2/inputSchema/properties/end`
+- removed `field mcp-tools.json/get_telemetry_v2/inputSchema/properties/field`
+- removed `field mcp-tools.json/get_telemetry_v2/inputSchema/properties/ground_antenna_id`
+- removed `field mcp-tools.json/get_telemetry_v2/inputSchema/properties/ground_station_id`
+- removed `field mcp-tools.json/get_telemetry_v2/inputSchema/properties/interval`
+- removed `field mcp-tools.json/get_telemetry_v2/inputSchema/properties/satellite_id`
+- removed `field mcp-tools.json/get_telemetry_v2/inputSchema/properties/start`
+- removed `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records`
+- removed `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/contact_id`
+- removed `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/dataset`
+- removed `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/fields`
+- removed `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/ground_antenna_id`
+- removed `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/ground_station_id`
+- removed `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/radio_id`
+- removed `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/satellite_id`
+- removed `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/time`
+- removed `tool get_fleet`
+- removed `tool get_telemetry_v2`
+- removed `tool send_telemetry_v2`
+-  "get_fleet": {
+-    "description": "The fleet as declared and as observed, from GET /topology: config is the latest network config ({version, document}; null when there is none or the key lacks config:read), and state is the newest value of each field per ground antenna and satellite reported within freshness_seconds (default 300, at most 3600). An empty state means nothing has reported in the window. Requires the topology:read scope.",
+-    "inputSchema": {
+-      "additionalProperties": false,
+-      "properties": {
+-        "as_of_utc": {
+-          "format": "date-time",
+-          "type": "string"
+-        },
+-        "freshness_seconds": {
+-          "maximum": 3600,
+-          "minimum": 1,
+-          "type": "number"
+-        },
+-        "ground_antenna_id": {
+-          "description": "Only these ground_antenna_ids.",
+-          "items": {
+-            "type": "string"
+-          },
+-          "type": "array"
+-        },
+-        "ground_station_id": {
+-          "description": "Only these ground_station_ids.",
+-          "items": {
+-            "type": "string"
+-          },
+-          "type": "array"
+-        },
+-        "satellite_id": {
+-          "description": "Only these satellite_ids.",
+-          "items": {
+-            "type": "string"
+-          },
+-          "type": "array"
+-        }
+-      },
+-      "type": "object"
+-    }
+-  },
+-    "description": "Forecasts from Constellation's models. For snr (the default family), ask by instant: pass at (a future UTC instant) with a satellite_id, a ground_station_id or ground_antenna_id, or both sides, and no link_ids. Each link up at that instant comes back with its snr_db_p50 in dB, named by ground_station_id, ground_antenna_id and satellite_id; optical links (3000 GHz or more) return rx_power_dbm_p50, received power in dBm under clear sky. A link that is not up at that instant is listed in entity_errors (below_min_elevation), so pick a time in a pass. link_ids is the other snr form, for links sending telemetry now: ground antenna ids from the caller's network config (see get_topology), forecast a few minutes past their latest telemetry. A link without telemetry from the last minute answers no_telemetry, so use at for a link that is not in a pass right now. Up to 100 ids per call, of which at most 25 without a stored forecast are computed in one call. Entities that cannot be answered are listed in entity_errors with a code: no_telemetry or insufficient_telemetry means the input telemetry is missing or stale, and prediction_unavailable means the id was declined for now (the message says why, e.g. a per-call limit or a busy fill) and a later retry can answer it. Retry only the declined ids, after a short pause, not in a loop. weather-attenuation takes no link_ids: it prices the slant-path attenuation in dB of the links of the caller's network config at one future instant, at, for a ground_station_id, a satellite_id or both. With both, every antenna at the station is priced against the satellite; with one, only the links in view and on a common band. Each item names its ground_station_id, ground_antenna_id and satellite_id. Requires the predictions:read scope.",
+-          "description": "weather-attenuation (required there), or snr: the future UTC instant to forecast the links at.",
+-          "description": "snr with at: ground antenna ids from the network config; not with ground_station_id.",
+-          "description": "weather-attenuation, or snr with at: a ground station id from the network config.",
+-          "description": "snr from live telemetry: ground antenna ids sending telemetry now. Not taken by weather-attenuation.",
+-          "description": "snr (default) for link SNR, or weather-attenuation for a link's attenuation at one instant.",
+-          "description": "weather-attenuation, or snr with at: a satellite id from the network config.",
+-  "get_telemetry_v2": {
+-    "description": "Link telemetry written with send_telemetry_v2 between start and end, one record per time and id set, oldest first. Set interval and agg to aggregate numeric fields into windows; a raw read spans at most an hour. Requires the topology:read scope.",
+-    "description": "The newest value of each field per ground antenna and satellite reported within freshness_seconds (default 300, at most 3600). An empty list means nothing has reported in the window. Requires the topology:read scope.",
+-  "send_telemetry_v2": {
+
+## 1.6.4
+
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-        "description": "Load the demo fleet into the caller's account: demo_network_config.json (5 ground\nstations, 6 antennas and 5 sun-synchronous Earth observation satellites) as its network\nconfig, then the telemetry of its passes in the last two hours, then the demo workflows\nwith a first run of each. Safe to repeat: a config that holds the demo is kept, the\ntelemetry rewritten, and a workflow already saved under a demo slug left as it is.",
+-            "description": "Malformed request body (not valid JSON)."
+-            "description": "Malformed request body (not valid JSON)."
+-    "description": "Load a ready-made demo fleet into the caller's account, so the other tools have data: 5 ground stations with 6 antennas and 5 sun-synchronous Earth observation satellites on X and Ka band (ids norad-<NORAD id>) in the network config, and the link telemetry of every pass in the last two hours at a 5 second cadence (es_n0_db, elevation_deg, range_m, frequency_ghz and the rfi noise channel: system_noise_temp_k, noise_diode_on and a contact_id per pass), from the live orbit catalog. The call merges the demo stations, antennas and satellites, with their RF terms, into the caller's network config with PATCH /topology/config, unless the config already holds a demo id (as on a reload), so no tenant entity is overwritten. The telemetry names the demo ids, so on a fresh account a key without config:write fails the call, and the error says so. The SNR is synthetic: a planted offset per link (a known answer for calibration, not a measured loss), plus a slow wander and noise. Each link's es_n0_db also drops by the rain attenuation its ground station stored for the last 30 minutes, scaled to the link's elevation. Older records are not faded, nor is a link with no stored terms; rain_note counts those links, or says the stored terms could not be read. The data ends at the present and does not advance; calling again rewrites the same points, so it is safe to repeat. The demo satellites are in low orbit, so a link is up only during its passes: ask snr with get_predictions and at, at a time in a pass (get_passes lists them). link_ids answers only while a pass is under way, right after this call. Requires the telemetry:write scope.",
+
 ## 1.6.3
 
 -    "description": "Forecasts for named entities from Constellation's models; the ids go in link_ids whatever the family. The default family, snr, returns signal-to-noise forecasts in dB as a point value (snr_db_p50) per link and horizon; optical links (3000 GHz or more) return rx_power_dbm_p50, received power in dBm under clear sky; a link id is a ground antenna id from the caller's network config (see get_topology). To ask snr by instant, pass at (a future UTC instant) with a satellite_id, a ground_station_id or ground_antenna_id, or both sides, and no link_ids: each link up at that instant comes back with its snr_db_p50, named by ground_station_id, ground_antenna_id and satellite_id. Up to 100 ids per call, of which at most 25 without a stored forecast are computed in one call. Entities that cannot be answered are listed in entity_errors with a code: no_telemetry or insufficient_telemetry means the input telemetry is missing or stale, and prediction_unavailable means the id was declined for now (the message says why, e.g. a per-call limit or a busy fill) and a later retry can answer it. Retry only the declined ids, after a short pause, not in a loop. weather-attenuation takes no link_ids: it prices the slant-path attenuation in dB of the links of the caller's network config at one future instant, at, for a ground_station_id, a satellite_id or both. With both, every antenna at the station is priced against the satellite; with one, only the links in view and on a common band. Each item names its ground_station_id, ground_antenna_id and satellite_id. Requires the predictions:read scope.",
