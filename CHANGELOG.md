@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.7.1 (2026-11-12)
+
+- Built against API contract 1.6.0 (was 1.5.1). The MCP tools gained `get_passes` and paged
+  `get_run`; the bridges' protocol is unchanged, so 0.7.0 bridges keep working.
+- npm publishes with trusted publishing (OIDC) and provenance, with no token.
+- The Open MCT plugin's header no longer says to wait for an API release before using the API
+  source.
+- README and CHANGELOG name the contract each release was built against.
+
 ## v0.7.0 (2026-11-12)
 
 The first public release. Every package, image and plugin is 0.7.0, built against API contract

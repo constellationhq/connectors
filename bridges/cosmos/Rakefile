@@ -1,5 +1,5 @@
-# Builds openc3-cosmos-constellation-<VERSION>.gem: rake build VERSION=0.7.0
-# (or ./openc3.sh cli rake build VERSION=0.7.0 inside a COSMOS checkout).
+# Builds openc3-cosmos-constellation-<VERSION>.gem: rake build VERSION=0.7.1
+# (or ./openc3.sh cli rake build VERSION=0.7.1 inside a COSMOS checkout).
 PLUGIN_NAME = Dir['*.gemspec'][0].split('.')[0..-2].join('.')
 
 # The tool draws the shared Constellation Forecast view, copied in from this repo when it is here.
@@ -11,7 +11,7 @@ RESULTS = 'microservices/BRIDGE/constellation_space/results.py'
 SHARED_RESULTS = '../../clients/python/src/constellation_space/results.py'
 
 task :build do
-  abort('VERSION is required: rake build VERSION=0.7.0') unless ENV['VERSION']
+  abort('VERSION is required: rake build VERSION=0.7.1') unless ENV['VERSION']
   FileUtils.cp(SHARED_VIEW, VIEW) if File.exist?(SHARED_VIEW)
   abort("#{VIEW} is missing: copy bridges/shared/forecast-view.js there") unless File.exist?(VIEW)
   if File.exist?(SHARED_RESULTS)

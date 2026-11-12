@@ -1,6 +1,6 @@
 {
   "name": "@constellationspace/client",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Constellation API client and workflow results bridge base for Node 18+ and browsers.",
   "license": "Apache-2.0",
   "repository": {
