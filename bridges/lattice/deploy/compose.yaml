@@ -3,7 +3,7 @@
 # TASK_TYPE, ...) can go in .env.
 services:
   lattice-bridge:
-    image: ghcr.io/constellationhq/lattice-bridge:0.7.0
+    image: ghcr.io/constellationhq/lattice-bridge:0.7.1
     restart: unless-stopped
     env_file: .env
     environment:

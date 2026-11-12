@@ -58,6 +58,7 @@ is the one `contract.lock` pins; the Fleet Agent is released on its own `agent-v
 
 | Release | Contract | Fleet Agent | Yamcs (jar built and tested against) | Python | Node | Go | Open MCT (tested against) | COSMOS | Lattice |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| v0.7.1 | 1.6.0 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | not tested in COSMOS | stub only |
 | v0.7.0 | 1.5.1 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | not tested in COSMOS | stub only |
 
 CI runs on every pull request and release, against a stub Constellation API: the jar in stock
