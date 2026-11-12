@@ -1,12 +1,12 @@
 {
-  "version": "1.6.2",
-  "tarball_sha256": "302fcbf2c9ce072faa455c6f1a3911f3a8ff00bb3fe4c31d23cf384ff280b46f",
+  "version": "1.6.3",
+  "tarball_sha256": "b71eb6534dd1b1944b095d6a6dcf98a629611f68c34af1f978e4243686332fe2",
   "files": {
-    "CHANGELOG.md": "bd7674b0cd8722dae30f18eb48364cbcf6f6bfbabc1560cc9fab732cb31bda73",
+    "CHANGELOG.md": "bffbab9caba57bb08bf8b490abd1bfc8294455d85766a66db22e09f91d6a72da",
     "DEPRECATIONS.md": "77513ff65c810594610bc8f373aee358a2ed2d86f42f190e82fb70da2caa19a9",
-    "VERSION": "a2d5e268fe70979caccd895156b3d33bd61a3cc7e660ab7a5b07066849b3e248",
-    "mcp-tools.json": "59dff232aac6efc4682c2a680ca8afe019397dba954fea9efc226bd16989afa6",
-    "openapi.json": "ea24d3cb3325ad39fed44f74daf7ea38114cec60a9a5baeca8d2ac524a5ef160",
+    "VERSION": "86f8fa832a76358201d6e2fcf0bb47727efe2db23af730db64cead6527776bea",
+    "mcp-tools.json": "29efded1c6e632b7c3943e7e5e149f8322ac5c570ff0b15b479369b8787e91c8",
+    "openapi.json": "c3e61cf18728b2fc81c27fb5f4a20dfc06e2f46410a812dd5c50cd8503e790f3",
     "telemetry.proto": "bc0f4b0fd3b252d558c40eae4dddb80d0cac7df4e20d6555e18f0071500b416d",
     "workflow-result.schema.json": "84db895480f073bfc2d5b092baff514c64ece20b9c68fec3dd39bc7549b79915"
   }
