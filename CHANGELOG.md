@@ -3,7 +3,7 @@
 ## v0.7.0 (2026-11-12)
 
 The first public release. Every package, image and plugin is 0.7.0, built against API contract
-1.5.0.
+1.5.1.
 
 - Bridges for Yamcs (a plugin jar with the Forecast page and `/ConstellationForecast`
   parameters, and a bridge image), OpenC3 COSMOS (a plugin gem with a target, a Forecast tool and
