@@ -9,9 +9,8 @@
 //   source: 'api'     the Constellation results feed (GET /predictions/feed) as the connection
 //                     `consumer` (default "openmct"), with a live key (cos_live_...) whose only
 //                     scope is results:read: it reads the feed and nothing else, so the browser
-//                     can hold it. The API answers any origin on the feed, without cookies. Both
-//                     need a Constellation API release that has them; until yours does, use
-//                     the Yamcs source. Never put a predictions:read key in a page: anyone who
+//                     can hold it. The API answers any origin on the feed, without cookies.
+//                     Never put a predictions:read key in a page: anyone who
 //                     opens the page can read it, and it can do more than read the feed.
 //   source: 'yamcs'   (default) what the Constellation Yamcs bridge writes to Yamcs's
 //                     "constellation" bucket, read from yamcsUrl (required), so it needs no
