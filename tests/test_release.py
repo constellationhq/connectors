@@ -39,7 +39,7 @@ def test_the_release_is_signed_keyless_before_anything_is_released():
 def test_the_registries_publish_from_this_repositorys_identity():
     pypi, npm = job("pypi"), job("npm")
     assert "id-token: write" in pypi and "password" not in pypi and "environment: pypi" in pypi
-    assert "--provenance" in npm and "id-token: write" in npm and "NPM_TOKEN" in npm
+    assert "--provenance" in npm and "id-token: write" in npm and "NPM_TOKEN" not in npm
     rubygems = job("rubygems")
     assert "id-token: write" in rubygems and "trusted_publisher/exchange_token" in rubygems
     assert "vars.RUBYGEMS_OWNER_ID" in rubygems

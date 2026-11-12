@@ -342,7 +342,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       # Trusted publishing needs npm 11.5.1 or later; Node 22 ships npm 10.
       - run: npm install --global npm@11.6.2
-      - run: npm publish --access public ./dist/constellationspace-client-*.tgz
+      - run: npm publish --provenance --access public ./dist/constellationspace-client-*.tgz
 
   rubygems:
     needs: release
