@@ -1487,7 +1487,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "1.5.1"
+    "version": "1.5.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2218,7 +2218,7 @@
             "description": "Missing, invalid, or retired query parameter."
           },
           "403": {
-            "description": "Credential scopes do not permit predictions:read."
+            "description": "Credential scopes do not permit predictions:read, or the plan does not include the model family (plan_required: demand needs learned_corrections)."
           },
           "404": {
             "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available)."
@@ -2237,7 +2237,7 @@
             "description": "The durable prediction store returned an unexpected error."
           },
           "503": {
-            "description": "The prediction store is temporarily unreadable; retry later."
+            "description": "The prediction store or the account's plan (plan_unavailable) is temporarily unreadable; retry later. A 503 is never counted as usage."
           }
         },
         "summary": "Get Predictions"
@@ -2293,7 +2293,7 @@
             "description": "Malformed request body (not valid JSON)."
           },
           "403": {
-            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+            "description": "The key lacks the scope, is a test key (live_key_required), the plan does not include the feature (plan_required names the plan that does), or staff disabled the account (account_disabled)."
           },
           "404": {
             "description": "An unknown workflow, run, cursor or connector, or workflows are off."
