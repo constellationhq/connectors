@@ -1,6 +1,6 @@
 {
   "approve_action": {
-    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as an instruction to carry out (a swap can cancel a booked pass) and cannot be rejected afterwards. Requires the act:approve scope.",
+    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as an instruction to carry out (a swap can cancel a booked pass) and cannot be rejected afterwards. The approval stands for the same action on the workflow's later runs. Needs the Operator + Act plan (403 plan_required below it), the act:approve scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -150,6 +150,44 @@
       "type": "object"
     }
   },
+  "get_passes": {
+    "description": "Every pass of the network config's satellites over its antennas between from and to, from the live orbit catalog and each antenna's elevation mask, sampled every step_s seconds. Each pass carries the pass_id a run's item for it carries. satellite_id and antenna_id narrow it. Below the Operator plan it covers at most 2 satellites of the caller's own; the demo fleet's are free. Every time carries a UTC offset. Requires the topology:read scope.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "antenna_id": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "from": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "satellite_id": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "step_s": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "to": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "step_s"
+      ],
+      "type": "object"
+    }
+  },
   "get_predictions": {
     "description": "Forecasts for named entities from Constellation's models; the ids go in link_ids whatever the family. The default family, snr, returns signal-to-noise forecasts in dB as a point value (snr_db_p50) per link and horizon; optical links (3000 GHz or more) return rx_power_dbm_p50, received power in dBm under clear sky; a link id is a ground antenna id from the caller's network config (see get_topology). To ask snr by instant, pass at (a future UTC instant) with a satellite_id, a ground_station_id or ground_antenna_id, or both sides, and no link_ids: each link up at that instant comes back with its snr_db_p50, named by ground_station_id, ground_antenna_id and satellite_id. Up to 100 ids per call, of which at most 25 without a stored forecast are computed in one call. Entities that cannot be answered are listed in entity_errors with a code: no_telemetry or insufficient_telemetry means the input telemetry is missing or stale, and prediction_unavailable means the id was declined for now (the message says why, e.g. a per-call limit or a busy fill) and a later retry can answer it. Retry only the declined ids, after a short pause, not in a loop. weather-attenuation takes no link_ids: it prices the slant-path attenuation in dB of the links of the caller's network config at one future instant, at, for a ground_station_id, a satellite_id or both. With both, every antenna at the station is priced against the satellite; with one, only the links in view and on a common band. Each item names its ground_station_id, ground_antenna_id and satellite_id. Requires the predictions:read scope.",
     "inputSchema": {
@@ -216,17 +254,63 @@
     }
   },
   "get_run": {
-    "description": "A run's status and, when done, every pass: pass_id, AOS, LOS, expected GB at p10/p50/p90, and the explain ledger naming each lane's value and source.",
+    "description": "A run by run_id, or a workflow's newest finished run by its slug (workflow; 409 no_finished_run until one finishes). Answers the run's status (queued, running, done, failed or cancelled) and, when done, its items: each names its entity (type pass, link or antenna, with its ids) and target_at, with value p10/p50/p90 and the explain ledger naming each lane's value and source. A held action on an item carries its action_status. A run can hold thousands of items, so read them in pages: page_records items from page (next_page while more are left), and narrow with satellite_id, antenna_id, station_id or pass_id. Not counted as a prediction. Requires the predictions:read scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "run_id"
+          ]
+        },
+        {
+          "required": [
+            "workflow"
+          ]
+        }
+      ],
       "properties": {
+        "antenna_id": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "page": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "page_records": {
+          "maximum": 5000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "pass_id": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "run_id": {
+          "type": "string"
+        },
+        "satellite_id": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "station_id": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "workflow": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
           "type": "string"
         }
       },
-      "required": [
-        "run_id"
-      ],
       "type": "object"
     }
   },
@@ -346,7 +430,7 @@
     }
   },
   "list_actions": {
-    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected or expired, with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode.",
+    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected or expired, with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -361,7 +445,7 @@
     }
   },
   "list_workflows": {
-    "description": "The caller's saved workflows, the latest version of each, as a name and a node graph. With templates true, the read-only templates instead (pass-yield, antenna-capacity, modcod-plan, rain-fade-swap, audit-ledger, and rfi-watch, marked available false where no rfi model is served), and lanes: each lane with whether a run prices it here and, where not, why; copy a template by saving its graph with put_workflow under your own slug.",
+    "description": "The caller's saved workflows (the Platform's Automations tab), the latest version of each, as a name and a node graph. With templates true, the read-only templates instead (pass-yield, antenna-capacity, modcod-plan, rain-fade-swap, audit-ledger, and rfi-watch, marked available false where no rfi model is served), and lanes: each lane with whether a run prices it here and, where not, why; copy a template by saving its graph with put_workflow under your own slug. Requires the config:read, config:write or workflows:write scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -396,7 +480,7 @@
     }
   },
   "put_workflow": {
-    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. Requires the workflows:write or config:write scope.",
+    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. Requires the workflows:write or config:write scope and a live key.",
     "inputSchema": {
       "$defs": {
         "Edge": {
@@ -562,7 +646,7 @@
     }
   },
   "reject_action": {
-    "description": "Reject an action a run holds (run_id and item_id from list_actions): nothing is published and it cannot be decided again. Requires the act:approve scope.",
+    "description": "Reject an action a run holds (run_id and item_id from list_actions): nothing is published, it cannot be decided again, and later runs hold the same action back as rejected. Requires the act:approve scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -581,7 +665,7 @@
     }
   },
   "run_workflow": {
-    "description": "Start a run of a saved workflow over a UTC window (from and to) or at one time (at), optionally against a scenario_id. Returns a run_id for get_run. Every time carries a UTC offset. Requires the workflows:write scope.",
+    "description": "Start a run of a saved workflow over a UTC window (from and to) or at one time (at), optionally against a scenario_id. Returns a run_id for get_run; the run queues and runs in the background. Every time carries a UTC offset. deliver false is a test run: it prices and stores its items and sends nothing, and a run against a scenario is always one. A run that delivers needs the Operator plan or above; a plan without it is refused with 403 plan_required. A run computes at most 4,000,000 link steps (links times steps): more is refused with 422 too_many_link_steps and a suggested_step_s that fits. Requires the workflows:write scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -745,7 +829,7 @@
     }
   },
   "send_telemetry_v2": {
-    "description": "Write link telemetry keyed by the caller's network config: up to 1,000 records per call. Each record names a ground_station_id, one of its ground_antenna_ids and a satellite_id, as the network config has them. Antenna fields: azimuth_deg, elevation_deg, tracking_error_az_deg, tracking_error_el_deg, track_mode, range_m, range_rate_m_s. Carrier fields: carrier_locked, subcarrier_locked, symbol_locked, frame_locked, c_n0_dbhz, es_n0_db, rx_power_dbm, frequency_ghz, carrier_offset_hz, frames_delivered, frames_good, uplink_status, modcod, tx_power_dbm, ber, per, system_noise_temp_k, noise_power_dbm, noise_diode_on. A batch with one invalid record is rejected whole, naming its index, field and reason. Requires the telemetry:write scope.",
+    "description": "Write link telemetry keyed by the caller's network config: up to 1,000 records per call. Each record names a ground_station_id, one of its ground_antenna_ids and a satellite_id, as the network config has them. Antenna fields: azimuth_deg, elevation_deg, tracking_error_az_deg, tracking_error_el_deg, track_mode, range_m, range_rate_m_s. Carrier fields: carrier_locked, subcarrier_locked, symbol_locked, frame_locked, c_n0_dbhz, es_n0_db, rx_power_dbm, frequency_ghz, carrier_offset_hz, frames_delivered, frames_good, uplink_status, modcod, tx_power_dbm, ber, per, system_noise_temp_k, noise_power_dbm, noise_diode_on. The records that pass are written; rejected_indices and rejections name the rest with each index, field and reason. The call is an error only when no record passes, or a record does not match the schema. Requires the telemetry:write scope.",
     "inputSchema": {
       "$defs": {
         "TelemetryValue": {

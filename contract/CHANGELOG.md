@@ -6,6 +6,42 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 1.6.0
+
+- added `field mcp-tools.json/get_passes/inputSchema/properties/antenna_id`
+- added `field mcp-tools.json/get_passes/inputSchema/properties/from`
+- added `field mcp-tools.json/get_passes/inputSchema/properties/satellite_id`
+- added `field mcp-tools.json/get_passes/inputSchema/properties/step_s`
+- added `field mcp-tools.json/get_passes/inputSchema/properties/to`
+- added `field mcp-tools.json/get_run/inputSchema/properties/antenna_id`
+- added `field mcp-tools.json/get_run/inputSchema/properties/page`
+- added `field mcp-tools.json/get_run/inputSchema/properties/page_records`
+- added `field mcp-tools.json/get_run/inputSchema/properties/pass_id`
+- added `field mcp-tools.json/get_run/inputSchema/properties/satellite_id`
+- added `field mcp-tools.json/get_run/inputSchema/properties/station_id`
+- added `field mcp-tools.json/get_run/inputSchema/properties/workflow`
+- added `tool get_passes`
+-    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as an instruction to carry out (a swap can cancel a booked pass) and cannot be rejected afterwards. Requires the act:approve scope.",
+-    "description": "A run's status and, when done, every pass: pass_id, AOS, LOS, expected GB at p10/p50/p90, and the explain ledger naming each lane's value and source.",
+-    "inputSchema": {
+-      "additionalProperties": false,
+-      "properties": {
+-        }
+-      },
+-      "required": [
+-        "run_id"
+-      ],
+-    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected or expired, with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode.",
+-    "description": "The caller's saved workflows, the latest version of each, as a name and a node graph. With templates true, the read-only templates instead (pass-yield, antenna-capacity, modcod-plan, rain-fade-swap, audit-ledger, and rfi-watch, marked available false where no rfi model is served), and lanes: each lane with whether a run prices it here and, where not, why; copy a template by saving its graph with put_workflow under your own slug.",
+-    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. Requires the workflows:write or config:write scope.",
+-    "description": "Reject an action a run holds (run_id and item_id from list_actions): nothing is published and it cannot be decided again. Requires the act:approve scope.",
+-    "description": "Start a run of a saved workflow over a UTC window (from and to) or at one time (at), optionally against a scenario_id. Returns a run_id for get_run. Every time carries a UTC offset. Requires the workflows:write scope.",
+-    "description": "Write link telemetry keyed by the caller's network config: up to 1,000 records per call. Each record names a ground_station_id, one of its ground_antenna_ids and a satellite_id, as the network config has them. Antenna fields: azimuth_deg, elevation_deg, tracking_error_az_deg, tracking_error_el_deg, track_mode, range_m, range_rate_m_s. Carrier fields: carrier_locked, subcarrier_locked, symbol_locked, frame_locked, c_n0_dbhz, es_n0_db, rx_power_dbm, frequency_ghz, carrier_offset_hz, frames_delivered, frames_good, uplink_status, modcod, tx_power_dbm, ber, per, system_noise_temp_k, noise_power_dbm, noise_diode_on. A batch with one invalid record is rejected whole, naming its index, field and reason. Requires the telemetry:write scope.",
+
+## 1.5.3
+
+-            "description": "The account has a network config of its own (network_config_exists)."
+
 ## 1.5.2
 
 -            "description": "Credential scopes do not permit predictions:read."
