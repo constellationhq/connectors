@@ -1487,7 +1487,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "1.6.1"
+    "version": "1.6.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2218,7 +2218,7 @@
             "description": "Missing, invalid, or retired query parameter."
           },
           "403": {
-            "description": "Credential scopes do not permit predictions:read, or the plan does not include the model family (plan_required: demand needs learned_corrections)."
+            "description": "Credential scopes do not permit predictions:read."
           },
           "404": {
             "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available)."
