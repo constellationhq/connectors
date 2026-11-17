@@ -23,6 +23,8 @@ export interface Result {
     source?: string;
     /** A pass's ground track, when known. */
     track?: Record<string, unknown>[];
+    /** On an antenna a linked ground network maps: state, the network's offers, the held booking. */
+    booking?: Record<string, unknown>;
     [key: string]: unknown;
   };
   target_at: string;
@@ -62,6 +64,10 @@ export interface ResultAction {
   to_at?: string | null;
   deadline?: string;
   gain_gb_p10?: number;
+  /** The ground network's offer for the backup: link, network, slot_id, price, cancel_deadline_utc. */
+  to_offer?: Record<string, unknown>;
+  /** The operator's booking of the original to cancel: link, network, booking_id, price, cancel_deadline_utc, state. */
+  from_held?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
