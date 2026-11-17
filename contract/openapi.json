@@ -1487,7 +1487,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.0.0"
+    "version": "2.1.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4298,6 +4298,19 @@
       }
     },
     "/topology/demo-fleet": {
+      "delete": {
+        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's. The account's own\nstations, antennas, satellites and workflows stay. Safe to repeat.",
+        "operationId": "remove_demo_fleet_topology_demo_fleet_delete",
+        "responses": {
+          "204": {
+            "description": "The demo is out of the network config, or there was none. The demo telemetry already written stays in the telemetry store, which deletes nothing; no link of the config names it any more."
+          },
+          "403": {
+            "description": "The key lacks config:write."
+          }
+        },
+        "summary": "Remove Demo Fleet"
+      },
       "post": {
         "description": "Load the demo fleet into the caller's account: demo_network_config.json (5 ground\nstations, 7 antennas, 5 sun-synchronous Earth observation satellites and 1 geostationary\none, real mission names\nwith simulated telemetry) as its network config, then the telemetry of its passes in the\nlast two hours, then the demo workflows with a run of each. Safe to repeat: a config that\nholds the demo keeps the account's edits, the telemetry is rewritten to end now, a workflow\nalready saved under a demo slug is left as it is, and a demo workflow whose newest run ends\nwithin DEMO_RUN_FRESH_HOURS gets a new one.",
         "operationId": "load_demo_fleet_topology_demo_fleet_post",
