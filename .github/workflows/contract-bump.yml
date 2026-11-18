@@ -72,7 +72,15 @@ jobs:
             git push -q origin --delete "$BRANCH" 2> /dev/null || true
             git checkout -q -B "$BRANCH" origin/main
           fi
-          GH_TOKEN="$READ_TOKEN" make -s contract-update VERSION="$VERSION" > "$RUNNER_TEMP/diff.md"
+          GH_TOKEN="$READ_TOKEN" make -s contract-update VERSION="$VERSION" > /dev/null
+          # The summary is main's contract to the new one: make contract-update's own diff starts
+          # from the branch, which an open PR has already bumped.
+          git worktree add -q "$RUNNER_TEMP/main" origin/main
+          python3 tools/contract/fetch.py --diff "$RUNNER_TEMP/main/contract.lock" contract.lock \
+            > "$RUNNER_TEMP/diff.md"
+          from="$(jq -r .version "$RUNNER_TEMP/main/contract.lock")"
+          head -n 1 "$RUNNER_TEMP/diff.md" | grep -qxF "### API contract $from to $VERSION" \
+            || { echo "the summary does not diff main's $from against $VERSION" >&2; exit 1; }
           git add -A contract contract.lock
           git diff --cached --quiet || git commit -q -m "contract: bump to $VERSION"
           git push -q origin "$BRANCH"
