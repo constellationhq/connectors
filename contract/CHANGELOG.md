@@ -6,6 +6,12 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.2.0
+
+- added `field workflow-result.schema.json/properties/action/properties/from_held`
+- added `field workflow-result.schema.json/properties/action/properties/to_offer`
+- added `field workflow-result.schema.json/properties/entity/properties/booking`
+
 ## 2.1.0
 
 - added `endpoint DELETE /topology/demo-fleet`
