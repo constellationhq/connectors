@@ -2,6 +2,7 @@
 
 <img width="2172" height="724" alt="Constellation connectors with Octocat and satellites" src="https://github.com/user-attachments/assets/6105af45-12e2-45f2-a2a8-024b53b51497" />
 
+
 Bring Constellation's forecasts and approved actions into your own systems: ready-made bridges
 for four mission control systems, the Python and TypeScript clients, the `constellation` CLI, and
 the API contract they all follow. Guides:
