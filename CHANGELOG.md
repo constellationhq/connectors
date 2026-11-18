@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.0 (2026-11-18)
+
+- Built against API contract 2.1.0 (was 1.6.0). Contract 2.0.0 is a major release: it removed
+  three MCP tools, each replaced by one that already exists or is added in the same contract:
+  `get_fleet` by `get_topology`, `get_telemetry_v2` by `get_telemetry`, and `send_telemetry_v2`
+  by `send_telemetry`. An MCP client calling the old names must move to the new ones.
+- The API gains `DELETE /topology/demo-fleet`, and `get_predictions` takes `target_at` and the
+  model families `demand`, `rfi`, `snr`, `ssa` and `weather-attenuation`.
+- The Python and TypeScript result types take the GSaaS booking fields: `Action.to_offer`,
+  `Action.from_held` and `Entity.booking`, all optional.
+- The bridges' protocol is unchanged, so 0.7.x bridges keep working.
+
 ## v0.7.1 (2026-11-12)
 
 - Built against API contract 1.6.0 (was 1.5.1). The MCP tools gained `get_passes` and paged
