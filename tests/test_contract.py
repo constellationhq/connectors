@@ -48,7 +48,11 @@ def test_each_model_has_the_fields_the_schema_names(schema, typed, path):
     node = schema
     for name in path:
         node = field(schema, node, name)
-    assert keys(typed) == (set(node["properties"]), set(node.get("required", [])))
+    # A model may be ahead of the pinned contract by optional fields, so connectors can land
+    # before os publishes them; it never lacks one the schema names.
+    fields, required = keys(typed)
+    assert set(node["properties"]) <= fields
+    assert required == set(node.get("required", []))
 
 
 def test_the_known_values_are_the_schemas(schema):
