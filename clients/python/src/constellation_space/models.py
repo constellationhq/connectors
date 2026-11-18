@@ -29,6 +29,9 @@ class Entity(_Entity, total=False):
     source: str
     # A pass's ground track, when known: points such as {t, latitude_deg, longitude_deg}.
     track: list[dict[str, Any]]
+    # On an antenna a linked ground network maps: state (bookable, booked, unavailable, unknown),
+    # the network's offers, the operator's held booking and the networks.
+    booking: dict[str, Any]
 
 
 class Value(TypedDict, total=False):
@@ -57,6 +60,11 @@ _ActionFacets = TypedDict(
         "to_at": str | None,
         "deadline": str,
         "gain_gb_p10": float,
+        # The ground network's offer for the backup: link, network, slot_id, price, cancel_deadline_utc.
+        "to_offer": dict[str, Any],
+        # The operator's booking of the original to cancel: link, network, booking_id, price,
+        # cancel_deadline_utc, state.
+        "from_held": dict[str, Any],
     },
     total=False,
 )
