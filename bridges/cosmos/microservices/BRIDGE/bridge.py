@@ -33,7 +33,7 @@ from typing import Any
 
 from constellation_space import results
 
-VERSION = "0.7.1"
+VERSION = "0.8.0"
 TARGET = "CONSTELLATION"
 POLL_S = int(os.environ.get("POLL_SECONDS", "15"))
 # COSMOS shows a packet stale 30 s after its last value: re-inject every poll so a quiet feed
