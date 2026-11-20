@@ -78,8 +78,18 @@ def call(method: str, path: str, body: Any = None) -> Any:
     return results.http(method, f"{api}{path}", body, {"X-API-Key": api_key()})
 
 
-def log(message: str) -> None:
-    print(f"constellation-bridge: {message}", flush=True)
+def log(message: str, warn: bool = False) -> None:
+    """A line in COSMOS's log messages (CmdTlmServer > Log Messages), where an operator looks.
+    Outside COSMOS, stdout, or stderr for a warning. A plain print is not enough in COSMOS: its
+    operator holds a microservice's stdout back until a few KB of it pile up."""
+    line = f"constellation-bridge: {message}"
+    try:
+        from openc3.utilities.logger import Logger  # type: ignore[import-not-found]
+    except ImportError:
+        print(line, file=sys.stderr if warn else sys.stdout, flush=True)
+        return
+    Logger.microservice_name = os.environ.get("OPENC3_MICROSERVICE_NAME")
+    (Logger.warn if warn else Logger.info)(line, scope=SCOPE)
 
 
 def output_of(resource: dict[str, Any]) -> dict[str, Any]:
@@ -394,7 +404,7 @@ def check_in(consumer: str) -> bool:
     except Exception as exc:
         if isinstance(exc, urllib.error.HTTPError) and exc.code in (401, 403):
             raise
-        print(f"constellation-bridge: could not check in ({exc})", file=sys.stderr, flush=True)
+        log(f"could not check in ({exc})", warn=True)
         return False
     return True
 
@@ -403,7 +413,7 @@ def report(consumer: str, cursor: str, applied: dict[str, int]) -> None:
     try:
         results.report(call, consumer, cursor, applied, f"OpenC3 COSMOS target {TARGET}")
     except Exception as exc:
-        print(f"constellation-bridge: could not report ({exc})", file=sys.stderr, flush=True)
+        log(f"could not report ({exc})", warn=True)
 
 
 def state_key(consumer: str) -> str:
@@ -417,11 +427,11 @@ def resume(consumer: str, forecast: Forecast) -> str:
     found = client.get_object(bucket=name, key=state_key(consumer))
     if not found:
         cursor = results.start_cursor(call, consumer)
-        print(f"constellation-bridge: first start, reading after {cursor!r}", flush=True)
+        log(f"first start, reading after {cursor!r}")
         return cursor
     saved = json.loads(found["Body"].read())
     forecast.restore(saved["forecast"])
-    print(f"constellation-bridge: resuming after {saved['cursor']!r}", flush=True)
+    log(f"resuming after {saved['cursor']!r}")
     return saved["cursor"]
 
 
@@ -439,17 +449,13 @@ def main() -> None:
     checked_at = 0.0
     cursor: str | None = None
     if why := results.key_refusal(os.environ["CONSTELLATION_API_URL"]):
-        print(f"constellation-bridge: {why}", file=sys.stderr, flush=True)
+        log(why, warn=True)
         sys.exit(2)
-    print(f"constellation-bridge: feed -> COSMOS {TARGET} as {consumer}", flush=True)
+    log(f"feed -> COSMOS {TARGET} as {consumer}")
     while True:
         key = api_key()
         if not key:
-            print(
-                "constellation-bridge: No CONSTELLATION_API_KEY in Admin > Secrets yet",
-                file=sys.stderr,
-                flush=True,
-            )
+            log("No CONSTELLATION_API_KEY in Admin > Secrets yet", warn=True)
             time.sleep(KEY_WAIT_S)
             continue
         if key == refused:
@@ -464,7 +470,7 @@ def main() -> None:
             page = results.results_page(call, consumer, cursor)
             held = ""
             if lost := results.expired(page, cursor):
-                print(f"constellation-bridge: {lost}", file=sys.stderr, flush=True)
+                log(lost, warn=True)
             for entry in page["entries"]:
                 entry = results.whole(entry, lambda c, n: results.rest_of_run(call, consumer, c, n))
                 parts = results.unpack(entry["otlp"], consumer, log)
@@ -502,10 +508,7 @@ def main() -> None:
                 cursor = entry["cursor"]
                 report(consumer, cursor, applied)
                 keep(consumer, cursor, forecast)
-                print(
-                    f"constellation-bridge: injected {applied['parameters']} packets, {cursor}",
-                    flush=True,
-                )
+                log(f"injected {applied['parameters']} packets, {cursor}")
             # The next pass and the minutes left to a swap move with the clock, not only with runs.
             if time.time() - refreshed > REFRESH_S and forecast.run:
                 forecast.publish(datetime.now(UTC))
@@ -515,11 +518,10 @@ def main() -> None:
         except urllib.error.HTTPError as exc:
             body = exc.read()
             if why := results.refusal(exc.code, body):
-                print(
-                    f"constellation-bridge: {why}. Stopped polling until the key in Admin >"
-                    " Secrets changes or the plugin restarts",
-                    file=sys.stderr,
-                    flush=True,
+                log(
+                    f"{why}. Stopped polling until the key in Admin > Secrets changes or the"
+                    " plugin restarts",
+                    warn=True,
                 )
                 refused = key
                 time.sleep(KEY_WAIT_S)
@@ -528,17 +530,13 @@ def main() -> None:
             if hold := results.held_off(exc.code, body):
                 why, wait = hold
                 if why != held:
-                    print(
-                        f"constellation-bridge: {why}. Asking again in {wait:.0f} s",
-                        file=sys.stderr,
-                        flush=True,
-                    )
+                    log(f"{why}. Asking again in {wait:.0f} s", warn=True)
                     held = why
                 time.sleep(wait)
                 continue
-            print(f"constellation-bridge: {exc}", file=sys.stderr, flush=True)
+            log(str(exc), warn=True)
         except Exception as exc:  # a bad poll is logged and retried, never fatal
-            print(f"constellation-bridge: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+            log(f"{type(exc).__name__}: {exc}", warn=True)
         time.sleep(POLL_S)
 
 

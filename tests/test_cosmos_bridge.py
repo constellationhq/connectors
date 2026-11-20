@@ -534,6 +534,31 @@ def test_the_key_is_read_from_cosmos_secrets_each_poll_so_a_changed_key_needs_no
     assert set(secrets.scopes) == {"OPS"}
 
 
+def test_in_cosmos_the_log_goes_to_its_log_messages_not_the_operators_held_back_stdout(
+    bridge, monkeypatch, capsys
+):
+    module, _ = bridge
+    logged = []
+
+    class Logger:
+        microservice_name = None
+        info = staticmethod(lambda line, scope: logged.append(("INFO", line, scope)))
+        warn = staticmethod(lambda line, scope: logged.append(("WARN", line, scope)))
+
+    monkeypatch.setitem(
+        sys.modules, "openc3.utilities.logger", types.SimpleNamespace(Logger=Logger)
+    )
+    monkeypatch.setenv("OPENC3_MICROSERVICE_NAME", "DEFAULT__USER__CONSTELLATION-BRIDGE")
+    module.log("first start")
+    module.log("no key", warn=True)
+    assert logged == [
+        ("INFO", "constellation-bridge: first start", "DEFAULT"),
+        ("WARN", "constellation-bridge: no key", "DEFAULT"),
+    ]
+    assert Logger.microservice_name == "DEFAULT__USER__CONSTELLATION-BRIDGE"
+    assert capsys.readouterr() == ("", "")
+
+
 def test_outside_cosmos_the_key_comes_from_the_environment(bridge, monkeypatch):
     monkeypatch.setitem(sys.modules, "openc3.utilities.secrets", None)
     sent, _ = polled(monkeypatch, bridge, 1)
