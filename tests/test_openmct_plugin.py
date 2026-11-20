@@ -575,3 +575,24 @@ def test_the_ledger_shows_a_probability_or_share_as_a_percent_like_the_lock_loss
     ledger = _node(tmp_path, script)
     assert '<td class="cf-num">97%</td>' in ledger and '<td class="cf-num">17%</td>' in ledger
     assert "probability" not in ledger and "share" not in ledger
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_charts_label_gb_at_one_decimal_and_counts_as_whole_numbers(tmp_path):
+    def day(antenna: str, p50: float) -> dict:
+        gb = {"p10": p50 - 1, "p50": p50, "p90": p50 + 1, "passes": 9, "sellable_min": 60}
+        return {"entity": {"type": "antenna", "id": antenna}, "target_at": "2099-11-06T00:00:00Z",
+                "value": gb, "explain": {"expected_gb": {"value": gb}}}
+
+    days = [day("ant-1", 164), day("ant-2", 96)]
+    plans = [{**PASS, "series": _steps("QPSK 1/2", "8PSK 2/3", "QPSK 1/2")}]
+    script = (
+        "import { VIEWS } from './forecast-view.js';"
+        f"const days = {json.dumps(days)}, plans = {json.dumps(plans)};"
+        "console.log(JSON.stringify([VIEWS.chart({ kind: 'antenna-capacity' }, days),"
+        " VIEWS.breakdown({ kind: 'antenna-capacity' }, days), VIEWS.chart({ kind: 'modcod-plan' }, plans)]))"
+    )
+    grid, ranked, mix = _node(tmp_path, script)
+    for gb in (grid, ranked):
+        assert ">164.0</text>" in gb and ">96.0</text>" in gb
+    assert ">2</text>" in mix and ">1</text>" in mix and ".0</text>" not in mix
