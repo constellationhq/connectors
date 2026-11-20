@@ -584,6 +584,16 @@ function categoryOf(kind) {
   return CATEGORIES.find((c) => c.kinds.includes(kind))?.key ?? 'passes';
 }
 
+const KINDS = CATEGORIES.flatMap((c) => c.kinds);
+const rank = (w) => (KINDS.includes(w.kind) ? KINDS.indexOf(w.kind) : KINDS.length);
+
+/** The workflow a category (else the whole view) opens on: by kind in CATEGORIES order, so Passes
+ * opens on pass yield before a MODCOD plan, then in index order. */
+export function firstWorkflow(workflows, category) {
+  const pool = category ? workflows.filter((w) => categoryOf(w.kind) === category) : workflows;
+  return [...pool].sort((a, b) => rank(a) - rank(b))[0] ?? null;
+}
+
 export function mountForecast(element, { load, refreshMs = REFRESH_MS, theme = 'light' }) {
   const state = { workflows: [], category: null, workflow: null, run: null, selected: null, error: null, loaded: false };
   element.innerHTML = '';
@@ -601,7 +611,7 @@ export function mountForecast(element, { load, refreshMs = REFRESH_MS, theme = '
       const index = await load('index.json');
       state.workflows = index.workflows || [];
       if (!state.workflow || !state.workflows.some((w) => w.workflow === state.workflow)) {
-        const first = CATEGORIES.map((c) => state.workflows.find((w) => c.kinds.includes(w.kind))).find(Boolean) || state.workflows[0];
+        const first = firstWorkflow(state.workflows);
         state.workflow = first?.workflow ?? null;
         state.category = first ? categoryOf(first.kind) : null;
       }
@@ -651,7 +661,7 @@ export function mountForecast(element, { load, refreshMs = REFRESH_MS, theme = '
     const cat = e.target.closest('[data-category]');
     if (cat) {
       state.category = cat.dataset.category;
-      const first = state.workflows.find((w) => categoryOf(w.kind) === state.category);
+      const first = firstWorkflow(state.workflows, state.category);
       state.workflow = first?.workflow ?? null;
       state.selected = null;
       return void refresh();

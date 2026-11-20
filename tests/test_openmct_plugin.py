@@ -596,3 +596,22 @@ def test_charts_label_gb_at_one_decimal_and_counts_as_whole_numbers(tmp_path):
     for gb in (grid, ranked):
         assert ">164.0</text>" in gb and ">96.0</text>" in gb
     assert ">2</text>" in mix and ">1</text>" in mix and ".0</text>" not in mix
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_the_passes_tab_opens_on_pass_yield_whatever_order_the_index_lists_it_in(tmp_path):
+    workflows = [
+        {"workflow": "a-plan", "kind": "modcod-plan"},
+        {"workflow": "ka-capacity", "kind": "antenna-capacity"},
+        {"workflow": "z-yield", "kind": "pass-yield"},
+        {"workflow": "z-yield-2", "kind": "pass-yield"},
+    ]
+    script = (
+        "import { firstWorkflow } from './forecast-view.js';"
+        f"const w = {json.dumps(workflows)};"
+        "console.log(JSON.stringify([firstWorkflow(w), firstWorkflow(w, 'passes'),"
+        " firstWorkflow(w, 'capacity'), firstWorkflow(w, 'audit')]))"
+    )
+    first, passes, capacity, audit = _node(tmp_path, script)
+    assert first["workflow"] == passes["workflow"] == "z-yield"
+    assert capacity["workflow"] == "ka-capacity" and audit is None
