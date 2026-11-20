@@ -539,3 +539,22 @@ def test_a_run_whose_swaps_are_all_held_says_so_once_and_never_no_risk(tmp_path)
     chart, warnings = _node(tmp_path, script)
     assert "No pass is at risk" not in chart and "3 passes at risk awaiting approval in Constellation" in chart
     assert warnings.count("awaiting approval in Constellation") == 1
+
+
+def _steps(*modcods: str) -> list[dict]:
+    return [{"t": PASS["target_at"], "value": {"modcod": m, "sinr_db": 3.0}} for m in modcods]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_a_modcod_plan_counts_changes_as_the_cosmos_and_lattice_bridges_do(tmp_path):
+    # The series holds each MODCOD switch, starting with the one at AOS: changes are the steps
+    # after it, so a plan up and back down through the same MODCODs is not "N MODCODs".
+    there_and_back = {**PASS, "series": _steps("QPSK 1/2", "8PSK 2/3", "16APSK 3/4", "8PSK 2/3")}
+    one = {**PASS, "entity": {**PASS["entity"], "id": "p2"}, "series": _steps("QPSK 1/2", "8PSK 2/3")}
+    script = (
+        "import { VIEWS } from './forecast-view.js';"
+        f"const run = {{ kind: 'modcod-plan' }}, items = {json.dumps([there_and_back, one])};"
+        "console.log(JSON.stringify(VIEWS.list(run, items)))"
+    )
+    rows = _node(tmp_path, script)
+    assert "3 changes" in rows and "1 change<" in rows and "MODCODs" not in rows

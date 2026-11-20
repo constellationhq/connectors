@@ -57,6 +57,9 @@ const gbOf = (item) => {
   const g = typeof ledger?.p50 === 'number' ? ledger : item.value;
   return g && typeof g.p50 === 'number' ? g : null;
 };
+// A MODCOD plan's series holds each switch, the first at AOS: its changes are the steps after it,
+// as the COSMOS MODCOD packet's CHANGES and the Lattice bridge count them.
+const changes = (series) => `${series.length - 1} change${series.length === 2 ? '' : 's'}`;
 const ledgerOf = (item) => item.explain?.ledger?.value || {};
 // A pass's max elevation: the ledger entry the orbit wrote, under whichever node wrote it.
 const elevationOf = (item) =>
@@ -467,7 +470,7 @@ export const VIEWS = {
           ? `<td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(ledgerOf(i).delivered_gb)} / ${num(ledgerOf(i).possible_gb)}</td><td>${ledgerOf(i).dead ? `<span class="cf-status-warn">▲</span> ${esc(ledgerOf(i).status)}` : esc(ledgerOf(i).status)}</td>`
           : run.kind === 'antenna-capacity'
             ? `<td>${esc(i.target_at.slice(0, 10))}</td><td>${esc(i.entity.id)}</td><td class="cf-num">${num(g?.p10)} / <b>${num(g?.p50)}</b> / ${num(g?.p90)}</td><td>${esc(gbOf(i)?.passes)} · ${num(gbOf(i)?.sellable_min, 0)} min</td>`
-            : `<td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(g?.p10)} / <b>${num(g?.p50)}</b> / ${num(g?.p90)}</td><td>${i.action || i.severity ? '<span class="cf-status-warn" title="rain-fade risk">▲</span>' : ''}${i.series ? `${esc(i.series.length)} MODCODs` : elevationOf(i) != null ? `${Math.round(elevationOf(i))}°` : ''}</td>`;
+            : `<td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(g?.p10)} / <b>${num(g?.p50)}</b> / ${num(g?.p90)}</td><td>${i.action || i.severity ? '<span class="cf-status-warn" title="rain-fade risk">▲</span>' : ''}${i.series ? changes(i.series) : elevationOf(i) != null ? `${Math.round(elevationOf(i))}°` : ''}</td>`;
         return `<tr data-id="${esc(i.entity.id)}" class="${i.entity.id === selected ? 'cf-sel' : ''}">${cells}</tr>`;
       })
       .join('');
