@@ -232,7 +232,9 @@ jobs:
           cp bridges/cosmos/openc3-cosmos-constellation-0.0.0.gem "$COSMOS/"
           echo '{"constellation_api_url": "http://127.0.0.1:8080"}' > "$COSMOS/variables.json"
           cd "$COSMOS"
-          # What ./openc3.sh cli load runs, without the -it it adds (a runner has no terminal).
+          # What ./openc3.sh cli load runs, without the -it it adds (a runner has no terminal), as
+          # the host user like openc3.sh, which owns the gems volume COSMOS was started with.
+          OPENC3_USER_ID="$(id -u)" OPENC3_GROUP_ID="$(id -g)" \
           docker compose run --rm -T -v "$PWD:/openc3/local:z" -w /openc3/local --no-deps \
             openc3-cosmos-cmd-tlm-api ruby /openc3/bin/openc3cli \
             load openc3-cosmos-constellation-0.0.0.gem --variables variables.json
