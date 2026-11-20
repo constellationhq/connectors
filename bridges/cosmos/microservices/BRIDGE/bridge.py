@@ -9,6 +9,8 @@ target's packets (targets/CONSTELLATION/cmd_tlm/tlm.txt):
     NEXT_PASS  the next predicted pass and its expected GB (p10/p50/p90)
     NEXT_24H   passes and expected GB over the next 24 hours
     SWAP       the soonest rain-fade swap to decide, with minutes left (limits go yellow, then red)
+    CAPACITY   one day's capacity across the antennas, and the tightest
+    MODCOD     the next pass's MODCOD plan
     RUN        which workflow run the values came from
 
 So COSMOS's own Telemetry Viewer, Telemetry Grapher, Limits Monitor and Data Extractor show the
