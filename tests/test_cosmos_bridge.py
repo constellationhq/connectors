@@ -549,6 +549,16 @@ def test_summed_gb_items_are_64_bit_so_a_large_sum_shows_its_third_decimal():
         assert bits[summed] == (64, "FLOAT"), summed
 
 
+def test_minutes_to_deadline_says_where_its_inclusive_limits_turn_yellow_and_red():
+    """COSMOS limits are inclusive: a value at red low is red, so 15.0 minutes left is red."""
+    lines = (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text().splitlines()
+    at = next(n for n, x in enumerate(lines) if "APPEND_ITEM MINUTES_TO_DEADLINE" in x)
+    limits = next(x.split() for x in lines[at:] if x.split()[:1] == ["LIMITS"])
+    red, yellow = limits[4], limits[5]
+    assert (red, yellow) == ("15", "30")
+    assert f"yellow at {yellow} or less, red at {red} or less" in lines[at]
+
+
 def test_min_sinr_says_it_is_the_lowest_at_a_modcod_change():
     """The API's MODCOD series keeps only the steps where the MODCOD changes."""
     tlm = (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text()

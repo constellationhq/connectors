@@ -43,7 +43,7 @@ TELEMETRY CONSTELLATION SWAP BIG_ENDIAN "Forecast: the soonest open rain-fade sw
   APPEND_ITEM BACKUP_ANTENNA 512 STRING "Antenna to book instead, or NONE"
   APPEND_ITEM BACKUP_AOS 256 STRING "Backup pass AOS, UTC"
   APPEND_ITEM DEADLINE 256 STRING "Cancel the original by, UTC"
-  APPEND_ITEM MINUTES_TO_DEADLINE 32 FLOAT "Minutes left to decide (99999 when no swap is open)"
+  APPEND_ITEM MINUTES_TO_DEADLINE 32 FLOAT "Minutes left to decide: yellow at 30 or less, red at 15 or less (99999 when no swap is open)"
     UNITS Minutes min
     FORMAT_STRING "%.1f"
     LIMITS DEFAULT 1 ENABLED 15 30 100000 100000
