@@ -81,7 +81,7 @@ TELEMETRY CONSTELLATION MODCOD BIG_ENDIAN "Forecast: the next pass's MODCOD plan
   APPEND_ITEM MIN_SINR_DB 32 FLOAT "Lowest planned SINR (p50) at a MODCOD change"
     UNITS Decibels dB
     FORMAT_STRING "%.2f"
-  APPEND_ITEM PLANNED_PASSES 32 UINT "Passes with a plan still to fly"
+  APPEND_ITEM PLANNED_PASSES 32 UINT "Passes ahead with a plan"
 
 TELEMETRY CONSTELLATION RUN BIG_ENDIAN "The latest workflow run received, of any kind: each other packet holds the newest run of its own kind"
   ALLOW_SHORT

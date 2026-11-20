@@ -442,6 +442,16 @@ def test_capacity_and_modcod_packets_say_what_operators_need(bridge):
     assert module.capacity_packet([], NOW) is None and module.modcod_packet([], NOW) is None
 
 
+def test_the_modcod_plan_is_the_next_aos_like_the_next_pass_and_none_with_nothing_ahead(bridge):
+    module, _ = bridge
+    under_way = plan(-0.05, ("QPSK 1/2", 1.0), ("8PSK 2/3", 7.0))
+    ahead = plan(2, ("QPSK 3/4", 4.0), ("8PSK 3/4", 8.0))
+    modcod = module.modcod_packet([under_way, ahead], NOW)
+    assert modcod["AOS"] == module.packets([under_way, ahead], [], NOW)["NEXT_PASS"]["AOS"]
+    assert modcod["AOS"] == module._minute(ahead["target_at"]) and modcod["FIRST"] == "QPSK 3/4"
+    assert module.modcod_packet([under_way], NOW) is None
+
+
 def _resource(template: str) -> dict:
     return {
         "constellation.workflow": "w",
