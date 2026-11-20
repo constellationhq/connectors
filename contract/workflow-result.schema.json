@@ -12,6 +12,12 @@
           "title": "From",
           "type": "string"
         },
+        "from_held": {
+          "additionalProperties": true,
+          "description": "The operator's booking of the original to cancel: link, network, booking_id, price, cancel_deadline_utc, state.",
+          "title": "From Held",
+          "type": "object"
+        },
         "gain_gb_p10": {
           "title": "Gain Gb P10",
           "type": "number"
@@ -69,6 +75,12 @@
           "default": null,
           "title": "To At"
         },
+        "to_offer": {
+          "additionalProperties": true,
+          "description": "The ground network's offer for the backup: link, network, slot_id, price, cancel_deadline_utc. Booking it stays in the network's own system.",
+          "title": "To Offer",
+          "type": "object"
+        },
         "verb": {
           "anyOf": [
             {
@@ -99,6 +111,12 @@
         "antenna_id": {
           "title": "Antenna Id",
           "type": "string"
+        },
+        "booking": {
+          "additionalProperties": true,
+          "description": "On an antenna a linked ground network maps: state (bookable, booked, unavailable, unknown), the network's offers and the operator's held booking.",
+          "title": "Booking",
+          "type": "object"
         },
         "ground_station_id": {
           "title": "Ground Station Id",
