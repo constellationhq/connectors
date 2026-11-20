@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.8.1 (2026-11-19)
+
+- The COSMOS plugin is ready for the OpenC3 Store: the gem carries the store title, keywords,
+  cover image (`public/store_img.png`), access type and minimum COSMOS version (7.0.0), and
+  ships a README and the Apache-2.0 LICENSE.
+- CI installs the COSMOS gem into stock COSMOS Core 7.5.1 with the COSMOS CLI and checks that
+  the bridge fills the `CONSTELLATION` packets and the Forecast tool is served.
+- Built against API contract 2.1.0, as v0.8.0. Nothing else changed.
+
 ## v0.8.0 (2026-11-18)
 
 - Built against API contract 2.1.0 (was 1.6.0). Contract 2.0.0 is a major release: it removed
