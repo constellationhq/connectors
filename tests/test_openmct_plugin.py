@@ -539,3 +539,79 @@ def test_a_run_whose_swaps_are_all_held_says_so_once_and_never_no_risk(tmp_path)
     chart, warnings = _node(tmp_path, script)
     assert "No pass is at risk" not in chart and "3 passes at risk awaiting approval in Constellation" in chart
     assert warnings.count("awaiting approval in Constellation") == 1
+
+
+def _steps(*modcods: str) -> list[dict]:
+    return [{"t": PASS["target_at"], "value": {"modcod": m, "sinr_db": 3.0}} for m in modcods]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_a_modcod_plan_counts_changes_as_the_cosmos_and_lattice_bridges_do(tmp_path):
+    # The series holds each MODCOD switch, starting with the one at AOS: changes are the steps
+    # after it, so a plan up and back down through the same MODCODs is not "N MODCODs".
+    there_and_back = {**PASS, "series": _steps("QPSK 1/2", "8PSK 2/3", "16APSK 3/4", "8PSK 2/3")}
+    one = {**PASS, "entity": {**PASS["entity"], "id": "p2"}, "series": _steps("QPSK 1/2", "8PSK 2/3")}
+    script = (
+        "import { VIEWS } from './forecast-view.js';"
+        f"const run = {{ kind: 'modcod-plan' }}, items = {json.dumps([there_and_back, one])};"
+        "console.log(JSON.stringify(VIEWS.list(run, items)))"
+    )
+    rows = _node(tmp_path, script)
+    assert "3 changes" in rows and "1 change<" in rows and "MODCODs" not in rows
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_the_ledger_shows_a_probability_or_share_as_a_percent_like_the_lock_loss_risk(tmp_path):
+    explain = {
+        **PASS["explain"],
+        "success": {"value": 0.97, "unit": "probability", "source": "ssa"},
+        "lock_loss_risk": {"value": 0.167, "unit": "share", "source": "acm"},
+    }
+    script = (
+        "import { VIEWS } from './forecast-view.js';"
+        f"const run = {{ kind: 'pass-yield' }}, items = {json.dumps([{**PASS, 'explain': explain}])};"
+        "console.log(JSON.stringify(VIEWS.ledger(run, items, 'p1')))"
+    )
+    ledger = _node(tmp_path, script)
+    assert '<td class="cf-num">97%</td>' in ledger and '<td class="cf-num">17%</td>' in ledger
+    assert "probability" not in ledger and "share" not in ledger
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_charts_label_gb_at_one_decimal_and_counts_as_whole_numbers(tmp_path):
+    def day(antenna: str, p50: float) -> dict:
+        gb = {"p10": p50 - 1, "p50": p50, "p90": p50 + 1, "passes": 9, "sellable_min": 60}
+        return {"entity": {"type": "antenna", "id": antenna}, "target_at": "2099-11-06T00:00:00Z",
+                "value": gb, "explain": {"expected_gb": {"value": gb}}}
+
+    days = [day("ant-1", 164), day("ant-2", 96)]
+    plans = [{**PASS, "series": _steps("QPSK 1/2", "8PSK 2/3", "QPSK 1/2")}]
+    script = (
+        "import { VIEWS } from './forecast-view.js';"
+        f"const days = {json.dumps(days)}, plans = {json.dumps(plans)};"
+        "console.log(JSON.stringify([VIEWS.chart({ kind: 'antenna-capacity' }, days),"
+        " VIEWS.breakdown({ kind: 'antenna-capacity' }, days), VIEWS.chart({ kind: 'modcod-plan' }, plans)]))"
+    )
+    grid, ranked, mix = _node(tmp_path, script)
+    for gb in (grid, ranked):
+        assert ">164.0</text>" in gb and ">96.0</text>" in gb
+    assert ">2</text>" in mix and ">1</text>" in mix and ".0</text>" not in mix
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_the_passes_tab_opens_on_pass_yield_whatever_order_the_index_lists_it_in(tmp_path):
+    workflows = [
+        {"workflow": "a-plan", "kind": "modcod-plan"},
+        {"workflow": "ka-capacity", "kind": "antenna-capacity"},
+        {"workflow": "z-yield", "kind": "pass-yield"},
+        {"workflow": "z-yield-2", "kind": "pass-yield"},
+    ]
+    script = (
+        "import { firstWorkflow } from './forecast-view.js';"
+        f"const w = {json.dumps(workflows)};"
+        "console.log(JSON.stringify([firstWorkflow(w), firstWorkflow(w, 'passes'),"
+        " firstWorkflow(w, 'capacity'), firstWorkflow(w, 'audit')]))"
+    )
+    first, passes, capacity, audit = _node(tmp_path, script)
+    assert first["workflow"] == passes["workflow"] == "z-yield"
+    assert capacity["workflow"] == "ka-capacity" and audit is None

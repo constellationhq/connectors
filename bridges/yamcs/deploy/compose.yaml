@@ -5,7 +5,7 @@
 # go in the environment below.
 services:
   yamcs-bridge:
-    image: ghcr.io/constellationhq/yamcs-bridge:0.8.2
+    image: ghcr.io/constellationhq/yamcs-bridge:0.8.3
     restart: unless-stopped
     environment:
       # The production API unless CONSTELLATION_API_URL (here or in .env) names another.

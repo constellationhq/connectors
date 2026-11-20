@@ -57,6 +57,9 @@ const gbOf = (item) => {
   const g = typeof ledger?.p50 === 'number' ? ledger : item.value;
   return g && typeof g.p50 === 'number' ? g : null;
 };
+// A MODCOD plan's series holds each switch, the first at AOS: its changes are the steps after it,
+// as the COSMOS MODCOD packet's CHANGES and the Lattice bridge count them.
+const changes = (series) => `${series.length - 1} change${series.length === 2 ? '' : 's'}`;
 const ledgerOf = (item) => item.explain?.ledger?.value || {};
 // A pass's max elevation: the ledger entry the orbit wrote, under whichever node wrote it.
 const elevationOf = (item) =>
@@ -119,7 +122,7 @@ function bandChart(buckets, { height = 180, unit = 'GB' } = {}) {
 }
 
 /** Horizontal bars with p10 to p90 whiskers, one row per key. */
-function rangeBars(rows, { unit = 'GB' } = {}) {
+function rangeBars(rows, { unit = 'GB', digits = 1 } = {}) {
   const rowH = 20;
   const pad = { l: 128, r: 56, t: 4 };
   const h = pad.t + rows.length * rowH;
@@ -133,7 +136,7 @@ function rangeBars(rows, { unit = 'GB' } = {}) {
         r.p10 !== undefined
           ? `<line class="cf-whisker" x1="${x(r.p10)}" x2="${x(r.p90)}" y1="${y + rowH / 2}" y2="${y + rowH / 2}"/>`
           : '';
-      return `<g ${tip(r.tip ?? `${r.label}: ${num(value)} ${unit}`)}><text class="cf-label" x="${pad.l - 8}" y="${y + rowH / 2 + 4}" text-anchor="end">${esc(r.label)}</text><rect class="cf-bar${r.warn ? ' cf-bar-warn' : ''}" x="${pad.l}" y="${y + 6}" width="${Math.max(x(value) - pad.l, 2)}" height="${rowH - 12}" rx="2"/>${whisker}<text class="cf-value" x="${x(r.p90 ?? value) + 6}" y="${y + rowH / 2 + 4}">${big(value)}</text></g>`;
+      return `<g ${tip(r.tip ?? `${r.label}: ${num(value)} ${unit}`)}><text class="cf-label" x="${pad.l - 8}" y="${y + rowH / 2 + 4}" text-anchor="end">${esc(r.label)}</text><rect class="cf-bar${r.warn ? ' cf-bar-warn' : ''}" x="${pad.l}" y="${y + 6}" width="${Math.max(x(value) - pad.l, 2)}" height="${rowH - 12}" rx="2"/>${whisker}<text class="cf-value" x="${x(r.p90 ?? value) + 6}" y="${y + rowH / 2 + 4}">${num(value, digits)}</text></g>`;
     })
     .join('');
   return `<svg class="cf-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="Values per row">${body}</svg>`;
@@ -153,7 +156,7 @@ function heatGrid(rows, cols, cell, { unit = 'GB' } = {}) {
         .map((c, j) => {
           const v = cell(r, c);
           const share = v ? v.value / max : 0;
-          const label = v && cw > 48 ? `<text class="cf-heat-label${share > 0.55 ? ' cf-on-dark' : ''}" x="${pad.l + j * cw + cw / 2}" y="${pad.t + i * ch + 15}" text-anchor="middle">${big(v.value)}</text>` : '';
+          const label = v && cw > 48 ? `<text class="cf-heat-label${share > 0.55 ? ' cf-on-dark' : ''}" x="${pad.l + j * cw + cw / 2}" y="${pad.t + i * ch + 15}" text-anchor="middle">${num(v.value)}</text>` : '';
           return `<g ${tip(v ? `${r} · ${c}: ${num(v.value)} ${unit}, ${v.detail}` : `${r} · ${c}: no passes`)}><rect class="cf-heat" x="${pad.l + j * cw + 1}" y="${pad.t + i * ch + 1}" width="${cw - 2}" height="${ch - 2}" rx="3" style="--share:${share.toFixed(3)}"/>${label}</g>`;
         })
         .join('');
@@ -264,6 +267,8 @@ export function actionState(item) {
 /** A swap to show: advice, or approved in Constellation; never one held or rejected. */
 const actionable = (i) => actionState(i) === 'advice' || actionState(i) === 'approved';
 
+// A probability or share column reads as a percent, as the lock-loss risk does.
+const SHARES = ['probability', 'share'];
 // rfi-watch items are links whose value is RFI in dB (p10/p50/p90) with a lock-loss risk (a
 // share), and whose action is a reroute with no deadline: never GB, never a swap.
 const pct = (v) => (typeof v === 'number' ? `${Math.round(v * 100)}%` : num(v));
@@ -400,7 +405,7 @@ export const VIEWS = {
       const mix = new Map();
       for (const item of items) for (const s of item.series || []) mix.set(s.value.modcod, (mix.get(s.value.modcod) || 0) + 1);
       const rows = [...mix.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([label, value]) => ({ label, value, tip: `${label}: chosen ${value} times across the plan` }));
-      return section('MODCOD mix across the plan', rangeBars(rows, { unit: 'steps' }), 'How often each MODCOD is planned. Select a pass below to see its own plan.');
+      return section('MODCOD mix across the plan', rangeBars(rows, { unit: 'steps', digits: 0 }), 'How often each MODCOD is planned. Select a pass below to see its own plan.');
     }
     return section('Expected GB over the next 24 hours', bandChart(hourly(items)), 'The line is the median (p50); the band runs from the wet tail (p10) to the best case (p90). Hover an hour for its passes.');
   },
@@ -467,7 +472,7 @@ export const VIEWS = {
           ? `<td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(ledgerOf(i).delivered_gb)} / ${num(ledgerOf(i).possible_gb)}</td><td>${ledgerOf(i).dead ? `<span class="cf-status-warn">▲</span> ${esc(ledgerOf(i).status)}` : esc(ledgerOf(i).status)}</td>`
           : run.kind === 'antenna-capacity'
             ? `<td>${esc(i.target_at.slice(0, 10))}</td><td>${esc(i.entity.id)}</td><td class="cf-num">${num(g?.p10)} / <b>${num(g?.p50)}</b> / ${num(g?.p90)}</td><td>${esc(gbOf(i)?.passes)} · ${num(gbOf(i)?.sellable_min, 0)} min</td>`
-            : `<td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(g?.p10)} / <b>${num(g?.p50)}</b> / ${num(g?.p90)}</td><td>${i.action || i.severity ? '<span class="cf-status-warn" title="rain-fade risk">▲</span>' : ''}${i.series ? `${esc(i.series.length)} MODCODs` : elevationOf(i) != null ? `${Math.round(elevationOf(i))}°` : ''}</td>`;
+            : `<td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(g?.p10)} / <b>${num(g?.p50)}</b> / ${num(g?.p90)}</td><td>${i.action || i.severity ? '<span class="cf-status-warn" title="rain-fade risk">▲</span>' : ''}${i.series ? changes(i.series) : elevationOf(i) != null ? `${Math.round(elevationOf(i))}°` : ''}</td>`;
         return `<tr data-id="${esc(i.entity.id)}" class="${i.entity.id === selected ? 'cf-sel' : ''}">${cells}</tr>`;
       })
       .join('');
@@ -481,7 +486,7 @@ export const VIEWS = {
     const x = item.explain || {};
     const laneRows = Object.entries(x)
       .filter(([, l]) => shown(l?.value) != null)
-      .map(([column, l]) => `<tr><td>${esc(column)}</td><td class="cf-num">${num(shown(l.value))} ${esc(l.unit ?? '')}</td><td class="cf-src" ${tip(l.source ?? '')}>${esc(sourceLabel(l.source))}</td></tr>`)
+      .map(([column, l]) => `<tr><td>${esc(column)}</td><td class="cf-num">${SHARES.includes(l.unit) ? pct(shown(l.value)) : `${num(shown(l.value))} ${esc(l.unit ?? '')}`}</td><td class="cf-src" ${tip(l.source ?? '')}>${esc(sourceLabel(l.source))}</td></tr>`)
       .join('');
     const g = run.kind === 'rfi-watch' ? null : gbOf(item);
     const plan = item.series?.length ? `<h4>Plan over the pass</h4>${stepChart(item.series)}` : '';
@@ -579,6 +584,16 @@ function categoryOf(kind) {
   return CATEGORIES.find((c) => c.kinds.includes(kind))?.key ?? 'passes';
 }
 
+const KINDS = CATEGORIES.flatMap((c) => c.kinds);
+const rank = (w) => (KINDS.includes(w.kind) ? KINDS.indexOf(w.kind) : KINDS.length);
+
+/** The workflow a category (else the whole view) opens on: by kind in CATEGORIES order, so Passes
+ * opens on pass yield before a MODCOD plan, then in index order. */
+export function firstWorkflow(workflows, category) {
+  const pool = category ? workflows.filter((w) => categoryOf(w.kind) === category) : workflows;
+  return [...pool].sort((a, b) => rank(a) - rank(b))[0] ?? null;
+}
+
 export function mountForecast(element, { load, refreshMs = REFRESH_MS, theme = 'light' }) {
   const state = { workflows: [], category: null, workflow: null, run: null, selected: null, error: null, loaded: false };
   element.innerHTML = '';
@@ -596,7 +611,7 @@ export function mountForecast(element, { load, refreshMs = REFRESH_MS, theme = '
       const index = await load('index.json');
       state.workflows = index.workflows || [];
       if (!state.workflow || !state.workflows.some((w) => w.workflow === state.workflow)) {
-        const first = CATEGORIES.map((c) => state.workflows.find((w) => c.kinds.includes(w.kind))).find(Boolean) || state.workflows[0];
+        const first = firstWorkflow(state.workflows);
         state.workflow = first?.workflow ?? null;
         state.category = first ? categoryOf(first.kind) : null;
       }
@@ -646,7 +661,7 @@ export function mountForecast(element, { load, refreshMs = REFRESH_MS, theme = '
     const cat = e.target.closest('[data-category]');
     if (cat) {
       state.category = cat.dataset.category;
-      const first = state.workflows.find((w) => categoryOf(w.kind) === state.category);
+      const first = firstWorkflow(state.workflows, state.category);
       state.workflow = first?.workflow ?? null;
       state.selected = null;
       return void refresh();
