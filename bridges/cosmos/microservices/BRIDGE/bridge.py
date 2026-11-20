@@ -11,7 +11,9 @@ target's packets (targets/CONSTELLATION/cmd_tlm/tlm.txt):
     SWAP       the soonest rain-fade swap to decide, with minutes left (limits go yellow, then red)
     CAPACITY   one day's capacity across the antennas, and the tightest
     MODCOD     the next pass's MODCOD plan
-    RUN        which workflow run the values came from
+    RUN        the latest workflow run received, of any kind
+
+A packet is injected only once a run of its kind has arrived.
 
 So COSMOS's own Telemetry Viewer, Telemetry Grapher, Limits Monitor and Data Extractor show the
 forecast with no other install. It also writes each run, and an index of workflows, as JSON into
@@ -374,16 +376,18 @@ def packets(
 class Forecast:
     """The newest answer of each kind of workflow: a run replaces what the last run of its kind
     said, empty or not (a swap run advising nothing takes the swap down), and never another
-    kind's. Which kind is the run's own constellation.template, else read off its items."""
+    kind's. Which kind is the run's own constellation.template, else read off its items. A kind
+    no run has brought is None, and its packets are not injected: COSMOS shows no value rather
+    than NONE and 0, which would read as a forecast of nothing."""
 
     def __init__(self) -> None:
-        self.passes: list[dict[str, Any]] = []
-        self.swaps: list[dict[str, Any]] = []
+        self.passes: list[dict[str, Any]] | None = None
+        self.swaps: list[dict[str, Any]] | None = None
         # When each swap the newest swap run holds for approval in Constellation can no longer
         # be approved (held_until): counted until then, not shown. None only in a 0.8.0 state.
         self.held: list[str | None] = []
-        self.capacity: list[dict[str, Any]] = []
-        self.plans: list[dict[str, Any]] = []
+        self.capacity: list[dict[str, Any]] | None = None
+        self.plans: list[dict[str, Any]] | None = None
         self.run: dict[str, Any] = {}
         # Approvals already reported carried out, by decision: each run shows them again.
         self.acted: dict[str, str] = {}
@@ -421,9 +425,15 @@ class Forecast:
 
     def publish(self, now: datetime) -> int:
         pending = sum(d is None or datetime.fromisoformat(d) > now for d in self.held)
-        out = packets(self.passes, self.swaps, now, pending)
-        out["CAPACITY"] = capacity_packet(self.capacity, now) or NO_CAPACITY
-        out["MODCOD"] = modcod_packet(self.plans, now) or NO_MODCOD
+        out = packets(self.passes or [], self.swaps or [], now, pending)
+        if self.passes is None:
+            del out["NEXT_PASS"], out["NEXT_24H"]
+        if self.swaps is None:
+            del out["SWAP"]
+        if self.capacity is not None:
+            out["CAPACITY"] = capacity_packet(self.capacity, now) or NO_CAPACITY
+        if self.plans is not None:
+            out["MODCOD"] = modcod_packet(self.plans, now) or NO_MODCOD
         if self.run:
             out["RUN"] = self.run
         for packet, values in out.items():

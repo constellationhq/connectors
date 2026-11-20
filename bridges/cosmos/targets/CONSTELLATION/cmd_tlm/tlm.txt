@@ -83,7 +83,7 @@ TELEMETRY CONSTELLATION MODCOD BIG_ENDIAN "Forecast: the next pass's MODCOD plan
     FORMAT_STRING "%.2f"
   APPEND_ITEM PLANNED_PASSES 32 UINT "Passes with a plan still to fly"
 
-TELEMETRY CONSTELLATION RUN BIG_ENDIAN "The workflow run these forecasts came from"
+TELEMETRY CONSTELLATION RUN BIG_ENDIAN "The latest workflow run received, of any kind: each other packet holds the newest run of its own kind"
   ALLOW_SHORT
   APPEND_ITEM WORKFLOW 512 STRING "Workflow"
   APPEND_ITEM TEMPLATE 256 STRING "Template"

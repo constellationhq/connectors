@@ -167,17 +167,9 @@ def test_only_the_resource_logs_for_this_connection_are_read(bridge):
     assert module.output_of(resource)["widget"]["on"]
     forecast = module.Forecast()
     forecast.take(resource, items)
-    assert forecast.publish(NOW) == 6
-    assert [p for p, _ in injected] == [
-        "NEXT_24H",
-        "NEXT_PASS",
-        "SWAP",
-        "CAPACITY",
-        "MODCOD",
-        "RUN",
-    ]
-    assert dict(injected)["CAPACITY"] == module.NO_CAPACITY
-    assert dict(injected)["MODCOD"] == module.NO_MODCOD
+    # A pass run: the pass packets and RUN, none of a kind no run has brought.
+    assert forecast.publish(NOW) == 3
+    assert [p for p, _ in injected] == ["NEXT_24H", "NEXT_PASS", "RUN"]
     assert dict(injected)["RUN"]["WORKFLOW_VERSION"] == 3
     assert module.results.unpack(entry(([item(2, 10)], "yamcs-bridge")), CONSUMER) == []
 
@@ -473,6 +465,33 @@ def test_each_kind_of_run_replaces_only_its_own_packets_and_an_empty_one_clears_
     sent = dict(injected)
     assert sent["SWAP"] == module.NO_SWAP and sent["NEXT_24H"]["PASSES"] == 1
     assert sent["RUN"]["TEMPLATE"] == "rain-fade-swap" and sent["RUN"]["RESULTS"] == 0
+
+
+def test_a_kind_no_run_has_brought_is_not_injected_as_a_forecast_of_nothing(bridge):
+    """COSMOS shows no value for a packet no run of its kind has filled, never NONE and 0, which
+    read as a forecast of nothing; a run of the kind with nothing in it does say NONE."""
+    module, injected = bridge
+    forecast = module.Forecast()
+    forecast.take(_resource("rain-fade-swap"), [swap(3, 10, 60)])
+    forecast.publish(NOW)
+    assert [p for p, _ in injected] == ["SWAP", "RUN"]
+    injected.clear()
+    forecast.take(_resource("pass-yield"), [])
+    forecast.publish(NOW)
+    sent = dict(injected)
+    assert sent["NEXT_PASS"] == module.NO_PASS and sent["NEXT_24H"]["PASSES"] == 0
+    assert set(sent) == {"NEXT_PASS", "NEXT_24H", "SWAP", "RUN"}
+    # Kept and restored as not arrived.
+    restored = module.Forecast()
+    restored.restore(json.loads(json.dumps(forecast.saved())))
+    assert restored.capacity is None and restored.plans is None
+
+
+def test_the_run_packet_says_it_is_the_latest_run_not_the_source_of_every_value():
+    target = ROOT / "bridges/cosmos/targets/CONSTELLATION"
+    tlm = (target / "cmd_tlm/tlm.txt").read_text()
+    assert 'TELEMETRY CONSTELLATION RUN BIG_ENDIAN "The latest workflow run received' in tlm
+    assert 'HORIZONTALBOX "Latest run received"' in (target / "screens/forecast.txt").read_text()
 
 
 # --- the API key ------------------------------------------------------------------------------
