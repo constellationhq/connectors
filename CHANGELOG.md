@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.2 (2026-11-20)
+
+- COSMOS: a new OpenC3 Store cover image (`public/store_img.png`). Nothing else changes.
+
 ## v0.8.1 (2026-11-19)
 
 - The COSMOS plugin is ready for the OpenC3 Store: the gem carries the store title, keywords,
