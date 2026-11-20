@@ -1067,3 +1067,21 @@ def test_plain_http_to_another_host_stops_at_start_before_the_key_is_sent(
         assert "not sending the API key to http://example.com" in line and "https" in line
     else:
         assert stopped.value.code == "started"
+
+
+def test_the_screen_shows_every_packet_and_only_items_the_packets_have():
+    target = ROOT / "bridges/cosmos/targets/CONSTELLATION"
+    items, packet = set(), None
+    for line in (target / "cmd_tlm/tlm.txt").read_text().splitlines():
+        words = line.split()
+        if words[:1] == ["TELEMETRY"]:
+            packet = words[2]
+        elif words[:1] == ["APPEND_ITEM"]:
+            items.add((packet, words[1]))
+    shown = {
+        (words[2], words[3])
+        for line in (target / "screens/forecast.txt").read_text().splitlines()
+        if (words := line.split()) and words[0].startswith("LABELVALUE")
+    }
+    assert shown <= items
+    assert {p for p, _ in shown} == {p for p, _ in items}

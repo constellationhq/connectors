@@ -248,6 +248,9 @@ jobs:
           until tlm "NEXT_PASS EXPECTED_GB_P50" | jq -e '.result == 10' > /dev/null; do sleep 5; done
           tlm "NEXT_24H PASSES" | jq -e '.result == 1'
           tlm "RUN WORKFLOW" | jq -e '.result == "pass-yield"'
+          # The plugin's Telemetry Viewer screen is listed.
+          curl -sf 'localhost:2900/openc3-api/screens?scope=DEFAULT' -H "Authorization: $COSMOS_TOKEN" \
+            | jq -e 'index("CONSTELLATION/screens/forecast.txt")'
           # The microservice is the plugin's bridge.py, running in the operator.
           docker compose exec -T openc3-operator sh -c 'grep -ls "[b]ridge.py" /proc/[0-9]*/cmdline'
           docker exec stub python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/_calls').read().decode())" \
