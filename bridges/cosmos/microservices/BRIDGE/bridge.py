@@ -483,13 +483,7 @@ def resume(consumer: str, forecast: Forecast) -> str:
         saved = {}
     if not saved:
         cursor = results.start_cursor(call, consumer)
-        if cursor:
-            log(f"first start, reading after {cursor!r}")
-        else:
-            log(
-                f"first start: no run for {consumer} yet. In Constellation, send a workflow to the"
-                f" OpenC3 COSMOS output with connection {consumer}"
-            )
+        log(f"first start, reading after {cursor!r}")
         return cursor
     forecast.restore(saved["forecast"])
     log(f"resuming after {saved['cursor']!r}")
@@ -510,6 +504,7 @@ def main() -> None:
     forecast, refreshed, checked_in, refused, held = Forecast(), 0.0, "", "", ""
     # Why Constellation could not be read, said once until it can be again.
     failing = ""
+    hinted = False
     checked_at = 0.0
     cursor: str | None = None
     if why := results.key_refusal(os.environ["CONSTELLATION_API_URL"]):
@@ -541,6 +536,12 @@ def main() -> None:
             if failing:
                 log("reached Constellation again")
                 failing = ""
+            if not (forecast.run or page["entries"] or hinted):
+                log(
+                    f"no run for {consumer} yet. In Constellation, send a workflow to the OpenC3"
+                    f" COSMOS output with connection {consumer}"
+                )
+                hinted = True
             if lost := results.expired(page, cursor):
                 log(lost, warn=True)
             for entry in page["entries"]:

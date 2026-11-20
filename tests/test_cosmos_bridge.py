@@ -1174,3 +1174,11 @@ def test_a_state_kept_for_another_api_is_not_resumed(bridge, monkeypatch, capsys
     stored[key] = json.dumps({k: v for k, v in kept.items() if k != "api"}).encode()
     _, _, afters = ran(monkeypatch, again, stored)
     assert afters[0] == cursor_of(3)
+
+
+def test_a_first_start_whose_feed_has_one_run_never_says_there_is_none(
+    bridge, monkeypatch, capsys
+):
+    stored: dict[str, bytes] = {}
+    _, reported, _ = ran(monkeypatch, fed((1, [item(2, 10)])), stored)
+    assert reported == ["run_1"] and "no run for" not in capsys.readouterr().out
