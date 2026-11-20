@@ -522,6 +522,26 @@ def test_a_value_longer_than_its_string_item_is_cut_to_fit_not_dropped_by_cosmos
     assert sent["RUN"]["RUN_ID"] == "r" * 64
 
 
+def test_summed_gb_items_are_64_bit_so_a_large_sum_shows_its_third_decimal():
+    """A 32-bit float of 50000.123 reads 50000.121 at %.3f: a day's GB summed across a network
+    passes that, a single pass's never does."""
+    bits = {(p, i): (b, t) for p, i, b, t in tlm_items()}
+    for summed in [
+        ("NEXT_24H", "EXPECTED_GB_P10"),
+        ("NEXT_24H", "EXPECTED_GB_P50"),
+        ("CAPACITY", "GB_P10"),
+        ("CAPACITY", "GB_P50"),
+    ]:
+        assert bits[summed] == (64, "FLOAT"), summed
+
+
+def test_min_sinr_says_it_is_the_lowest_at_a_modcod_change():
+    """The API's MODCOD series keeps only the steps where the MODCOD changes."""
+    tlm = (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text()
+    (line,) = [x for x in tlm.splitlines() if "APPEND_ITEM MIN_SINR_DB" in x]
+    assert "at a MODCOD change" in line and "over the pass" not in line
+
+
 # --- the API key ------------------------------------------------------------------------------
 
 

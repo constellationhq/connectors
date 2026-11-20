@@ -320,8 +320,8 @@ def modcod_plans(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def modcod_packet(items: list[dict[str, Any]], now: datetime) -> dict[str, Any] | None:
-    """MODCOD: the next pass's MODCOD plan, its changes and its lowest SINR. None without a plan
-    still to fly."""
+    """MODCOD: the next pass's MODCOD plan, its changes and its lowest SINR at a change (the series
+    holds only the changes). None without a plan still to fly."""
     plans = sorted(
         (p for p in modcod_plans(items) if datetime.fromisoformat(p["until"]) > now),
         key=lambda p: p["target_at"],
