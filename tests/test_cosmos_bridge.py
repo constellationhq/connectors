@@ -136,6 +136,12 @@ def test_the_next_pass_is_the_next_aos_not_a_pass_already_under_way(bridge):
     assert out["NEXT_24H"]["PASSES"] == 2
 
 
+def test_with_no_pass_ahead_the_next_pass_reads_none_not_the_last_one(bridge):
+    module, _ = bridge
+    out = module.packets([item(-1, 9)], [], NOW)
+    assert out["NEXT_PASS"] == module.NO_PASS and out["NEXT_PASS"]["SATELLITE"] == "NONE"
+
+
 def test_the_soonest_open_swap_with_minutes_left(bridge):
     module, _ = bridge
     swaps = [swap(3, 10, 120), swap(1, 10, 20, to=None), swap(0, 10, -5)]
@@ -162,7 +168,7 @@ def test_only_the_resource_logs_for_this_connection_are_read(bridge):
     forecast = module.Forecast()
     forecast.take(resource, items)
     assert forecast.publish(NOW) == 4
-    assert [p for p, _ in injected] == ["NEXT_24H", "SWAP", "NEXT_PASS", "RUN"]
+    assert [p for p, _ in injected] == ["NEXT_24H", "NEXT_PASS", "SWAP", "RUN"]
     assert dict(injected)["RUN"]["WORKFLOW_VERSION"] == 3
     assert module.results.unpack(entry(([item(2, 10)], "yamcs-bridge")), CONSUMER) == []
 

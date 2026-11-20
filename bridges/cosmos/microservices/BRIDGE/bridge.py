@@ -184,6 +184,18 @@ def swap_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return shown
 
 
+# With no pass ahead, NEXT_PASS says so rather than keep the last run's pass.
+NO_PASS: dict[str, Any] = {
+    "SATELLITE": "NONE",
+    "ANTENNA": "NONE",
+    "AOS": "",
+    "LOS": "",
+    "EXPECTED_GB_P10": 0.0,
+    "EXPECTED_GB_P50": 0.0,
+    "EXPECTED_GB_P90": 0.0,
+    "MAX_ELEVATION": 0.0,
+}
+
 # Every SWAP item is written each time, so a cleared swap never leaves the last one's values
 # behind. With nothing to decide, the minutes left sit far above the limits: green, not red.
 NO_SWAP: dict[str, Any] = {
@@ -287,6 +299,7 @@ def packets(
             "EXPECTED_GB_P10": round(sum(results.expected_gb(p)["p10"] for p in day), 3),
             "EXPECTED_GB_P50": round(sum(results.expected_gb(p)["p50"] for p in day), 3),
         },
+        "NEXT_PASS": NO_PASS,
         "SWAP": {**NO_SWAP, "PENDING": pending},
     }
     # The next AOS, as the Forecast tool shows it: a pass already under way counts in the day only.
