@@ -289,8 +289,9 @@ def packets(
         },
         "SWAP": {**NO_SWAP, "PENDING": pending},
     }
-    if upcoming:
-        nxt = upcoming[0]
+    # The next AOS, as the Forecast tool shows it: a pass already under way counts in the day only.
+    nxt = next((p for p in upcoming if datetime.fromisoformat(p["target_at"]) > now), None)
+    if nxt:
         gb = results.expected_gb(nxt)
         elevation = results.max_elevation(nxt)
         out["NEXT_PASS"] = {

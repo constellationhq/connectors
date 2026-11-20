@@ -127,6 +127,15 @@ def test_the_next_pass_and_the_next_24_hours(bridge):
     assert out["SWAP"] == module.NO_SWAP
 
 
+def test_the_next_pass_is_the_next_aos_not_a_pass_already_under_way(bridge):
+    module, _ = bridge
+    # A day-long link (a GEO satellite) started an hour ago: it counts in the day, it is not next.
+    under_way = {**item(-1, 160), "until": (NOW + timedelta(hours=23)).isoformat()}
+    out = module.packets([under_way, item(2, 10)], [], NOW)
+    assert out["NEXT_PASS"]["AOS"] == "2026-11-06 14:00Z"
+    assert out["NEXT_24H"]["PASSES"] == 2
+
+
 def test_the_soonest_open_swap_with_minutes_left(bridge):
     module, _ = bridge
     swaps = [swap(3, 10, 120), swap(1, 10, 20, to=None), swap(0, 10, -5)]
