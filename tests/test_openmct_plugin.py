@@ -558,3 +558,20 @@ def test_a_modcod_plan_counts_changes_as_the_cosmos_and_lattice_bridges_do(tmp_p
     )
     rows = _node(tmp_path, script)
     assert "3 changes" in rows and "1 change<" in rows and "MODCODs" not in rows
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_the_ledger_shows_a_probability_or_share_as_a_percent_like_the_lock_loss_risk(tmp_path):
+    explain = {
+        **PASS["explain"],
+        "success": {"value": 0.97, "unit": "probability", "source": "ssa"},
+        "lock_loss_risk": {"value": 0.167, "unit": "share", "source": "acm"},
+    }
+    script = (
+        "import { VIEWS } from './forecast-view.js';"
+        f"const run = {{ kind: 'pass-yield' }}, items = {json.dumps([{**PASS, 'explain': explain}])};"
+        "console.log(JSON.stringify(VIEWS.ledger(run, items, 'p1')))"
+    )
+    ledger = _node(tmp_path, script)
+    assert '<td class="cf-num">97%</td>' in ledger and '<td class="cf-num">17%</td>' in ledger
+    assert "probability" not in ledger and "share" not in ledger

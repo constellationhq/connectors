@@ -267,6 +267,8 @@ export function actionState(item) {
 /** A swap to show: advice, or approved in Constellation; never one held or rejected. */
 const actionable = (i) => actionState(i) === 'advice' || actionState(i) === 'approved';
 
+// A probability or share column reads as a percent, as the lock-loss risk does.
+const SHARES = ['probability', 'share'];
 // rfi-watch items are links whose value is RFI in dB (p10/p50/p90) with a lock-loss risk (a
 // share), and whose action is a reroute with no deadline: never GB, never a swap.
 const pct = (v) => (typeof v === 'number' ? `${Math.round(v * 100)}%` : num(v));
@@ -484,7 +486,7 @@ export const VIEWS = {
     const x = item.explain || {};
     const laneRows = Object.entries(x)
       .filter(([, l]) => shown(l?.value) != null)
-      .map(([column, l]) => `<tr><td>${esc(column)}</td><td class="cf-num">${num(shown(l.value))} ${esc(l.unit ?? '')}</td><td class="cf-src" ${tip(l.source ?? '')}>${esc(sourceLabel(l.source))}</td></tr>`)
+      .map(([column, l]) => `<tr><td>${esc(column)}</td><td class="cf-num">${SHARES.includes(l.unit) ? pct(shown(l.value)) : `${num(shown(l.value))} ${esc(l.unit ?? '')}`}</td><td class="cf-src" ${tip(l.source ?? '')}>${esc(sourceLabel(l.source))}</td></tr>`)
       .join('');
     const g = run.kind === 'rfi-watch' ? null : gbOf(item);
     const plan = item.series?.length ? `<h4>Plan over the pass</h4>${stepChart(item.series)}` : '';
