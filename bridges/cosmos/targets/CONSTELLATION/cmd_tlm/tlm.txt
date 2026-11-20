@@ -40,7 +40,7 @@ TELEMETRY CONSTELLATION SWAP BIG_ENDIAN "Forecast: the soonest open rain-fade sw
     LIMITS DEFAULT 1 ENABLED 15 30 100000 100000
   APPEND_ITEM STATUS 128 STRING "The swap shown: ADVISED, APPROVED (approved in Constellation: carry it out) or NONE"
   APPEND_ITEM APPROVED 32 UINT "Open swaps approved in Constellation"
-  APPEND_ITEM PENDING 32 UINT "Swaps held for approval in Constellation"
+  APPEND_ITEM PENDING 32 UINT "Swaps held for approval in Constellation, deadline ahead"
 
 TELEMETRY CONSTELLATION CAPACITY BIG_ENDIAN "Forecast: one day's capacity across the antennas, and the tightest"
   ALLOW_SHORT

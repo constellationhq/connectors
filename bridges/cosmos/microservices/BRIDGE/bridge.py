@@ -333,8 +333,9 @@ class Forecast:
     def __init__(self) -> None:
         self.passes: list[dict[str, Any]] = []
         self.swaps: list[dict[str, Any]] = []
-        # Swaps the newest swap run holds for approval in Constellation: counted, not shown.
-        self.pending = 0
+        # The cancel-by deadline (None when not sent) of each swap the newest swap run holds for
+        # approval in Constellation: counted while it can still be decided, not shown.
+        self.held: list[str | None] = []
         self.capacity: list[dict[str, Any]] = []
         self.plans: list[dict[str, Any]] = []
         self.run: dict[str, Any] = {}
@@ -345,7 +346,11 @@ class Forecast:
         answers = resource.get("constellation.template") or results.kind(items)
         if answers == "rain-fade-swap":
             self.swaps = swap_items(items)
-            self.pending = sum(results.action_state(i) == "pending" for i in items)
+            self.held = [
+                (i.get("action") or {}).get("deadline")
+                for i in items
+                if results.action_state(i) == "pending"
+            ]
         elif answers == "antenna-capacity":
             self.capacity = items
         elif answers == "modcod-plan":
@@ -365,10 +370,16 @@ class Forecast:
         return dict(vars(self))
 
     def restore(self, saved: dict[str, Any]) -> None:
+        saved = dict(saved)
+        # A state kept before deadlines were (0.8.0) has only the count.
+        count = saved.pop("pending", 0)
         vars(self).update(saved)
+        if "held" not in saved:
+            self.held = [None] * int(count or 0)
 
     def publish(self, now: datetime) -> int:
-        out = packets(self.passes, self.swaps, now, self.pending)
+        pending = sum(d is None or datetime.fromisoformat(d) > now for d in self.held)
+        out = packets(self.passes, self.swaps, now, pending)
         for packet, values in (
             ("CAPACITY", capacity_packet(self.capacity, now)),
             ("MODCOD", modcod_packet(self.plans, now)),

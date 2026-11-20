@@ -900,13 +900,13 @@ def test_a_held_swap_run_counts_its_held_items_and_never_takes_them_for_passes(b
     forecast = module.Forecast()
     forecast.take(_resource("pass-yield"), [item(2, 10)])
     forecast.take(_resource("rain-fade-swap"), [held(3, 10), held(4, 10), approved(5, 10, 60)])
-    assert forecast.pending == 2 and [s["entity"]["id"] for s in forecast.swaps] == ["p5"]
+    assert len(forecast.held) == 2 and [s["entity"]["id"] for s in forecast.swaps] == ["p5"]
     assert [p["entity"]["id"] for p in forecast.passes] == ["p2"]
     assert module.priced_passes([held(3, 10)]) == []
     # A state saved before held swaps were counted restores with none held.
     restored = module.Forecast()
-    restored.restore({k: v for k, v in forecast.saved().items() if k != "pending"})
-    assert restored.pending == 0
+    restored.restore({k: v for k, v in forecast.saved().items() if k != "held"})
+    assert restored.held == []
 
 
 def test_a_run_naming_its_template_is_documented_as_that_kind(bridge):
@@ -934,7 +934,25 @@ def test_a_held_action_sent_with_its_body_is_counted_held_not_shown(bridge):
     assert module.swap_items([with_body]) == []
     forecast = module.Forecast()
     forecast.take(_resource("rain-fade-swap"), [with_body])
-    assert forecast.swaps == [] and forecast.pending == 1
+    assert forecast.swaps == [] and len(forecast.held) == 1
+
+
+def test_a_held_swap_past_its_deadline_is_no_longer_counted(bridge):
+    module, injected = bridge
+    forecast = module.Forecast()
+    late = {**swap(3, 10, 30), "action_status": "pending"}
+    forecast.take(_resource("rain-fade-swap"), [late, held(4, 10)])
+    forecast.publish(NOW)
+    forecast.publish(NOW + timedelta(minutes=31))
+    assert [v["PENDING"] for p, v in injected if p == "SWAP"] == [2, 1]
+
+
+def test_a_state_kept_by_0_8_0_restores_its_held_count(bridge):
+    module, injected = bridge
+    forecast = module.Forecast()
+    forecast.restore({"passes": [], "swaps": [], "pending": 3, "run": {"WORKFLOW": "w"}})
+    forecast.publish(NOW)
+    assert [v["PENDING"] for p, v in injected if p == "SWAP"] == [3]
 
 
 def renamed(it: dict) -> dict:
