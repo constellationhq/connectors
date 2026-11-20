@@ -513,6 +513,23 @@ def main() -> None:
     hinted = False
     checked_at = 0.0
     cursor: str | None = None
+
+    def pause(seconds: float) -> None:
+        """Waits `seconds`, refreshing the packets at least every POLL_S meanwhile, whatever the
+        wait is for (a poll, a missing or refused key, a hold-off): the forecast held is the
+        newest there is, and the next pass and the minutes left to a swap move with the clock,
+        not only with runs."""
+        nonlocal refreshed
+        while seconds > 0:
+            if time.time() - refreshed > REFRESH_S and forecast.run:
+                try:
+                    forecast.publish(datetime.now(UTC))
+                    refreshed = time.time()
+                except Exception as exc:
+                    log(f"could not refresh the packets ({type(exc).__name__}: {exc})", warn=True)
+            time.sleep(min(seconds, POLL_S))
+            seconds -= POLL_S
+
     if why := results.key_refusal(os.environ["CONSTELLATION_API_URL"]):
         log(why, warn=True)
         sys.exit(2)
@@ -525,10 +542,10 @@ def main() -> None:
                 f" predictions:read there ({results.site()}/keys)",
                 warn=True,
             )
-            time.sleep(KEY_WAIT_S)
+            pause(KEY_WAIT_S)
             continue
         if key == refused:
-            time.sleep(KEY_WAIT_S)
+            pause(KEY_WAIT_S)
             continue
         failed = ""
         try:
@@ -599,7 +616,7 @@ def main() -> None:
                     warn=True,
                 )
                 refused = key
-                time.sleep(KEY_WAIT_S)
+                pause(KEY_WAIT_S)
                 continue
             # Locked out, rate limited or out of plan: said once and waited out, never hammered.
             if hold := results.held_off(exc.code, body):
@@ -607,7 +624,7 @@ def main() -> None:
                 if why != held:
                     log(f"{why}. Asking again in {wait:.0f} s", warn=True)
                     held = why
-                time.sleep(wait)
+                pause(wait)
                 continue
             failed = f"Constellation answered HTTP {exc.code}"
         except OSError as exc:  # unreachable, refused, timed out (URLError is one)
@@ -621,15 +638,7 @@ def main() -> None:
                     warn=True,
                 )
             failing = failed
-        # Refreshed whether or not the poll worked: the forecast held is the newest there is, and
-        # the next pass and the minutes left to a swap move with the clock, not only with runs.
-        if time.time() - refreshed > REFRESH_S and forecast.run:
-            try:
-                forecast.publish(datetime.now(UTC))
-                refreshed = time.time()
-            except Exception as exc:
-                log(f"could not refresh the packets ({type(exc).__name__}: {exc})", warn=True)
-        time.sleep(POLL_S)
+        pause(POLL_S)
 
 
 if __name__ == "__main__":

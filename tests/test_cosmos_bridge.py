@@ -509,11 +509,14 @@ def polled(
     rotate=None,
     refused: dict[str, int] | None = None,
     answer: bytes = b"{}",
+    poll_s: float = 10**6,
 ) -> tuple[list, list]:
     """Runs the bridge's loop through `sleeps` sleeps against a feed with nothing new. Returns the
     key each request carried (path, key) and the sleeps. `rotate(n)` runs at the
-    n-th sleep; a key in `refused` gets its HTTP status, with `answer` as the body."""
+    n-th sleep; a key in `refused` gets its HTTP status, with `answer` as the body. A wait is one
+    sleep unless `poll_s` is set, the most the bridge sleeps between refreshes."""
     module, _ = bridge
+    monkeypatch.setattr(module, "POLL_S", poll_s)
     sent, slept = [], []
 
     def urlopen(req, timeout=None):
@@ -683,6 +686,36 @@ def test_a_lockout_or_hold_is_said_once_and_waited_out_not_hammered(
     out = capsys.readouterr()
     assert (out.out + out.err).count(says) == 1
     assert len([p for p, _ in sent if p == "/predictions/feed"]) == 3
+
+
+@pytest.mark.parametrize(
+    "status, answer",
+    [
+        (401, {}),
+        (402, {"detail": {"error": "upgrade_required"}}),
+        (429, {"error": "rate_limited", "retry_after_seconds": 30}),
+    ],
+)
+def test_while_a_key_or_plan_holds_the_bridge_off_the_forecast_held_keeps_refreshing(
+    bridge, monkeypatch, secrets, status, answer
+):
+    """The minutes left to a swap and the next pass move with the clock: a refused key or a hold
+    of an hour never freezes them."""
+    module, injected = bridge
+    monkeypatch.setattr(module, "resume", lambda _, f: setattr(f, "run", {"WORKFLOW": "w"}) or "")
+    monkeypatch.setattr(module, "REFRESH_S", -1)
+    secrets.key = "good"
+    _, slept = polled(
+        monkeypatch,
+        bridge,
+        9,
+        rotate=lambda n: n == 1 and setattr(Secrets, "key", "held"),
+        refused={"held": status},
+        answer=json.dumps(answer).encode(),
+        poll_s=15,
+    )
+    assert max(slept) <= 15
+    assert len([p for p, _ in injected if p == "RUN"]) == len(slept)
 
 
 # --- where the feed is read from --------------------------------------------------------------
