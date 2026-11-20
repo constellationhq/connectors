@@ -1,7 +1,10 @@
 """The workflow results protocol every bridge here shares (constellation_space.results)."""
 
 import json
+import threading
+import urllib.error
 from datetime import UTC, datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import api
 import pytest
@@ -260,3 +263,47 @@ def test_the_stub_bounds_a_page_by_bytes_as_the_api_does():
     assert [e["cursor"] for e in page["entries"]] == [e["cursor"] for e in feed[:2]]
     (only,) = api.ResultsApi(feed, page_bytes=10).call("GET", "/predictions/feed")["entries"]
     assert only["oversized"] is True and only["cursor"] == feed[0]["cursor"]
+
+
+def serve(answer):
+    """A local server whose `answer(handler)` answers each GET; returns its URL and the request
+    headers it got."""
+    got: list[dict[str, str]] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            got.append(dict(self.headers))
+            answer(self)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return f"http://127.0.0.1:{server.server_address[1]}", got, server
+
+
+def test_a_redirect_never_takes_the_api_key_elsewhere_and_other_calls_still_follow_one():
+    def ok(h):
+        h.send_response(200)
+        h.end_headers()
+        h.wfile.write(b'{"ok": true}')
+
+    there, reached, s1 = serve(ok)
+
+    def moved(h):
+        h.send_response(302)
+        h.send_header("Location", f"{there}/x")
+        h.end_headers()
+
+    here, _, s2 = serve(moved)
+    try:
+        with pytest.raises(urllib.error.HTTPError) as refused:
+            results.http("GET", f"{here}/predictions/feed", headers={"X-API-Key": "secret"})
+        assert refused.value.code == 302 and reached == []
+        # A call without the key (a Yamcs or Lattice call of the bridges) follows it as before.
+        assert results.http("GET", f"{here}/api") == {"ok": True}
+        assert len(reached) == 1
+    finally:
+        s1.shutdown()
+        s2.shutdown()

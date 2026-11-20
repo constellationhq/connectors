@@ -72,6 +72,13 @@ def key_refusal(url: str) -> str:
     return f"not sending the API key to {url}: it is not https (plain http only to localhost)"
 
 
+class _Unredirected(urllib.request.HTTPRedirectHandler):
+    """Answers a redirect as the HTTPError it is, never following it."""
+
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
 def http(
     method: str,
     url: str,
@@ -81,12 +88,16 @@ def http(
     timeout: float = 60,
 ) -> Any:
     """One HTTP call: `body` sent as JSON (or `raw` as is), the answer's JSON back, or None for an
-    answer that is not JSON. An HTTP error is raised as urllib's HTTPError."""
+    answer that is not JSON. An HTTP error is raised as urllib's HTTPError, and so is a redirect of
+    a call carrying an X-API-Key: following it could send the key to another host, or over plain
+    http (key_safe holds only for the URL asked)."""
     data = raw if raw is not None else None if body is None else json.dumps(body).encode()
     req = urllib.request.Request(url, data=data, method=method, headers=headers or {})
     if body is not None and raw is None:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    keyed = any(name.lower() == "x-api-key" for name in headers or {})
+    open_ = urllib.request.build_opener(_Unredirected).open if keyed else urllib.request.urlopen
+    with open_(req, timeout=timeout) as resp:
         payload = resp.read()
     return json.loads(payload) if payload and payload[:1] in b"{[" else None
 

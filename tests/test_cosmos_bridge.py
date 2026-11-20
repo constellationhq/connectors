@@ -494,6 +494,14 @@ class Secrets:
         return Secrets.key if key == "CONSTELLATION_API_KEY" else None
 
 
+def network(monkeypatch, module, answer) -> None:
+    """Every HTTP call answered by `answer(req, timeout)`: a keyed one too, which goes through an
+    opener that follows no redirect."""
+    monkeypatch.setattr(module.urllib.request, "urlopen", answer)
+    opener = types.SimpleNamespace(open=answer)
+    monkeypatch.setattr(module.urllib.request, "build_opener", lambda *handlers: opener)
+
+
 def polled(
     monkeypatch,
     bridge,
@@ -523,7 +531,7 @@ def polled(
         if len(slept) == sleeps:
             raise StopIteration
 
-    monkeypatch.setattr(module.urllib.request, "urlopen", urlopen)
+    network(monkeypatch, module, urlopen)
     monkeypatch.setattr(module.time, "sleep", sleep)
     with pytest.raises(StopIteration):
         module.main()
@@ -854,9 +862,9 @@ def test_a_failed_check_in_is_tried_again_until_it_succeeds(bridge, monkeypatch,
         if len(slept) == 3:
             raise StopIteration
 
-    monkeypatch.setattr(
-        module.urllib.request,
-        "urlopen",
+    network(
+        monkeypatch,
+        module,
         lambda req, timeout=None: sent.append(req.full_url) or refuse_first_checkin(req),
     )
     monkeypatch.setattr(module.time, "sleep", sleep)
@@ -876,9 +884,9 @@ def test_the_bridge_checks_in_again_every_checkin_s(bridge, monkeypatch, secrets
         if clock[0] > 700:
             raise StopIteration
 
-    monkeypatch.setattr(
-        module.urllib.request,
-        "urlopen",
+    network(
+        monkeypatch,
+        module,
         lambda req, timeout=None: sent.append(req.full_url) or io.BytesIO(b'{"entries": []}'),
     )
     monkeypatch.setattr(module.time, "time", lambda: clock[0])
@@ -1141,7 +1149,7 @@ def test_an_api_outage_is_said_once_and_the_forecast_held_keeps_refreshing(
         if down["n"] == 6:
             raise StopIteration
 
-    monkeypatch.setattr(module.urllib.request, "urlopen", urlopen)
+    network(monkeypatch, module, urlopen)
     monkeypatch.setattr(module.time, "sleep", sleep)
     with pytest.raises(StopIteration):
         module.main()
