@@ -1,4 +1,4 @@
-TELEMETRY CONSTELLATION NEXT_PASS BIG_ENDIAN "Forecast: the next predicted pass, not a scheduled contact"
+TELEMETRY CONSTELLATION NEXT_PASS BIG_ENDIAN "Forecast: the next predicted pass"
   ALLOW_SHORT
   APPEND_ITEM SATELLITE 512 STRING "Satellite id"
   APPEND_ITEM ANTENNA 512 STRING "Antenna id"

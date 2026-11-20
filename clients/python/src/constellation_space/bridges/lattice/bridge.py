@@ -830,10 +830,9 @@ def antenna_entity(
             "template": "TEMPLATE_ASSET",
         },
         "entityId": entity_id(antenna),
-        "description": f"Constellation's forecast for antenna {antenna} at {gs}, not the antenna "
-        "itself: "
+        "description": f"Constellation's forecast for antenna {antenna} at {gs}: "
         + (summary if summary else "no forecast passes yet")
-        + ". Forecasts, not scheduled contacts. Task ReservePass with satelliteId and, optionally,"
+        + ". Task ReservePass with satelliteId and, optionally,"
         " aos (RFC 3339).",
         "health": {
             "connectionStatus": "CONNECTION_STATUS_ONLINE",
@@ -906,7 +905,7 @@ def pass_entity(
     )
     return {
         "entityId": pass_entity_id(e["id"]),
-        "description": f"Constellation forecast, not a scheduled contact: {e['satellite_id']} over "
+        "description": f"Predicted pass: {e['satellite_id']} over "
         f"{e['antenna_id']} AOS {p['target_at'][11:16]}Z to LOS {p['until'][11:16]}Z.",
         "isLive": live,
         "createdTime": iso(now),

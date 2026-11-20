@@ -492,7 +492,7 @@ def ensure_band(name: str) -> None:
             f"/timeline/{INSTANCE}/views",
             {
                 "name": VIEW,
-                "description": "Predictions from Constellation, not scheduled contacts",
+                "description": "Predictions from Constellation",
                 "bands": [found["UTC"], found[name]],
             },
         )
@@ -534,7 +534,7 @@ def ensure_parameter_list() -> None:
             f"/parameter-lists/{INSTANCE}/lists",
             {
                 "name": VIEW,
-                "description": "Forecasts for the next pass and the next 24 hours; not measured telemetry",
+                "description": "Forecasts for the next pass and the next 24 hours",
                 "patterns": [f"{SPACE}/*"],
             },
         )

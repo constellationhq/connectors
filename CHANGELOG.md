@@ -2,7 +2,11 @@
 
 ## v0.8.2 (2026-11-20)
 
-- COSMOS: a new OpenC3 Store cover image (`public/store_img.png`). Nothing else changes.
+- COSMOS: a new OpenC3 Store cover image (`public/store_img.png`).
+- Plainer wording across the connectors: the Forecast view header drops its chip and says
+  "Predictions from Constellation workflows.", and the COSMOS screen title, packet and gem
+  descriptions, Open MCT, Yamcs and Lattice texts drop the repeated "not measured telemetry" and
+  "not a scheduled contact" lines.
 
 ## v0.8.1 (2026-11-19)
 

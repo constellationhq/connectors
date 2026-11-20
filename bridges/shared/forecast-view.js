@@ -497,15 +497,14 @@ export const VIEWS = {
 const STYLE = `
 .cf { --cf-ink: var(--y-foreground-color, #0b0b0b); --cf-muted: var(--y-hint-foreground, #6b6b66); --cf-line: var(--y-border-color, rgba(0,0,0,.1));
   --cf-surface: var(--y-background-color, #fff); --cf-raise: var(--y-detail-pane-background-color, #fafaf9); --cf-series: #2a78d6; --cf-band: rgba(42,120,214,.18);
-  --cf-warn: #fab219; --cf-warn-ink: #8a5a00;
+  --cf-warn: #fab219;
   font: 13px/1.45 Roboto, "Helvetica Neue", system-ui, sans-serif; color: var(--cf-ink); background: var(--cf-surface); padding: 20px 24px 48px; position: relative; }
 /* Dark hosts (Open MCT's Espresso, Yamcs's dark theme): the same roles stepped for a dark surface. */
 .cf[data-theme="dark"] { --cf-ink: #e8e8e6; --cf-muted: #a3a29c; --cf-line: rgba(255,255,255,.12); --cf-surface: #1a1a19;
-  --cf-raise: #242423; --cf-series: #3987e5; --cf-band: rgba(57,135,229,.28); --cf-warn: #fab219; --cf-warn-ink: #fab219; }
+  --cf-raise: #242423; --cf-series: #3987e5; --cf-band: rgba(57,135,229,.28); --cf-warn: #fab219; }
 .cf * { box-sizing: border-box; }
 .cf-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:4px; }
 .cf-head h2 { font-size:20px; font-weight:500; margin:0; }
-.cf-forecast { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--cf-warn-ink); border:1px solid var(--cf-warn); border-radius:999px; padding:1px 8px; }
 .cf-meta { color:var(--cf-muted); font-size:12px; }
 .cf-cats { display:flex; gap:2px; border-bottom:1px solid var(--cf-line); margin:16px 0 0; }
 .cf-cats button { background:none; border:none; border-bottom:2px solid transparent; padding:8px 14px; color:var(--cf-muted); cursor:pointer; font:inherit; }
@@ -637,8 +636,8 @@ export function mountForecast(element, { load, refreshMs = REFRESH_MS, theme = '
       const side = blocks.includes('ledger') ? VIEWS.ledger(run, items, selected) : '';
       body = `<p class="cf-meta">${esc(TITLES[run.kind] ?? run.kind)} · workflow ${esc(run.workflow)} v${esc(run.workflow_version)} · run ${esc(run.run_id)} · delivered ${ago(run.delivered_at)}</p>${flows}<div class="cf-grid2"><div>${main}</div><div>${side}</div></div>`;
     }
-    root.innerHTML = `<div class="cf-head"><h2>Constellation Forecast</h2><span class="cf-forecast">Forecast · not scheduled contacts</span></div>
-      <p class="cf-meta">Predicted by Constellation workflows. Nothing here is measured telemetry.</p>
+    root.innerHTML = `<div class="cf-head"><h2>Constellation Forecast</h2></div>
+      <p class="cf-meta">Predictions from Constellation workflows.</p>
       ${error === 'restarting' ? '<p class="cf-note">Waiting for the host to come back; this refreshes on its own.</p>' : error ? `<div class="cf-error">Could not read the forecasts: ${esc(error)}</div>` : ''}
       ${workflows.length ? `<div class="cf-cats" role="tablist">${cats}</div>` : ''}${body}`;
   }

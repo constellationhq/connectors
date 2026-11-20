@@ -7,7 +7,7 @@ spec = Gem::Specification.new do |s|
     feed: the next predicted pass, the next 24 hours, the soonest rain-fade swap to decide, a
     day's capacity across the antennas (CAPACITY), the next pass's MODCOD plan (MODCOD), and the
     run they came from. A Telemetry Viewer screen shows them all, and a Constellation Forecast tool
-    charts each workflow. Every value is a forecast.
+    charts each workflow.
   EOF
   s.authors = ['Constellation Space Corp']
   s.email = ['support@constellation.space']
