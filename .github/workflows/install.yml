@@ -189,9 +189,14 @@ jobs:
   cosmos:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # The newest COSMOS, and the gemspec's openc3_cosmos_minimum_version.
+        cosmos: [v7.5.1, v7.0.0]
     env:
       # OpenC3's cosmos-project at this tag pins its images (OPENC3_TAG in its .env) to the same release.
-      COSMOS_VERSION: v7.5.1
+      COSMOS_VERSION: ${{ matrix.cosmos }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

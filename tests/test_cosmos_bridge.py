@@ -264,7 +264,8 @@ TOOL = SOURCE.parents[2] / "tools/constellationforecast/main.js"
 def test_the_tool_registers_single_spa_lifecycles_and_reads_cosmos_storage():
     """COSMOS imports the tool with SystemJS and mounts it with single-spa: main.js must
     System.register bootstrap, mount and unmount. load() reads a document through COSMOS's
-    storage API with the operator's token and decodes it as UTF-8."""
+    storage API with the operator's token and decodes it as UTF-8. A document not written yet is
+    "none yet": a 404, or before COSMOS 7.5 a 500 saying the file is not there."""
     doc = {"workflows": [{"workflow": "w", "template": "pass-yield", "note": "p50 · GB"}]}
     contents = base64.encodebytes(json.dumps(doc, ensure_ascii=False).encode()).decode()
     script = f"""
@@ -278,22 +279,25 @@ const sandbox = {{
   fetch: async (url, opts) => {{
     calls.push([url, opts.headers.Authorization]);
     if (url.includes('missing')) return {{ ok: false, status: 404 }};
+    if (url.includes('gone')) return {{ ok: false, status: 500, json: async () => ({{ status: 'error', message: 'No such file or directory @ rb_sysopen - /tmp/d1/DEFAULT/constellation/gone.json' }}) }};
+    if (url.includes('broken')) return {{ ok: false, status: 500, json: async () => ({{ status: 'error', message: 'Redis down' }}) }};
     return {{ ok: true, json: async () => ({{ contents: {json.dumps(contents)} }}) }};
   }},
 }};
 vm.runInNewContext(fs.readFileSync({json.dumps(str(TOOL))}, 'utf8'), sandbox);
 (async () => {{
   const doc = await exported.load('index.json');
-  let missing;
-  try {{ await exported.load('missing.json'); }} catch (e) {{ missing = e.message; }}
+  const failed = async (name) => {{ try {{ await exported.load(name); }} catch (e) {{ return e.message; }} }};
+  const missing = await failed('missing.json'), gone = await failed('gone.json'), broken = await failed('broken.json');
   const kinds = ['bootstrap', 'mount', 'unmount'].map((k) => typeof exported[k]);
-  console.log(JSON.stringify({{ kinds, doc, missing, calls }}));
+  console.log(JSON.stringify({{ kinds, doc, missing, gone, broken, calls }}));
 }})();
 """
     out = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True)
     got = json.loads(out.stdout)
     assert got["kinds"] == ["function"] * 3
-    assert got["doc"] == doc and got["missing"] == "none yet"
+    assert got["doc"] == doc and got["missing"] == got["gone"] == "none yet"
+    assert got["broken"] == "COSMOS answered 500"
     assert got["calls"][0] == [
         "/openc3-api/storage/download_file/DEFAULT%2Fconstellation%2Findex.json"
         "?bucket=OPENC3_CONFIG_BUCKET&scope=DEFAULT",

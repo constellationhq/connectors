@@ -34,7 +34,10 @@ System.register([], function (_export) {
           location.assign(`/login?redirect=${encodeURIComponent(location.pathname)}`);
           throw new Error('Your COSMOS sign-in expired: signing in again');
         }
-        if (!response.ok) throw new Error(response.status === 404 ? 'none yet' : `COSMOS answered ${response.status}`);
+        // Not written yet (before the first run): a 404, or before COSMOS 7.5 a 500 whose message
+        // says the file is not there.
+        const missing = response.status === 404 || (response.status === 500 && /No such file/i.test((await response.json().catch(() => ({}))).message || ''));
+        if (!response.ok) throw new Error(missing ? 'none yet' : `COSMOS answered ${response.status}`);
         const bytes = Uint8Array.from(atob((await response.json()).contents), (c) => c.charCodeAt(0));
         return JSON.parse(new TextDecoder().decode(bytes));
       }
