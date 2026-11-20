@@ -584,6 +584,9 @@ def test_without_a_key_the_bridge_waits_and_says_so_once_a_minute(
     assert slept[:2] == [60, 60]
     out = capsys.readouterr()
     assert (out.out + out.err).count("No CONSTELLATION_API_KEY in Admin > Secrets yet") == 2
+    assert "predictions:read there (https://platform.test/keys)" in out.err
+    # Nothing in the feed for this connection yet: the log says what to do in Constellation.
+    assert "no run for cosmos-bridge yet" in out.out and "connection cosmos-bridge" in out.out
     # Once added, it is used without a restart.
     assert ("/predictions/feed", "added") in sent and all(key == "added" for _, key in sent)
 

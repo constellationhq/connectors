@@ -439,7 +439,13 @@ def resume(consumer: str, forecast: Forecast) -> str:
     found = client.get_object(bucket=name, key=state_key(consumer))
     if not found:
         cursor = results.start_cursor(call, consumer)
-        log(f"first start, reading after {cursor!r}")
+        if cursor:
+            log(f"first start, reading after {cursor!r}")
+        else:
+            log(
+                f"first start: no run for {consumer} yet. In Constellation, send a workflow to the"
+                f" OpenC3 COSMOS output with connection {consumer}"
+            )
         return cursor
     saved = json.loads(found["Body"].read())
     forecast.restore(saved["forecast"])
@@ -467,7 +473,11 @@ def main() -> None:
     while True:
         key = api_key()
         if not key:
-            log("No CONSTELLATION_API_KEY in Admin > Secrets yet", warn=True)
+            log(
+                "No CONSTELLATION_API_KEY in Admin > Secrets yet: add a Constellation key with"
+                f" predictions:read there ({results.site()}/keys)",
+                warn=True,
+            )
             time.sleep(KEY_WAIT_S)
             continue
         if key == refused:
