@@ -246,7 +246,7 @@ export default function ConstellationForecast({
 
     openmct.types.addType('constellation.forecast', {
       name: 'Constellation Forecast',
-      description: 'Forecasts from Constellation workflows: predicted passes and recommendations, not scheduled contacts.',
+      description: 'Forecasts from Constellation workflows: predicted passes and recommendations.',
       cssClass: 'icon-telemetry',
       creatable: false,
     });

@@ -1,4 +1,4 @@
-TELEMETRY CONSTELLATION NEXT_PASS BIG_ENDIAN "Forecast: the next predicted pass, not a scheduled contact"
+TELEMETRY CONSTELLATION NEXT_PASS BIG_ENDIAN "Forecast: the next predicted pass"
   ALLOW_SHORT
   APPEND_ITEM SATELLITE 512 STRING "Satellite id"
   APPEND_ITEM ANTENNA 512 STRING "Antenna id"
@@ -43,7 +43,7 @@ TELEMETRY CONSTELLATION SWAP BIG_ENDIAN "Forecast: the soonest open rain-fade sw
   APPEND_ITEM BACKUP_ANTENNA 512 STRING "Antenna to book instead, or NONE"
   APPEND_ITEM BACKUP_AOS 256 STRING "Backup pass AOS, UTC"
   APPEND_ITEM DEADLINE 256 STRING "Cancel the original by, UTC"
-  APPEND_ITEM MINUTES_TO_DEADLINE 32 FLOAT "Minutes left to decide (99999 when no swap is open)"
+  APPEND_ITEM MINUTES_TO_DEADLINE 32 FLOAT "Minutes left to decide: yellow at 30 or less, red at 15 or less (99999 when no swap is open)"
     UNITS Minutes min
     FORMAT_STRING "%.1f"
     LIMITS DEFAULT 1 ENABLED 15 30 100000 100000
@@ -75,13 +75,13 @@ TELEMETRY CONSTELLATION MODCOD BIG_ENDIAN "Forecast: the next pass's MODCOD plan
   APPEND_ITEM SATELLITE 512 STRING "Satellite id"
   APPEND_ITEM ANTENNA 512 STRING "Antenna id"
   APPEND_ITEM AOS 256 STRING "Predicted AOS, UTC"
-  APPEND_ITEM CHANGES 32 UINT "MODCOD changes over the pass"
+  APPEND_ITEM CHANGES 32 UINT "MODCOD changes over the pass, after the one at AOS"
   APPEND_ITEM FIRST 256 STRING "MODCOD at AOS"
   APPEND_ITEM LAST 256 STRING "MODCOD at LOS"
   APPEND_ITEM MIN_SINR_DB 32 FLOAT "Lowest planned SINR (p50) at a MODCOD change"
     UNITS Decibels dB
     FORMAT_STRING "%.2f"
-  APPEND_ITEM PLANNED_PASSES 32 UINT "Passes with a plan still to fly"
+  APPEND_ITEM PLANNED_PASSES 32 UINT "Passes ahead with a plan"
 
 TELEMETRY CONSTELLATION RUN BIG_ENDIAN "The latest workflow run received, of any kind: each other packet holds the newest run of its own kind"
   ALLOW_SHORT

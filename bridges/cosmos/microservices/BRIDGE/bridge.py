@@ -38,7 +38,7 @@ from typing import Any
 
 from constellation_space import results
 
-VERSION = "0.8.1"
+VERSION = "0.8.3"
 TARGET = "CONSTELLATION"
 POLL_S = int(os.environ.get("POLL_SECONDS", "15"))
 # COSMOS shows a packet stale 30 s after its last value: re-inject every poll so a quiet feed
@@ -321,9 +321,10 @@ def modcod_plans(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def modcod_packet(items: list[dict[str, Any]], now: datetime) -> dict[str, Any] | None:
     """MODCOD: the next pass's MODCOD plan, its changes and its lowest SINR at a change (the series
-    holds only the changes). None without a plan still to fly."""
+    holds only the changes). The next AOS, as NEXT_PASS has it: a pass under way is not next.
+    None without a plan ahead."""
     plans = sorted(
-        (p for p in modcod_plans(items) if datetime.fromisoformat(p["until"]) > now),
+        (p for p in modcod_plans(items) if datetime.fromisoformat(p["target_at"]) > now),
         key=lambda p: p["target_at"],
     )
     if not plans:

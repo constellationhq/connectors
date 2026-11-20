@@ -46,7 +46,7 @@ from typing import Any
 
 from constellation_space import results
 
-VERSION = "0.8.1"
+VERSION = "0.8.3"
 API = (os.environ.get("CONSTELLATION_API_URL") or "https://api.constellation.space").rstrip("/")
 API_KEY = os.environ.get("CONSTELLATION_API_KEY", "").strip()
 YAMCS = os.environ.get("YAMCS_URL", "http://yamcs:8090").rstrip("/")
@@ -492,7 +492,7 @@ def ensure_band(name: str) -> None:
             f"/timeline/{INSTANCE}/views",
             {
                 "name": VIEW,
-                "description": "Predictions from Constellation, not scheduled contacts",
+                "description": "Predictions from Constellation",
                 "bands": [found["UTC"], found[name]],
             },
         )
@@ -534,7 +534,7 @@ def ensure_parameter_list() -> None:
             f"/parameter-lists/{INSTANCE}/lists",
             {
                 "name": VIEW,
-                "description": "Forecasts for the next pass and the next 24 hours; not measured telemetry",
+                "description": "Forecasts for the next pass and the next 24 hours",
                 "patterns": [f"{SPACE}/*"],
             },
         )

@@ -1,7 +1,6 @@
 # LANGUAGE python
 # Constellation workflow forecasts in COSMOS: a CONSTELLATION target whose packets the bridge
-# microservice fills from the Constellation feed. Everything here is a forecast, not telemetry
-# measured from a spacecraft or a ground station.
+# microservice fills from the Constellation feed.
 VARIABLE constellation_api_url https://api.constellation.space
 VARIABLE_DESCRIPTION "Constellation API URL. The API key goes in Admin > Secrets as CONSTELLATION_API_KEY"
 VARIABLE consumer cosmos-bridge
