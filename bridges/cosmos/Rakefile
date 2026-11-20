@@ -9,6 +9,8 @@ SHARED_VIEW = '../shared/forecast-view.js'
 # the same way as a one-module constellation_space package.
 RESULTS = 'microservices/BRIDGE/constellation_space/results.py'
 SHARED_RESULTS = '../../clients/python/src/constellation_space/results.py'
+# The repository's license, shipped in the gem.
+SHARED_LICENSE = '../../LICENSE'
 
 task :build do
   abort('VERSION is required: rake build VERSION=0.8.0') unless ENV['VERSION']
@@ -20,5 +22,7 @@ task :build do
     FileUtils.touch(File.join(File.dirname(RESULTS), '__init__.py'))
   end
   abort("#{RESULTS} is missing: copy clients/python/src/constellation_space/results.py there") unless File.exist?(RESULTS)
+  FileUtils.cp(SHARED_LICENSE, 'LICENSE') if File.exist?(SHARED_LICENSE)
+  abort('LICENSE is missing: copy the repository root LICENSE here') unless File.exist?('LICENSE')
   system("gem build #{PLUGIN_NAME}.gemspec") || abort('gem build failed')
 end
