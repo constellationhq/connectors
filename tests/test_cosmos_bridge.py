@@ -1156,3 +1156,21 @@ def test_an_api_outage_is_said_once_and_the_forecast_held_keeps_refreshing(
         " asking again every 15 s",
     ]
     assert len([p for p, _ in injected if p == "RUN"]) == 6
+
+
+def test_a_state_kept_for_another_api_is_not_resumed(bridge, monkeypatch, capsys):
+    stored: dict[str, bytes] = {}
+    ran(monkeypatch, fed((1, [item(2, 10)])), stored)
+    # The same connection, repointed at another API: its cursor means nothing there.
+    monkeypatch.setitem(os.environ, "CONSTELLATION_API_URL", "https://api.other.test")
+    again = fed((1, [item(2, 10)]), (2, [item(3, 20)]), (3, [item(4, 30)]))
+    _, reported, afters = ran(monkeypatch, again, stored)
+    # A first start's: the newest run only, not runs 2 and 3 after the kept cursor.
+    assert afters[0] == cursor_of(2) and reported == ["run_3"]
+    assert "state kept for https://api.test is not for this API" in capsys.readouterr().out
+    # A state kept before the API was (0.8.0) is resumed.
+    (key,) = stored
+    kept = json.loads(stored[key])
+    stored[key] = json.dumps({k: v for k, v in kept.items() if k != "api"}).encode()
+    _, _, afters = ran(monkeypatch, again, stored)
+    assert afters[0] == cursor_of(3)

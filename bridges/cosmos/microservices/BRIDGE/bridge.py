@@ -463,6 +463,10 @@ def report(consumer: str, cursor: str, applied: dict[str, int]) -> None:
         log(f"could not report ({exc})", warn=True)
 
 
+def api_origin() -> str:
+    return results.origin(os.environ["CONSTELLATION_API_URL"])
+
+
 def state_key(consumer: str) -> str:
     return f"{DOCS}/bridge-{consumer}.json"
 
@@ -472,7 +476,12 @@ def resume(consumer: str, forecast: Forecast) -> str:
     start's."""
     client, name = bucket()
     found = client.get_object(bucket=name, key=state_key(consumer))
-    if not found:
+    saved = json.loads(found["Body"].read()) if found else {}
+    # A cursor is the feed's own: one kept for another API means nothing here.
+    if saved.get("api", api_origin()) != api_origin():
+        log(f"the state kept for {saved['api']} is not for this API: starting afresh")
+        saved = {}
+    if not saved:
         cursor = results.start_cursor(call, consumer)
         if cursor:
             log(f"first start, reading after {cursor!r}")
@@ -482,7 +491,6 @@ def resume(consumer: str, forecast: Forecast) -> str:
                 f" OpenC3 COSMOS output with connection {consumer}"
             )
         return cursor
-    saved = json.loads(found["Body"].read())
     forecast.restore(saved["forecast"])
     log(f"resuming after {saved['cursor']!r}")
     return saved["cursor"]
@@ -490,7 +498,8 @@ def resume(consumer: str, forecast: Forecast) -> str:
 
 def keep(consumer: str, cursor: str, forecast: Forecast) -> None:
     client, name = bucket()
-    body = json.dumps({"cursor": cursor, "forecast": forecast.saved()}).encode()
+    kept = {"cursor": cursor, "forecast": forecast.saved(), "api": api_origin()}
+    body = json.dumps(kept).encode()
     client.put_object(
         bucket=name, key=state_key(consumer), body=body, content_type="application/json"
     )
