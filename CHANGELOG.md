@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.8.1 (2026-11-19)
+
+- The COSMOS plugin is ready for the OpenC3 Store: the gem carries the store title, keywords,
+  cover image (`public/store_img.png`), access type and minimum COSMOS version (7.0.0), the
+  Apache-2.0 LICENSE, and the COSMOS guide as its homepage.
+- CI installs the COSMOS gem into stock COSMOS Core 7.5.1 and 7.0.0 with the COSMOS CLI and checks that
+  the bridge fills the `CONSTELLATION` packets, the screen is listed and the Forecast tool is
+  served.
+- COSMOS: a `CONSTELLATION FORECAST` Telemetry Viewer screen shows every packet.
+- COSMOS: the bridge logs to COSMOS's log messages (CmdTlmServer), says what to do with no key or
+  no runs yet, says an API outage once and keeps the forecast it holds fresh meanwhile, and
+  while a refused key or a plan or rate hold-off waits too, so the minutes left to a swap and the
+  next pass keep moving.
+- COSMOS: a `consumer` the API would refuse (it takes lowercase letters, digits and hyphens) and
+  a plain-http API URL to another host are each said once at start, and the bridge waits rather
+  than exit and be respawned by COSMOS over and over.
+- COSMOS: `NEXT_PASS` is the next AOS, as the Forecast tool shows it, not a pass already under
+  way. A packet is injected only once a run of its kind has arrived, so a kind not sent shows no
+  value rather than `NONE` and 0. `NEXT_PASS`, `CAPACITY` and `MODCOD` read `NONE` when a run of
+  their kind leaves nothing to show, rather than keep the last run's values. `SWAP PENDING`
+  counts a held swap only until the API would expire it (its cancel deadline, else its pass's
+  start). Floats show at the precision they are sent, and the summed GB items (`NEXT_24H` and
+  `CAPACITY`) are 64-bit so a large sum keeps its third decimal. A string longer than its item
+  (an id the API allows) is cut to fit, where COSMOS would drop the whole packet. `RUN` and its
+  screen box say they are the latest run received, of any kind, and `MODCOD MIN_SINR_DB` that it
+  is the lowest SINR at a MODCOD change.
+- COSMOS: the Forecast tool says no forecasts yet, not "COSMOS answered 500", before the first
+  run on COSMOS before 7.5, whose storage API answers 500 for a file not written yet.
+- Python client and bridges: a call carrying the API key follows no redirect, so the key never
+  goes to another host or over plain http.
+- COSMOS: a bridge repointed at another API starts afresh rather than at the old API's cursor.
+- COSMOS: the Forecast tool takes COSMOS's title bar and theme colours; the install dialog says
+  where the API key goes.
+- Forecast view (Yamcs, COSMOS, Open MCT): the GB chart's axis reaches the highest hour; a swap
+  run whose swaps are all held for approval no longer reads as no risk; held approvals are counted
+  once, not again in the section header; and the header says nothing shown is measured
+  telemetry.
+- Built against API contract 2.1.0, as v0.8.0.
+
 ## v0.8.0 (2026-11-18)
 
 - Built against API contract 2.1.0 (was 1.6.0). Contract 2.0.0 is a major release: it removed
