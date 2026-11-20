@@ -577,7 +577,7 @@ def test_listed_passes_are_their_own_entities_until_los_and_withdrawn_when_dropp
     ]
     first = listed[0]
     assert first["provenance"]["dataType"] == "constellation-forecast"
-    assert "not a scheduled contact" in first["description"]
+    assert first["description"].startswith("Predicted pass: ")
     assert first["aliases"]["name"].endswith("13.0 GB (p10 9.0)")
     assert module.when(first["expiryTime"]) > module.when(passes[0]["until"])
     (window,) = first["schedules"]["schedules"][0]["windows"]
@@ -801,7 +801,7 @@ def test_the_forecast_is_a_named_service_never_the_antenna_itself(bridge):
     assert "location" not in service and "relationships" not in service
     assert service["health"]["healthStatus"] == "HEALTH_STATUS_HEALTHY"
     text = service["description"]
-    assert text.startswith("Constellation's forecast for antenna ant-1 at gs-1, not the antenna")
+    assert text.startswith("Constellation's forecast for antenna ant-1 at gs-1: ")
     assert "16.4 GB (p10 12.4) ok" in text and "6.0 GB (p10 2.0) below the 5.0 GB floor" in text
     assert "ReservePass" in text
     # Every forecast shape on the map reads as one and shares the forecast colour.

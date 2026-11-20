@@ -1,6 +1,6 @@
 SCREEN AUTO AUTO 1.0
 
-TITLE "Constellation forecast: predicted values, not measured telemetry"
+TITLE "Constellation forecast"
 
 HORIZONTALBOX "Latest run received"
   LABELVALUEDESC CONSTELLATION RUN WORKFLOW "Workflow" CONVERTED 16
