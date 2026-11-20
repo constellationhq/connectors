@@ -3,11 +3,24 @@
 ## v0.8.1 (2026-11-19)
 
 - The COSMOS plugin is ready for the OpenC3 Store: the gem carries the store title, keywords,
-  cover image (`public/store_img.png`), access type and minimum COSMOS version (7.0.0), and
-  ships a README and the Apache-2.0 LICENSE.
+  cover image (`public/store_img.png`), access type and minimum COSMOS version (7.0.0), the
+  Apache-2.0 LICENSE, and the COSMOS guide as its homepage.
 - CI installs the COSMOS gem into stock COSMOS Core 7.5.1 with the COSMOS CLI and checks that
-  the bridge fills the `CONSTELLATION` packets and the Forecast tool is served.
-- Built against API contract 2.1.0, as v0.8.0. Nothing else changed.
+  the bridge fills the `CONSTELLATION` packets, the screen is listed and the Forecast tool is
+  served.
+- COSMOS: a `CONSTELLATION FORECAST` Telemetry Viewer screen shows every packet.
+- COSMOS: the bridge logs to COSMOS's log messages (CmdTlmServer), says what to do with no key or
+  no runs yet, says an API outage once and keeps the forecast it holds fresh meanwhile.
+- COSMOS: `NEXT_PASS` is the next AOS, as the Forecast tool shows it, not a pass already under
+  way. `NEXT_PASS`, `CAPACITY` and `MODCOD` read `NONE` when a run leaves nothing to show,
+  rather than keep the last run's values. `SWAP PENDING` counts only held swaps still before
+  their deadline. Floats show at the precision they are sent.
+- COSMOS: a bridge repointed at another API starts afresh rather than at the old API's cursor.
+- COSMOS: the Forecast tool takes COSMOS's title bar and theme colours; the install dialog says
+  where the API key goes.
+- Forecast view (Yamcs, COSMOS, Open MCT): the GB chart's axis reaches the highest hour, and a
+  swap run whose swaps are all held for approval no longer reads as no risk.
+- Built against API contract 2.1.0, as v0.8.0.
 
 ## v0.8.0 (2026-11-18)
 
