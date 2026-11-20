@@ -982,6 +982,22 @@ def test_a_held_swap_past_its_deadline_is_no_longer_counted(bridge):
     assert [v["PENDING"] for p, v in injected if p == "SWAP"] == [2, 1]
 
 
+def test_a_held_swap_as_the_api_sends_it_counts_until_the_api_would_expire_it(bridge):
+    """The API sends a held item without its action, so no deadline: it expires as the API's
+    expires_at() says, when its pass starts, or a link's span ends."""
+    module, injected = bridge
+    link = {
+        **held(1, 10),
+        "entity": {"type": "link", "id": "l1"},
+        "until": (NOW + timedelta(hours=5)).isoformat(),
+    }
+    forecast = module.Forecast()
+    forecast.take(_resource("rain-fade-swap"), [held(1, 10), link])
+    for hours in (0, 2, 6):
+        forecast.publish(NOW + timedelta(hours=hours))
+    assert [v["PENDING"] for p, v in injected if p == "SWAP"] == [2, 1, 0]
+
+
 def test_a_state_kept_by_0_8_0_restores_its_held_count(bridge):
     module, injected = bridge
     forecast = module.Forecast()

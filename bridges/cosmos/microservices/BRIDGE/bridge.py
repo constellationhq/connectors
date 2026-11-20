@@ -186,6 +186,14 @@ def swap_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return shown
 
 
+def held_until(item: dict[str, Any]) -> str:
+    """When a held action can no longer be approved, as the API's expires_at() has it: its cancel
+    deadline, else when its pass starts, or a link's span ends. The API sends a held item without
+    its action, so mostly the latter."""
+    end = item["until"] if (item.get("entity") or {}).get("type") == "link" else item["target_at"]
+    return (item.get("action") or {}).get("deadline") or end
+
+
 # With no pass ahead, NEXT_PASS says so rather than keep the last run's pass.
 NO_PASS: dict[str, Any] = {
     "SATELLITE": "NONE",
@@ -371,8 +379,8 @@ class Forecast:
     def __init__(self) -> None:
         self.passes: list[dict[str, Any]] = []
         self.swaps: list[dict[str, Any]] = []
-        # The cancel-by deadline (None when not sent) of each swap the newest swap run holds for
-        # approval in Constellation: counted while it can still be decided, not shown.
+        # When each swap the newest swap run holds for approval in Constellation can no longer
+        # be approved (held_until): counted until then, not shown. None only in a 0.8.0 state.
         self.held: list[str | None] = []
         self.capacity: list[dict[str, Any]] = []
         self.plans: list[dict[str, Any]] = []
@@ -384,11 +392,7 @@ class Forecast:
         answers = resource.get("constellation.template") or results.kind(items)
         if answers == "rain-fade-swap":
             self.swaps = swap_items(items)
-            self.held = [
-                (i.get("action") or {}).get("deadline")
-                for i in items
-                if results.action_state(i) == "pending"
-            ]
+            self.held = [held_until(i) for i in items if results.action_state(i) == "pending"]
         elif answers == "antenna-capacity":
             self.capacity = items
         elif answers == "modcod-plan":
