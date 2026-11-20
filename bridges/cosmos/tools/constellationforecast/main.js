@@ -79,11 +79,19 @@ System.register([], function (_export) {
         mount: async () => {
           ({ mountForecast } = await import(`${BASE}/forecast-view.js`));
           const root = document.getElementById('openc3-tool');
+          // The tool's name where COSMOS's own tools put theirs: the tab and the top bar.
+          document.title = 'Constellation Forecast';
+          const menu = document.getElementById('openc3-menu');
+          if (menu) menu.innerHTML = '<span style="font-size:32px; line-height:1.2">Constellation Forecast</span>';
+          // COSMOS's theme tokens, so the view follows whichever COSMOS theme is chosen.
           root.innerHTML = `<style>
-.cfc { min-height:100%; background:#1a1a19; }
-.cfc-nav { display:flex; gap:4px; flex-wrap:wrap; padding:12px 24px 0; font:13px Roboto, system-ui, sans-serif; }
-.cfc-nav a { color:#a3a29c; text-decoration:none; padding:4px 10px; border:1px solid rgba(255,255,255,.12); border-radius:6px; }
-.cfc-nav a[aria-current] { color:#e8e8e6; border-color:#e8e8e6; }
+.cfc { min-height:100%; background:var(--color-background-surface-default, #1b2d3e); }
+.cfc .cf[data-theme] { --cf-ink:var(--color-text-primary, #fff); --cf-muted:var(--color-text-secondary, #d4d8dd);
+  --cf-line:var(--color-border-interactive-muted, #2b659b); --cf-surface:var(--color-background-surface-default, #1b2d3e);
+  --cf-raise:var(--color-background-surface-header, #172635); font-family:inherit; }
+.cfc-nav { display:flex; gap:4px; flex-wrap:wrap; padding:12px 24px 0; font-size:13px; }
+.cfc-nav a { color:var(--color-text-secondary, #d4d8dd); text-decoration:none; padding:4px 10px; border:1px solid var(--color-border-interactive-muted, #2b659b); border-radius:6px; }
+.cfc-nav a[aria-current] { color:var(--color-text-primary, #fff); border-color:var(--color-border-interactive-default, #4dacff); }
 </style><div class="cfc"><nav class="cfc-nav" aria-label="Constellation Forecast"></nav><div></div></div>`;
           [nav, body] = [root.querySelector('nav'), root.querySelector('nav + div')];
           nav.addEventListener('click', follow);
@@ -95,6 +103,8 @@ System.register([], function (_export) {
           view?.destroy();
           view = null;
           document.getElementById('openc3-tool').innerHTML = '';
+          const menu = document.getElementById('openc3-menu');
+          if (menu) menu.innerHTML = '';
         },
       });
     },
