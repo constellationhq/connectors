@@ -153,7 +153,8 @@ jobs:
         run: rake build VERSION=0.0.0
 
   # Each platform's artifact installed into the real platform (the jar into Yamcs per
-  # Yamcs version the README lists, the images, the Open MCT plugin); the release waits on the same.
+  # Yamcs version the README lists, the images, the Open MCT plugin, the COSMOS gem); the release
+  # waits on the same.
   install:
     uses: ./.github/workflows/install.yml
 

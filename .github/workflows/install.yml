@@ -3,7 +3,7 @@ name: Install
 # Installs each platform's release artifact into the real platform, as a customer would, against
 # the stub API (tests/stub_api.py): Yamcs with only the jar in lib/ext and the bridge image, stock
 # Open MCT with the one-file plugin (reading the API, and Yamcs on another origin), the Lattice image with no decision settings, and a bridge
-# restarted on its volume. CI runs it on every pull request; a release is mirrored to the public
+# restarted on its volume, and stock COSMOS Core with the gem loaded by its CLI. CI runs it on every pull request; a release is mirrored to the public
 # repository only once it passes.
 on:
   workflow_call:
@@ -185,3 +185,78 @@ jobs:
           docker logs yamcs 2>&1 | tail -100 || true
           docker logs bridge 2>&1 || true
           cat "$RUNNER_TEMP/stub.log"
+
+  cosmos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      # OpenC3's cosmos-project at this tag pins its images (OPENC3_TAG in its .env) to the same release.
+      COSMOS_VERSION: v7.5.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          ruby-version: "3.3"
+      - name: Stock COSMOS Core from OpenC3's project, started as its README says
+        timeout-minutes: 25
+        run: |
+          COSMOS="$RUNNER_TEMP/cosmos"
+          echo "COSMOS=$COSMOS" >> "$GITHUB_ENV"
+          git clone -q --depth 1 --branch "$COSMOS_VERSION" https://github.com/OpenC3/cosmos-project "$COSMOS"
+          cd "$COSMOS"
+          ./openc3.sh run
+          # The init container installs COSMOS's own plugins, then exits.
+          until [ "$(docker compose ps -a --format '{{.State}}' openc3-cosmos-init)" = exited ]; do sleep 5; done
+          [ "$(docker compose ps -a --format '{{.ExitCode}}' openc3-cosmos-init)" = 0 ]
+          until curl -sf localhost:2900/openc3-api/ping > /dev/null; do sleep 2; done
+      - name: The first password, and CONSTELLATION_API_KEY in Admin > Secrets through the COSMOS API
+        run: |
+          token="$(curl -sf -X POST localhost:2900/openc3-api/auth/set \
+            -H 'Content-Type: application/json' -d '{"password": "install-test-password"}')"
+          echo "::add-mask::$token"
+          echo "COSMOS_TOKEN=$token" >> "$GITHUB_ENV"
+          curl -sf -X POST 'localhost:2900/openc3-api/secrets/CONSTELLATION_API_KEY?scope=DEFAULT' \
+            -H "Authorization: $token" -H 'Content-Type: application/json' -d '{"value": "test"}'
+      - name: The stub API inside the operator's network, where the bridge microservice runs
+        run: |
+          # The bridge sends the key over plain http only to this machine, so the stub answers on
+          # the operator container's own 127.0.0.1.
+          operator="$(cd "$COSMOS" && docker compose ps -q openc3-operator)"
+          docker run -d --name stub --network "container:$operator" -v "$PWD:/src:ro" -w /src \
+            -e PYTHONPATH=clients/python/src python:3.12-slim python tests/stub_api.py 8080
+      - name: The gem, loaded with the COSMOS CLI and its variables
+        run: |
+          (cd bridges/cosmos && rake build VERSION=0.0.0)
+          cp bridges/cosmos/openc3-cosmos-constellation-0.0.0.gem "$COSMOS/"
+          echo '{"constellation_api_url": "http://127.0.0.1:8080"}' > "$COSMOS/variables.json"
+          cd "$COSMOS"
+          # What ./openc3.sh cli load runs, without the -it it adds (a runner has no terminal).
+          docker compose run --rm -T -v "$PWD:/openc3/local:z" -w /openc3/local --no-deps \
+            openc3-cosmos-cmd-tlm-api ruby /openc3/bin/openc3cli \
+            load openc3-cosmos-constellation-0.0.0.gem --variables variables.json
+      - name: The bridge fills the CONSTELLATION packets and reports it; the tool is served
+        timeout-minutes: 5
+        working-directory: ${{ runner.temp }}/cosmos
+        run: |
+          tlm() {
+            curl -sf localhost:2900/openc3-api/api -H "Authorization: $COSMOS_TOKEN" \
+              -H 'Content-Type: application/json-rpc' \
+              -d "{\"jsonrpc\": \"2.0\", \"method\": \"tlm\", \"params\": [\"CONSTELLATION $1\"], \"keyword_params\": {\"scope\": \"DEFAULT\"}, \"id\": 1}"
+          }
+          until tlm "NEXT_PASS EXPECTED_GB_P50" | jq -e '.result == 10' > /dev/null; do sleep 5; done
+          tlm "NEXT_24H PASSES" | jq -e '.result == 1'
+          tlm "RUN WORKFLOW" | jq -e '.result == "pass-yield"'
+          # The microservice is the plugin's bridge.py, running in the operator.
+          docker compose exec -T openc3-operator sh -c 'grep -ls "[b]ridge.py" /proc/[0-9]*/cmdline'
+          docker exec stub python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/_calls').read().decode())" \
+            | jq -e 'any(.[]; . == ["POST", "/predictions/feed/deliveries"])'
+          curl -sf localhost:2900/tools/constellationforecast/main.js | cmp - "$GITHUB_WORKSPACE/bridges/cosmos/tools/constellationforecast/main.js"
+      - if: failure()
+        run: |
+          cd "$COSMOS"
+          docker compose ps -a || true
+          docker compose logs openc3-cosmos-init 2>&1 | tail -50 || true
+          docker compose logs openc3-operator 2>&1 | tail -200 || true
+          docker logs stub 2>&1 || true

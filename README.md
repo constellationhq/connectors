@@ -67,8 +67,8 @@ is the one `contract.lock` pins; the Fleet Agent is released on its own `agent-v
 
 CI runs on every pull request and release, against a stub Constellation API: the jar in stock
 Yamcs for each version listed with the Yamcs bridge writing into it; stock Open MCT with the
-plugin in headless Chromium; the COSMOS gem built and its bridge unit tested, not installed into
-a COSMOS; the Lattice bridge against a stub of the Lattice routes it calls. Images are built for
+plugin in headless Chromium; the COSMOS gem loaded into stock COSMOS Core with its CLI and the
+bridge filling the packets; the Lattice bridge against a stub of the Lattice routes it calls. Images are built for
 linux/amd64 and linux/arm64, every test runs on linux/amd64.
 
 ## Verify a release
