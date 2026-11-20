@@ -5,7 +5,7 @@
 VARIABLE constellation_api_url https://api.constellation.space
 VARIABLE_DESCRIPTION "Constellation API URL. The API key goes in Admin > Secrets as CONSTELLATION_API_KEY"
 VARIABLE consumer cosmos-bridge
-VARIABLE_DESCRIPTION "Connection name Constellation workflows send to. Change it only if another COSMOS uses cosmos-bridge"
+VARIABLE_DESCRIPTION "Connection name Constellation workflows send to: lowercase letters, digits and hyphens. Change it only if another COSMOS uses cosmos-bridge"
 
 TARGET CONSTELLATION CONSTELLATION
 

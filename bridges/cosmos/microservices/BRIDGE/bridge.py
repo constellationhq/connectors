@@ -28,6 +28,7 @@ added or changed there is used without a reinstall, and never leaves this proces
 
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -45,6 +46,8 @@ POLL_S = int(os.environ.get("POLL_SECONDS", "15"))
 REFRESH_S = 10
 # How often, with no key or a refused one, it looks for a new key in Admin > Secrets.
 KEY_WAIT_S = 60
+# The connection names the API takes (its CONNECTION_PATTERN); any other is a 422 on every call.
+CONNECTION = re.compile(r"[a-z0-9][a-z0-9-]{0,62}")
 SCOPE = os.environ.get("OPENC3_SCOPE", "DEFAULT")
 # Where the Constellation Forecast tool (tools/constellationforecast) reads the documents.
 DOCS = f"{SCOPE}/constellation"
@@ -571,9 +574,18 @@ def main() -> None:
             time.sleep(min(seconds, POLL_S))
             seconds -= POLL_S
 
-    if why := results.key_refusal(os.environ["CONSTELLATION_API_URL"]):
+    why = results.key_refusal(os.environ["CONSTELLATION_API_URL"])
+    if not CONNECTION.fullmatch(consumer):
+        why = (
+            f"consumer {consumer!r} is not a connection name Constellation takes: 1 to 63"
+            " lowercase letters, digits and hyphens, not starting with a hyphen. Change it in"
+            " the plugin's variables"
+        )
+    if why:
+        # Said once and waited on, not exited: COSMOS respawns a microservice that exits.
         log(why, warn=True)
-        sys.exit(2)
+        while True:
+            time.sleep(KEY_WAIT_S)
     log(f"feed -> COSMOS {TARGET} as {consumer}")
     while True:
         key = api_key()

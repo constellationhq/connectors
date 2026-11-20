@@ -1170,25 +1170,74 @@ def test_a_standing_approval_is_reported_acted_once_across_runs_and_kept_for_a_r
     assert module.results.first_acted(module.swap_items([approval]), restarted.acted) == 0
 
 
-@pytest.mark.parametrize(
-    "url, stops",
-    [("http://example.com", True), ("http://127.0.0.1:8000", False), ("https://api.test", False)],
-)
-def test_plain_http_to_another_host_stops_at_start_before_the_key_is_sent(
-    bridge, monkeypatch, capsys, url, stops
-):
-    module, _ = bridge
-    monkeypatch.setitem(os.environ, "CONSTELLATION_API_URL", url)
+def started(module, monkeypatch) -> list[float] | None:
+    """Runs the bridge's start: the sleeps it waits on before reaching the poll loop (after 3, it
+    is taken to wait for good), or None when it reaches it."""
+    slept: list[float] = []
+
+    def sleep(seconds):
+        slept.append(seconds)
+        if len(slept) == 3:
+            raise StopIteration
+
     monkeypatch.setattr(module, "api_key", lambda: (_ for _ in ()).throw(SystemExit("started")))
     monkeypatch.setattr(module.results, "http", lambda *a, **k: pytest.fail("sent"))
-    with pytest.raises(SystemExit) as stopped:
+    monkeypatch.setattr(module.time, "sleep", sleep)
+    try:
         module.main()
-    if stops:
-        assert stopped.value.code == 2
+    except StopIteration:
+        return slept
+    except SystemExit as stopped:
+        assert stopped.code == "started"
+    return None
+
+
+@pytest.mark.parametrize(
+    "url, waits",
+    [("http://example.com", True), ("http://127.0.0.1:8000", False), ("https://api.test", False)],
+)
+def test_plain_http_to_another_host_is_said_once_and_waits_before_the_key_is_sent(
+    bridge, monkeypatch, capsys, url, waits
+):
+    """Said once and waited on, not exited: COSMOS's operator respawns a microservice that exits,
+    which would say it again every cycle."""
+    module, _ = bridge
+    monkeypatch.setitem(os.environ, "CONSTELLATION_API_URL", url)
+    slept = started(module, monkeypatch)
+    if waits:
+        assert slept == [module.KEY_WAIT_S] * 3
         (line,) = capsys.readouterr().err.splitlines()
         assert "not sending the API key to http://example.com" in line and "https" in line
     else:
-        assert stopped.value.code == "started"
+        assert slept is None
+
+
+@pytest.mark.parametrize(
+    "consumer, waits",
+    [
+        ("Ops COSMOS", True),
+        ("cosmos_lab", True),
+        ("COSMOS-2", True),
+        ("-cosmos", True),
+        ("a" * 64, True),
+        ("cosmos-2", False),
+        ("a" * 63, False),
+    ],
+)
+def test_a_consumer_constellation_would_refuse_is_said_once_and_waits(
+    bridge, monkeypatch, capsys, consumer, waits
+):
+    """The API takes a connection name of lowercase letters, digits and hyphens, at most 63, not
+    starting with a hyphen; any other is a bare 422 on every call."""
+    module, _ = bridge
+    monkeypatch.setenv("CONSUMER", consumer)
+    slept = started(module, monkeypatch)
+    if waits:
+        assert slept == [module.KEY_WAIT_S] * 3
+        (line,) = capsys.readouterr().err.splitlines()
+        assert repr(consumer) in line and "lowercase letters, digits and hyphens" in line
+    else:
+        assert slept is None
 
 
 def test_the_screen_shows_every_packet_and_only_items_the_packets_have():
