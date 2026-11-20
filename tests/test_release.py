@@ -68,6 +68,19 @@ def test_the_install_matrix_covers_every_yamcs_the_readme_lists():
     assert openmct and rows[-1].split("|")[8].strip() == openmct.group(1)
 
 
+
+def test_the_install_matrix_covers_the_cosmos_the_readme_lists_and_the_gem_s_minimum():
+    root = Path(__file__).resolve().parents[1]
+    install = (root / ".github/workflows/install.yml").read_text()
+    tested = re.search(r"^        cosmos: \[(.*)\]$", install, re.M)
+    gemspec = (root / "bridges/cosmos/openc3-cosmos-constellation.gemspec").read_text()
+    minimum = re.search(r"'openc3_cosmos_minimum_version' => '(.*)'", gemspec)
+    newest = next(r for r in (root / "README.md").read_text().splitlines() if r.startswith("| v"))
+    assert tested and minimum
+    versions = re.findall(r"\d+\.\d+\.\d+", tested.group(1))
+    assert versions == re.findall(r"\d+\.\d+\.\d+", newest.split("|")[9])
+    assert minimum.group(1) in versions
+
 REGISTRIES = ("pypi", "npm", "rubygems", "maven-central")
 
 

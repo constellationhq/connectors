@@ -86,8 +86,9 @@ function axisTicks(max, n = 4) {
   const raw = max / n;
   const mag = 10 ** Math.floor(Math.log10(raw));
   const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || raw;
-  const out = [];
-  for (let v = 0; v <= max + step * 0.01; v += step) out.push(v);
+  // The top tick is at or above max, so the data never runs past the axis.
+  const out = [0];
+  while (out[out.length - 1] < max - step * 0.01) out.push(out[out.length - 1] + step);
   return out;
 }
 
@@ -302,8 +303,8 @@ const RFI = {
       return `<div class="cf-card"><div class="cf-card-head"><span class="cf-status-warn" aria-hidden="true">▲</span><b>${approved ? 'Approved: carry out' : 'Reroute advised'}</b></div><div>${esc(linkLabel(i))} from ${minute(i.target_at)}: up to ${num(i.value?.p90)} dB of RFI at p90, lock-loss risk ${pct(risk(i))}.</div><div class="cf-card-action">Reroute off ${esc(shortAntenna(i.entity.antenna_id))}</div>${approved ? '<div class="cf-note">Approved in Constellation.</div>' : ''}</div>`;
     });
     const waiting = held ? ` ${held} awaiting approval in Constellation.` : '';
-    const body = cards.length ? `<div class="cf-cards">${cards.join('')}</div>` : `<p class="cf-empty">No reroutes advised.${waiting}</p>`;
-    return section('Reroutes', body, `Approved first, then the highest lock-loss risk.${waiting}`);
+    if (!cards.length) return section('Reroutes', `<p class="cf-empty">No reroutes advised.${waiting}</p>`);
+    return section('Reroutes', `<div class="cf-cards">${cards.join('')}</div>`, `Approved first, then the highest lock-loss risk.${waiting}`);
   },
   list(run, items, selected) {
     const rows = items
@@ -368,7 +369,12 @@ export const VIEWS = {
     }
     if (run.kind === 'rain-fade-swap') {
       const risky = items.filter(actionable).slice(0, 20);
-      if (!risky.length) return section('Passes at weather risk', '<p class="cf-empty">No pass is at risk in this run.</p>');
+      if (!risky.length) {
+        // A held swap is not shown until it is approved, but its pass is still at risk.
+        const held = items.filter((i) => actionState(i) === 'pending').length;
+        const none = held ? `${held} ${held === 1 ? 'pass' : 'passes'} at risk awaiting approval in Constellation; each shows here once approved.` : 'No pass is at risk in this run.';
+        return section('Passes at weather risk', `<p class="cf-empty">${none}</p>`);
+      }
       return section(
         'What each at-risk pass keeps if it rains',
         dumbbell(
@@ -441,7 +447,8 @@ export const VIEWS = {
     const waiting = held ? ` ${held} awaiting approval in Constellation.` : '';
     const more = (all.length > 6 ? `The ${6} soonest of ${all.length}. Every swap is in Results below.` : 'Approved first, then the soonest decision.') + waiting;
     const title = all.some((i) => actionState(i) === 'approved') ? 'Swaps to carry out and to decide' : 'Swaps to decide';
-    return section(title, cards.length ? `<div class="cf-cards">${cards.join('')}</div>` : `<p class="cf-empty">No swaps to decide.${waiting}</p>`, more);
+    if (!cards.length) return section(title, `<p class="cf-empty">No swaps to decide.${waiting}</p>`);
+    return section(title, `<div class="cf-cards">${cards.join('')}</div>`, more);
   },
 
   list(run, items, selected) {
@@ -631,7 +638,7 @@ export function mountForecast(element, { load, refreshMs = REFRESH_MS, theme = '
       body = `<p class="cf-meta">${esc(TITLES[run.kind] ?? run.kind)} · workflow ${esc(run.workflow)} v${esc(run.workflow_version)} · run ${esc(run.run_id)} · delivered ${ago(run.delivered_at)}</p>${flows}<div class="cf-grid2"><div>${main}</div><div>${side}</div></div>`;
     }
     root.innerHTML = `<div class="cf-head"><h2>Constellation Forecast</h2><span class="cf-forecast">Forecast · not scheduled contacts</span></div>
-      <p class="cf-meta">Predictions from Constellation workflows. Measured telemetry lives in its usual place.</p>
+      <p class="cf-meta">Predicted by Constellation workflows. Nothing here is measured telemetry.</p>
       ${error === 'restarting' ? '<p class="cf-note">Waiting for the host to come back; this refreshes on its own.</p>' : error ? `<div class="cf-error">Could not read the forecasts: ${esc(error)}</div>` : ''}
       ${workflows.length ? `<div class="cf-cats" role="tablist">${cats}</div>` : ''}${body}`;
   }

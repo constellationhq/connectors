@@ -9,7 +9,11 @@ target's packets (targets/CONSTELLATION/cmd_tlm/tlm.txt):
     NEXT_PASS  the next predicted pass and its expected GB (p10/p50/p90)
     NEXT_24H   passes and expected GB over the next 24 hours
     SWAP       the soonest rain-fade swap to decide, with minutes left (limits go yellow, then red)
-    RUN        which workflow run the values came from
+    CAPACITY   one day's capacity across the antennas, and the tightest
+    MODCOD     the next pass's MODCOD plan
+    RUN        the latest workflow run received, of any kind
+
+A packet is injected only once a run of its kind has arrived.
 
 So COSMOS's own Telemetry Viewer, Telemetry Grapher, Limits Monitor and Data Extractor show the
 forecast with no other install. It also writes each run, and an index of workflows, as JSON into
@@ -24,6 +28,7 @@ added or changed there is used without a reinstall, and never leaves this proces
 
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -33,7 +38,7 @@ from typing import Any
 
 from constellation_space import results
 
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 TARGET = "CONSTELLATION"
 POLL_S = int(os.environ.get("POLL_SECONDS", "15"))
 # COSMOS shows a packet stale 30 s after its last value: re-inject every poll so a quiet feed
@@ -41,6 +46,8 @@ POLL_S = int(os.environ.get("POLL_SECONDS", "15"))
 REFRESH_S = 10
 # How often, with no key or a refused one, it looks for a new key in Admin > Secrets.
 KEY_WAIT_S = 60
+# The connection names the API takes (its CONNECTION_PATTERN); any other is a 422 on every call.
+CONNECTION = re.compile(r"[a-z0-9][a-z0-9-]{0,62}")
 SCOPE = os.environ.get("OPENC3_SCOPE", "DEFAULT")
 # Where the Constellation Forecast tool (tools/constellationforecast) reads the documents.
 DOCS = f"{SCOPE}/constellation"
@@ -50,6 +57,37 @@ DOCS = f"{SCOPE}/constellation"
 # credentials for the life of the process.
 if "OPENC3_SERVICE_PASSWORD" in os.environ:
     os.environ.setdefault("OPENC3_API_PASSWORD", os.environ["OPENC3_SERVICE_PASSWORD"])
+
+
+# The bytes of each STRING item in tlm.txt, by item name (a test holds them to it). COSMOS drops
+# a whole injected packet holding a longer value, and says so only in its decom log, and the API
+# takes ids longer than these, so a value is cut to fit. Its OVERFLOW TRUNCATE does not do it for
+# a string in the Python decom of 7.0 to 7.5.
+STRING_BYTES = {
+    "SATELLITE": 64,
+    "ANTENNA": 64,
+    "AOS": 32,
+    "LOS": 32,
+    "BACKUP_ANTENNA": 64,
+    "BACKUP_AOS": 32,
+    "DEADLINE": 32,
+    "STATUS": 16,
+    "DAY": 16,
+    "TIGHTEST_ANTENNA": 64,
+    "FIRST": 32,
+    "LAST": 32,
+    "WORKFLOW": 64,
+    "TEMPLATE": 32,
+    "RUN_ID": 64,
+}
+
+
+def fit(values: dict[str, Any]) -> dict[str, Any]:
+    """The values with each string cut to its item's bytes, never mid-character."""
+    return {
+        k: v.encode()[: STRING_BYTES[k]].decode(errors="ignore") if k in STRING_BYTES else v
+        for k, v in values.items()
+    }
 
 
 def inject(packet: str, values: dict[str, Any]) -> None:
@@ -78,8 +116,18 @@ def call(method: str, path: str, body: Any = None) -> Any:
     return results.http(method, f"{api}{path}", body, {"X-API-Key": api_key()})
 
 
-def log(message: str) -> None:
-    print(f"constellation-bridge: {message}", flush=True)
+def log(message: str, warn: bool = False) -> None:
+    """A line in COSMOS's log messages (CmdTlmServer > Log Messages), where an operator looks.
+    Outside COSMOS, stdout, or stderr for a warning. A plain print is not enough in COSMOS: its
+    operator holds a microservice's stdout back until a few KB of it pile up."""
+    line = f"constellation-bridge: {message}"
+    try:
+        from openc3.utilities.logger import Logger  # type: ignore[import-not-found]
+    except ImportError:
+        print(line, file=sys.stderr if warn else sys.stdout, flush=True)
+        return
+    Logger.microservice_name = os.environ.get("OPENC3_MICROSERVICE_NAME")
+    (Logger.warn if warn else Logger.info)(line, scope=SCOPE)
 
 
 def output_of(resource: dict[str, Any]) -> dict[str, Any]:
@@ -174,6 +222,48 @@ def swap_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return shown
 
 
+def held_until(item: dict[str, Any]) -> str:
+    """When a held action can no longer be approved, as the API's expires_at() has it: its cancel
+    deadline, else when its pass starts, or a link's span ends. The API sends a held item without
+    its action, so mostly the latter."""
+    end = item["until"] if (item.get("entity") or {}).get("type") == "link" else item["target_at"]
+    return (item.get("action") or {}).get("deadline") or end
+
+
+# With no pass ahead, NEXT_PASS says so rather than keep the last run's pass.
+NO_PASS: dict[str, Any] = {
+    "SATELLITE": "NONE",
+    "ANTENNA": "NONE",
+    "AOS": "",
+    "LOS": "",
+    "EXPECTED_GB_P10": 0.0,
+    "EXPECTED_GB_P50": 0.0,
+    "EXPECTED_GB_P90": 0.0,
+    "MAX_ELEVATION": 0.0,
+}
+
+# The same for CAPACITY and MODCOD, with no antenna-day or no plan ahead.
+NO_CAPACITY: dict[str, Any] = {
+    "DAY": "NONE",
+    "ANTENNAS": 0,
+    "PASSES": 0,
+    "SELLABLE_MIN": 0.0,
+    "GB_P10": 0.0,
+    "GB_P50": 0.0,
+    "TIGHTEST_ANTENNA": "NONE",
+    "TIGHTEST_GB_P50": 0.0,
+}
+NO_MODCOD: dict[str, Any] = {
+    "SATELLITE": "NONE",
+    "ANTENNA": "NONE",
+    "AOS": "",
+    "CHANGES": 0,
+    "FIRST": "NONE",
+    "LAST": "NONE",
+    "MIN_SINR_DB": 0.0,
+    "PLANNED_PASSES": 0,
+}
+
 # Every SWAP item is written each time, so a cleared swap never leaves the last one's values
 # behind. With nothing to decide, the minutes left sit far above the limits: green, not red.
 NO_SWAP: dict[str, Any] = {
@@ -230,8 +320,8 @@ def modcod_plans(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def modcod_packet(items: list[dict[str, Any]], now: datetime) -> dict[str, Any] | None:
-    """MODCOD: the next pass's MODCOD plan, its changes and its lowest SINR. None without a plan
-    still to fly."""
+    """MODCOD: the next pass's MODCOD plan, its changes and its lowest SINR at a change (the series
+    holds only the changes). None without a plan still to fly."""
     plans = sorted(
         (p for p in modcod_plans(items) if datetime.fromisoformat(p["until"]) > now),
         key=lambda p: p["target_at"],
@@ -277,10 +367,12 @@ def packets(
             "EXPECTED_GB_P10": round(sum(results.expected_gb(p)["p10"] for p in day), 3),
             "EXPECTED_GB_P50": round(sum(results.expected_gb(p)["p50"] for p in day), 3),
         },
+        "NEXT_PASS": NO_PASS,
         "SWAP": {**NO_SWAP, "PENDING": pending},
     }
-    if upcoming:
-        nxt = upcoming[0]
+    # The next AOS, as the Forecast tool shows it: a pass already under way counts in the day only.
+    nxt = next((p for p in upcoming if datetime.fromisoformat(p["target_at"]) > now), None)
+    if nxt:
         gb = results.expected_gb(nxt)
         elevation = results.max_elevation(nxt)
         out["NEXT_PASS"] = {
@@ -318,15 +410,18 @@ def packets(
 class Forecast:
     """The newest answer of each kind of workflow: a run replaces what the last run of its kind
     said, empty or not (a swap run advising nothing takes the swap down), and never another
-    kind's. Which kind is the run's own constellation.template, else read off its items."""
+    kind's. Which kind is the run's own constellation.template, else read off its items. A kind
+    no run has brought is None, and its packets are not injected: COSMOS shows no value rather
+    than NONE and 0, which would read as a forecast of nothing."""
 
     def __init__(self) -> None:
-        self.passes: list[dict[str, Any]] = []
-        self.swaps: list[dict[str, Any]] = []
-        # Swaps the newest swap run holds for approval in Constellation: counted, not shown.
-        self.pending = 0
-        self.capacity: list[dict[str, Any]] = []
-        self.plans: list[dict[str, Any]] = []
+        self.passes: list[dict[str, Any]] | None = None
+        self.swaps: list[dict[str, Any]] | None = None
+        # When each swap the newest swap run holds for approval in Constellation can no longer
+        # be approved (held_until): counted until then, not shown. None only in a 0.8.0 state.
+        self.held: list[str | None] = []
+        self.capacity: list[dict[str, Any]] | None = None
+        self.plans: list[dict[str, Any]] | None = None
         self.run: dict[str, Any] = {}
         # Approvals already reported carried out, by decision: each run shows them again.
         self.acted: dict[str, str] = {}
@@ -335,7 +430,7 @@ class Forecast:
         answers = resource.get("constellation.template") or results.kind(items)
         if answers == "rain-fade-swap":
             self.swaps = swap_items(items)
-            self.pending = sum(results.action_state(i) == "pending" for i in items)
+            self.held = [held_until(i) for i in items if results.action_state(i) == "pending"]
         elif answers == "antenna-capacity":
             self.capacity = items
         elif answers == "modcod-plan":
@@ -355,20 +450,28 @@ class Forecast:
         return dict(vars(self))
 
     def restore(self, saved: dict[str, Any]) -> None:
+        saved = dict(saved)
+        # A state kept before deadlines were (0.8.0) has only the count.
+        count = saved.pop("pending", 0)
         vars(self).update(saved)
+        if "held" not in saved:
+            self.held = [None] * int(count or 0)
 
     def publish(self, now: datetime) -> int:
-        out = packets(self.passes, self.swaps, now, self.pending)
-        for packet, values in (
-            ("CAPACITY", capacity_packet(self.capacity, now)),
-            ("MODCOD", modcod_packet(self.plans, now)),
-        ):
-            if values is not None:
-                out[packet] = values
+        pending = sum(d is None or datetime.fromisoformat(d) > now for d in self.held)
+        out = packets(self.passes or [], self.swaps or [], now, pending)
+        if self.passes is None:
+            del out["NEXT_PASS"], out["NEXT_24H"]
+        if self.swaps is None:
+            del out["SWAP"]
+        if self.capacity is not None:
+            out["CAPACITY"] = capacity_packet(self.capacity, now) or NO_CAPACITY
+        if self.plans is not None:
+            out["MODCOD"] = modcod_packet(self.plans, now) or NO_MODCOD
         if self.run:
             out["RUN"] = self.run
         for packet, values in out.items():
-            inject(packet, values)
+            inject(packet, fit(values))
         return len(out)
 
 
@@ -394,7 +497,11 @@ def check_in(consumer: str) -> bool:
     except Exception as exc:
         if isinstance(exc, urllib.error.HTTPError) and exc.code in (401, 403):
             raise
-        print(f"constellation-bridge: could not check in ({exc})", file=sys.stderr, flush=True)
+        # An outage is said by the poll that follows.
+        if not isinstance(exc, OSError) or (
+            isinstance(exc, urllib.error.HTTPError) and exc.code < 500
+        ):
+            log(f"could not check in ({exc})", warn=True)
         return False
     return True
 
@@ -403,7 +510,11 @@ def report(consumer: str, cursor: str, applied: dict[str, int]) -> None:
     try:
         results.report(call, consumer, cursor, applied, f"OpenC3 COSMOS target {TARGET}")
     except Exception as exc:
-        print(f"constellation-bridge: could not report ({exc})", file=sys.stderr, flush=True)
+        log(f"could not report ({exc})", warn=True)
+
+
+def api_origin() -> str:
+    return results.origin(os.environ["CONSTELLATION_API_URL"])
 
 
 def state_key(consumer: str) -> str:
@@ -415,19 +526,24 @@ def resume(consumer: str, forecast: Forecast) -> str:
     start's."""
     client, name = bucket()
     found = client.get_object(bucket=name, key=state_key(consumer))
-    if not found:
+    saved = json.loads(found["Body"].read()) if found else {}
+    # A cursor is the feed's own: one kept for another API means nothing here.
+    if saved.get("api", api_origin()) != api_origin():
+        log(f"the state kept for {saved['api']} is not for this API: starting afresh")
+        saved = {}
+    if not saved:
         cursor = results.start_cursor(call, consumer)
-        print(f"constellation-bridge: first start, reading after {cursor!r}", flush=True)
+        log(f"first start, reading after {cursor!r}")
         return cursor
-    saved = json.loads(found["Body"].read())
     forecast.restore(saved["forecast"])
-    print(f"constellation-bridge: resuming after {saved['cursor']!r}", flush=True)
+    log(f"resuming after {saved['cursor']!r}")
     return saved["cursor"]
 
 
 def keep(consumer: str, cursor: str, forecast: Forecast) -> None:
     client, name = bucket()
-    body = json.dumps({"cursor": cursor, "forecast": forecast.saved()}).encode()
+    kept = {"cursor": cursor, "forecast": forecast.saved(), "api": api_origin()}
+    body = json.dumps(kept).encode()
     client.put_object(
         bucket=name, key=state_key(consumer), body=body, content_type="application/json"
     )
@@ -436,25 +552,55 @@ def keep(consumer: str, cursor: str, forecast: Forecast) -> None:
 def main() -> None:
     consumer = os.environ.get("CONSUMER", "cosmos-bridge")
     forecast, refreshed, checked_in, refused, held = Forecast(), 0.0, "", "", ""
+    # Why Constellation could not be read, said once until it can be again.
+    failing = ""
+    hinted = False
     checked_at = 0.0
     cursor: str | None = None
-    if why := results.key_refusal(os.environ["CONSTELLATION_API_URL"]):
-        print(f"constellation-bridge: {why}", file=sys.stderr, flush=True)
-        sys.exit(2)
-    print(f"constellation-bridge: feed -> COSMOS {TARGET} as {consumer}", flush=True)
+
+    def pause(seconds: float) -> None:
+        """Waits `seconds`, refreshing the packets at least every POLL_S meanwhile, whatever the
+        wait is for (a poll, a missing or refused key, a hold-off): the forecast held is the
+        newest there is, and the next pass and the minutes left to a swap move with the clock,
+        not only with runs."""
+        nonlocal refreshed
+        while seconds > 0:
+            if time.time() - refreshed > REFRESH_S and forecast.run:
+                try:
+                    forecast.publish(datetime.now(UTC))
+                    refreshed = time.time()
+                except Exception as exc:
+                    log(f"could not refresh the packets ({type(exc).__name__}: {exc})", warn=True)
+            time.sleep(min(seconds, POLL_S))
+            seconds -= POLL_S
+
+    why = results.key_refusal(os.environ["CONSTELLATION_API_URL"])
+    if not CONNECTION.fullmatch(consumer):
+        why = (
+            f"consumer {consumer!r} is not a connection name Constellation takes: 1 to 63"
+            " lowercase letters, digits and hyphens, not starting with a hyphen. Change it in"
+            " the plugin's variables"
+        )
+    if why:
+        # Said once and waited on, not exited: COSMOS respawns a microservice that exits.
+        log(why, warn=True)
+        while True:
+            time.sleep(KEY_WAIT_S)
+    log(f"feed -> COSMOS {TARGET} as {consumer}")
     while True:
         key = api_key()
         if not key:
-            print(
-                "constellation-bridge: No CONSTELLATION_API_KEY in Admin > Secrets yet",
-                file=sys.stderr,
-                flush=True,
+            log(
+                "No CONSTELLATION_API_KEY in Admin > Secrets yet: add a Constellation key with"
+                f" predictions:read there ({results.site()}/keys)",
+                warn=True,
             )
-            time.sleep(KEY_WAIT_S)
+            pause(KEY_WAIT_S)
             continue
         if key == refused:
-            time.sleep(KEY_WAIT_S)
+            pause(KEY_WAIT_S)
             continue
+        failed = ""
         try:
             stale = time.time() - checked_at > results.CHECKIN_S
             if (key != checked_in or stale) and check_in(consumer):
@@ -463,8 +609,17 @@ def main() -> None:
                 cursor = resume(consumer, forecast)
             page = results.results_page(call, consumer, cursor)
             held = ""
+            if failing:
+                log("reached Constellation again")
+                failing = ""
+            if not (forecast.run or page["entries"] or hinted):
+                log(
+                    f"no run for {consumer} yet. In Constellation, send a workflow to the OpenC3"
+                    f" COSMOS output with connection {consumer}"
+                )
+                hinted = True
             if lost := results.expired(page, cursor):
-                print(f"constellation-bridge: {lost}", file=sys.stderr, flush=True)
+                log(lost, warn=True)
             for entry in page["entries"]:
                 entry = results.whole(entry, lambda c, n: results.rest_of_run(call, consumer, c, n))
                 parts = results.unpack(entry["otlp"], consumer, log)
@@ -502,44 +657,41 @@ def main() -> None:
                 cursor = entry["cursor"]
                 report(consumer, cursor, applied)
                 keep(consumer, cursor, forecast)
-                print(
-                    f"constellation-bridge: injected {applied['parameters']} packets, {cursor}",
-                    flush=True,
-                )
-            # The next pass and the minutes left to a swap move with the clock, not only with runs.
-            if time.time() - refreshed > REFRESH_S and forecast.run:
-                forecast.publish(datetime.now(UTC))
-                refreshed = time.time()
+                log(f"injected {applied['parameters']} packets, {cursor}")
             if page["entries"]:
                 continue  # catching up on the runs since the cursor: the next one now
         except urllib.error.HTTPError as exc:
             body = exc.read()
             if why := results.refusal(exc.code, body):
-                print(
-                    f"constellation-bridge: {why}. Stopped polling until the key in Admin >"
-                    " Secrets changes or the plugin restarts",
-                    file=sys.stderr,
-                    flush=True,
+                log(
+                    f"{why}. Stopped polling until the key in Admin > Secrets changes or the"
+                    " plugin restarts",
+                    warn=True,
                 )
                 refused = key
-                time.sleep(KEY_WAIT_S)
+                pause(KEY_WAIT_S)
                 continue
             # Locked out, rate limited or out of plan: said once and waited out, never hammered.
             if hold := results.held_off(exc.code, body):
                 why, wait = hold
                 if why != held:
-                    print(
-                        f"constellation-bridge: {why}. Asking again in {wait:.0f} s",
-                        file=sys.stderr,
-                        flush=True,
-                    )
+                    log(f"{why}. Asking again in {wait:.0f} s", warn=True)
                     held = why
-                time.sleep(wait)
+                pause(wait)
                 continue
-            print(f"constellation-bridge: {exc}", file=sys.stderr, flush=True)
+            failed = f"Constellation answered HTTP {exc.code}"
+        except OSError as exc:  # unreachable, refused, timed out (URLError is one)
+            failed = f"could not reach Constellation ({getattr(exc, 'reason', exc)})"
         except Exception as exc:  # a bad poll is logged and retried, never fatal
-            print(f"constellation-bridge: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
-        time.sleep(POLL_S)
+            log(f"{type(exc).__name__}: {exc}", warn=True)
+        if failed:
+            if failed != failing:
+                log(
+                    f"{failed}. Showing the forecast held and asking again every {POLL_S} s",
+                    warn=True,
+                )
+            failing = failed
+        pause(POLL_S)
 
 
 if __name__ == "__main__":

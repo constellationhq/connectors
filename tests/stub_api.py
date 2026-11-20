@@ -1,9 +1,9 @@
 """The Constellation API and Lattice, over HTTP, for the install tests (install.yml): one
-pass-yield run in the feed for each of the yamcs-bridge, openmct and lattice-bridge connections,
-the topology config, and the Lattice routes the bridge calls. CORS is the API's: any origin may
-GET /predictions/feed without credentials, as the Open MCT plugin does from a browser, and every
-other route answers only the platform's origin. A feed query the API's OpenAPI refuses is a 422.
-GET /_calls lists every call made, for the checks.
+pass-yield run in the feed for each of the yamcs-bridge, openmct, lattice-bridge and cosmos-bridge
+connections, the topology config, and the Lattice routes the bridge calls. CORS is the API's: any
+origin may GET /predictions/feed without credentials, as the Open MCT plugin does from a browser,
+and every other route answers only the platform's origin. A feed query the API's OpenAPI refuses
+is a 422. GET /_calls lists every call made, for the checks.
 
     python tests/stub_api.py [port]
 """
@@ -18,7 +18,12 @@ from typing import Any
 
 from api import ResultsApi, Unprocessable, item, output, to_otlp
 
-CONNECTIONS = {"yamcs-bridge": None, "openmct": None, "lattice-bridge": {"system": "lattice"}}
+CONNECTIONS = {
+    "yamcs-bridge": None,
+    "openmct": None,
+    "lattice-bridge": {"system": "lattice"},
+    "cosmos-bridge": {"system": "cosmos"},
+}
 DOCUMENT = {
     "ground_stations": {
         "gs-1": {

@@ -3,9 +3,9 @@
 # microservice fills from the Constellation feed. Everything here is a forecast, not telemetry
 # measured from a spacecraft or a ground station.
 VARIABLE constellation_api_url https://api.constellation.space
-VARIABLE_DESCRIPTION "Constellation API base URL"
+VARIABLE_DESCRIPTION "Constellation API URL. The API key goes in Admin > Secrets as CONSTELLATION_API_KEY"
 VARIABLE consumer cosmos-bridge
-VARIABLE_DESCRIPTION "This connection's name: workflows pick it as an output"
+VARIABLE_DESCRIPTION "Connection name Constellation workflows send to: lowercase letters, digits and hyphens. Change it only if another COSMOS uses cosmos-bridge"
 
 TARGET CONSTELLATION CONSTELLATION
 

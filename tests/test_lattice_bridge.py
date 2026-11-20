@@ -8,6 +8,7 @@ import json
 import os
 import queue
 import sys
+import types
 import urllib.error
 import urllib.parse
 from datetime import UTC, datetime, timedelta
@@ -988,6 +989,9 @@ LISTED = {"path_metadatas": []}
 def started(monkeypatch, network: Network, without: tuple[str, ...] = ()) -> Any:
     module = load(monkeypatch, without)
     monkeypatch.setattr(module.urllib.request, "urlopen", network)
+    # A keyed call goes through an opener that follows no redirect.
+    opener = types.SimpleNamespace(open=network)
+    monkeypatch.setattr(module.urllib.request, "build_opener", lambda *handlers: opener)
     monkeypatch.setattr(module.time, "sleep", lambda s: network.paths.append(f"slept {s}"))
     return module
 
@@ -1801,6 +1805,9 @@ def test_plain_http_to_another_host_stops_at_start_before_the_key_is_sent(
         raise SystemExit(f"sent to {req.full_url}")
 
     monkeypatch.setattr(module.urllib.request, "urlopen", network)
+    # A keyed call goes through an opener that follows no redirect.
+    opener = types.SimpleNamespace(open=network)
+    monkeypatch.setattr(module.urllib.request, "build_opener", lambda *handlers: opener)
     with pytest.raises(SystemExit) as stopped:
         module.ready()
     if stops:

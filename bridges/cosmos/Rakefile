@@ -1,5 +1,5 @@
-# Builds openc3-cosmos-constellation-<VERSION>.gem: rake build VERSION=0.8.0
-# (or ./openc3.sh cli rake build VERSION=0.8.0 inside a COSMOS checkout).
+# Builds openc3-cosmos-constellation-<VERSION>.gem: rake build VERSION=0.8.1
+# (or ./openc3.sh cli rake build VERSION=0.8.1 inside a COSMOS checkout).
 PLUGIN_NAME = Dir['*.gemspec'][0].split('.')[0..-2].join('.')
 
 # The tool draws the shared Constellation Forecast view, copied in from this repo when it is here.
@@ -9,9 +9,11 @@ SHARED_VIEW = '../shared/forecast-view.js'
 # the same way as a one-module constellation_space package.
 RESULTS = 'microservices/BRIDGE/constellation_space/results.py'
 SHARED_RESULTS = '../../clients/python/src/constellation_space/results.py'
+# The repository's license, shipped in the gem.
+SHARED_LICENSE = '../../LICENSE'
 
 task :build do
-  abort('VERSION is required: rake build VERSION=0.8.0') unless ENV['VERSION']
+  abort('VERSION is required: rake build VERSION=0.8.1') unless ENV['VERSION']
   FileUtils.cp(SHARED_VIEW, VIEW) if File.exist?(SHARED_VIEW)
   abort("#{VIEW} is missing: copy bridges/shared/forecast-view.js there") unless File.exist?(VIEW)
   if File.exist?(SHARED_RESULTS)
@@ -20,5 +22,7 @@ task :build do
     FileUtils.touch(File.join(File.dirname(RESULTS), '__init__.py'))
   end
   abort("#{RESULTS} is missing: copy clients/python/src/constellation_space/results.py there") unless File.exist?(RESULTS)
+  FileUtils.cp(SHARED_LICENSE, 'LICENSE') if File.exist?(SHARED_LICENSE)
+  abort('LICENSE is missing: copy the repository root LICENSE here') unless File.exist?('LICENSE')
   system("gem build #{PLUGIN_NAME}.gemspec") || abort('gem build failed')
 end

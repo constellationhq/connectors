@@ -127,6 +127,21 @@ def test_the_next_pass_and_the_next_24_hours(bridge):
     assert out["SWAP"] == module.NO_SWAP
 
 
+def test_the_next_pass_is_the_next_aos_not_a_pass_already_under_way(bridge):
+    module, _ = bridge
+    # A day-long link (a GEO satellite) started an hour ago: it counts in the day, it is not next.
+    under_way = {**item(-1, 160), "until": (NOW + timedelta(hours=23)).isoformat()}
+    out = module.packets([under_way, item(2, 10)], [], NOW)
+    assert out["NEXT_PASS"]["AOS"] == "2026-11-06 14:00Z"
+    assert out["NEXT_24H"]["PASSES"] == 2
+
+
+def test_with_no_pass_ahead_the_next_pass_reads_none_not_the_last_one(bridge):
+    module, _ = bridge
+    out = module.packets([item(-1, 9)], [], NOW)
+    assert out["NEXT_PASS"] == module.NO_PASS and out["NEXT_PASS"]["SATELLITE"] == "NONE"
+
+
 def test_the_soonest_open_swap_with_minutes_left(bridge):
     module, _ = bridge
     swaps = [swap(3, 10, 120), swap(1, 10, 20, to=None), swap(0, 10, -5)]
@@ -152,8 +167,9 @@ def test_only_the_resource_logs_for_this_connection_are_read(bridge):
     assert module.output_of(resource)["widget"]["on"]
     forecast = module.Forecast()
     forecast.take(resource, items)
-    assert forecast.publish(NOW) == 4
-    assert [p for p, _ in injected] == ["NEXT_24H", "SWAP", "NEXT_PASS", "RUN"]
+    # A pass run: the pass packets and RUN, none of a kind no run has brought.
+    assert forecast.publish(NOW) == 3
+    assert [p for p, _ in injected] == ["NEXT_24H", "NEXT_PASS", "RUN"]
     assert dict(injected)["RUN"]["WORKFLOW_VERSION"] == 3
     assert module.results.unpack(entry(([item(2, 10)], "yamcs-bridge")), CONSUMER) == []
 
@@ -248,7 +264,8 @@ TOOL = SOURCE.parents[2] / "tools/constellationforecast/main.js"
 def test_the_tool_registers_single_spa_lifecycles_and_reads_cosmos_storage():
     """COSMOS imports the tool with SystemJS and mounts it with single-spa: main.js must
     System.register bootstrap, mount and unmount. load() reads a document through COSMOS's
-    storage API with the operator's token and decodes it as UTF-8."""
+    storage API with the operator's token and decodes it as UTF-8. A document not written yet is
+    "none yet": a 404, or before COSMOS 7.5 a 500 saying the file is not there."""
     doc = {"workflows": [{"workflow": "w", "template": "pass-yield", "note": "p50 · GB"}]}
     contents = base64.encodebytes(json.dumps(doc, ensure_ascii=False).encode()).decode()
     script = f"""
@@ -262,22 +279,25 @@ const sandbox = {{
   fetch: async (url, opts) => {{
     calls.push([url, opts.headers.Authorization]);
     if (url.includes('missing')) return {{ ok: false, status: 404 }};
+    if (url.includes('gone')) return {{ ok: false, status: 500, json: async () => ({{ status: 'error', message: 'No such file or directory @ rb_sysopen - /tmp/d1/DEFAULT/constellation/gone.json' }}) }};
+    if (url.includes('broken')) return {{ ok: false, status: 500, json: async () => ({{ status: 'error', message: 'Redis down' }}) }};
     return {{ ok: true, json: async () => ({{ contents: {json.dumps(contents)} }}) }};
   }},
 }};
 vm.runInNewContext(fs.readFileSync({json.dumps(str(TOOL))}, 'utf8'), sandbox);
 (async () => {{
   const doc = await exported.load('index.json');
-  let missing;
-  try {{ await exported.load('missing.json'); }} catch (e) {{ missing = e.message; }}
+  const failed = async (name) => {{ try {{ await exported.load(name); }} catch (e) {{ return e.message; }} }};
+  const missing = await failed('missing.json'), gone = await failed('gone.json'), broken = await failed('broken.json');
   const kinds = ['bootstrap', 'mount', 'unmount'].map((k) => typeof exported[k]);
-  console.log(JSON.stringify({{ kinds, doc, missing, calls }}));
+  console.log(JSON.stringify({{ kinds, doc, missing, gone, broken, calls }}));
 }})();
 """
     out = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True)
     got = json.loads(out.stdout)
     assert got["kinds"] == ["function"] * 3
-    assert got["doc"] == doc and got["missing"] == "none yet"
+    assert got["doc"] == doc and got["missing"] == got["gone"] == "none yet"
+    assert got["broken"] == "COSMOS answered 500"
     assert got["calls"][0] == [
         "/openc3-api/storage/download_file/DEFAULT%2Fconstellation%2Findex.json"
         "?bucket=OPENC3_CONFIG_BUCKET&scope=DEFAULT",
@@ -451,6 +471,81 @@ def test_each_kind_of_run_replaces_only_its_own_packets_and_an_empty_one_clears_
     assert sent["RUN"]["TEMPLATE"] == "rain-fade-swap" and sent["RUN"]["RESULTS"] == 0
 
 
+def test_a_kind_no_run_has_brought_is_not_injected_as_a_forecast_of_nothing(bridge):
+    """COSMOS shows no value for a packet no run of its kind has filled, never NONE and 0, which
+    read as a forecast of nothing; a run of the kind with nothing in it does say NONE."""
+    module, injected = bridge
+    forecast = module.Forecast()
+    forecast.take(_resource("rain-fade-swap"), [swap(3, 10, 60)])
+    forecast.publish(NOW)
+    assert [p for p, _ in injected] == ["SWAP", "RUN"]
+    injected.clear()
+    forecast.take(_resource("pass-yield"), [])
+    forecast.publish(NOW)
+    sent = dict(injected)
+    assert sent["NEXT_PASS"] == module.NO_PASS and sent["NEXT_24H"]["PASSES"] == 0
+    assert set(sent) == {"NEXT_PASS", "NEXT_24H", "SWAP", "RUN"}
+    # Kept and restored as not arrived.
+    restored = module.Forecast()
+    restored.restore(json.loads(json.dumps(forecast.saved())))
+    assert restored.capacity is None and restored.plans is None
+
+
+def test_the_run_packet_says_it_is_the_latest_run_not_the_source_of_every_value():
+    target = ROOT / "bridges/cosmos/targets/CONSTELLATION"
+    tlm = (target / "cmd_tlm/tlm.txt").read_text()
+    assert 'TELEMETRY CONSTELLATION RUN BIG_ENDIAN "The latest workflow run received' in tlm
+    assert 'HORIZONTALBOX "Latest run received"' in (target / "screens/forecast.txt").read_text()
+
+
+def tlm_items() -> list[tuple[str, str, int, str]]:
+    """Every item of tlm.txt: (packet, item, bits, type)."""
+    rows, packet = [], ""
+    for line in (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text().splitlines():
+        words = line.split()
+        if words[:1] == ["TELEMETRY"]:
+            packet = words[2]
+        elif words[:1] == ["APPEND_ITEM"]:
+            rows.append((packet, words[1], int(words[2]), words[3]))
+    return rows
+
+
+def test_a_value_longer_than_its_string_item_is_cut_to_fit_not_dropped_by_cosmos(bridge):
+    """COSMOS drops a whole injected packet with a value longer than its STRING item, and the
+    API takes ids longer than the items hold, so the bridge cuts each to its item's bytes."""
+    module, injected = bridge
+    sizes = {(name, bits // 8) for _, name, bits, kind in tlm_items() if kind == "STRING"}
+    assert set(module.STRING_BYTES.items()) == sizes
+    long = item(2, 10)
+    long["entity"] = {**long["entity"], "satellite_id": "é" * 40, "antenna_id": "a" * 128}
+    forecast = module.Forecast()
+    forecast.take({**_resource("pass-yield"), "constellation.run_id": "r" * 200}, [long])
+    forecast.publish(NOW)
+    sent = dict(injected)
+    assert sent["NEXT_PASS"]["SATELLITE"] == "é" * 32 and sent["NEXT_PASS"]["ANTENNA"] == "a" * 64
+    assert sent["RUN"]["RUN_ID"] == "r" * 64
+
+
+def test_summed_gb_items_are_64_bit_so_a_large_sum_shows_its_third_decimal():
+    """A 32-bit float of 50000.123 reads 50000.121 at %.3f: a day's GB summed across a network
+    passes that, a single pass's never does."""
+    bits = {(p, i): (b, t) for p, i, b, t in tlm_items()}
+    for summed in [
+        ("NEXT_24H", "EXPECTED_GB_P10"),
+        ("NEXT_24H", "EXPECTED_GB_P50"),
+        ("CAPACITY", "GB_P10"),
+        ("CAPACITY", "GB_P50"),
+    ]:
+        assert bits[summed] == (64, "FLOAT"), summed
+
+
+def test_min_sinr_says_it_is_the_lowest_at_a_modcod_change():
+    """The API's MODCOD series keeps only the steps where the MODCOD changes."""
+    tlm = (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text()
+    (line,) = [x for x in tlm.splitlines() if "APPEND_ITEM MIN_SINR_DB" in x]
+    assert "at a MODCOD change" in line and "over the pass" not in line
+
+
 # --- the API key ------------------------------------------------------------------------------
 
 
@@ -470,6 +565,14 @@ class Secrets:
         return Secrets.key if key == "CONSTELLATION_API_KEY" else None
 
 
+def network(monkeypatch, module, answer) -> None:
+    """Every HTTP call answered by `answer(req, timeout)`: a keyed one too, which goes through an
+    opener that follows no redirect."""
+    monkeypatch.setattr(module.urllib.request, "urlopen", answer)
+    opener = types.SimpleNamespace(open=answer)
+    monkeypatch.setattr(module.urllib.request, "build_opener", lambda *handlers: opener)
+
+
 def polled(
     monkeypatch,
     bridge,
@@ -477,11 +580,14 @@ def polled(
     rotate=None,
     refused: dict[str, int] | None = None,
     answer: bytes = b"{}",
+    poll_s: float = 10**6,
 ) -> tuple[list, list]:
     """Runs the bridge's loop through `sleeps` sleeps against a feed with nothing new. Returns the
     key each request carried (path, key) and the sleeps. `rotate(n)` runs at the
-    n-th sleep; a key in `refused` gets its HTTP status, with `answer` as the body."""
+    n-th sleep; a key in `refused` gets its HTTP status, with `answer` as the body. A wait is one
+    sleep unless `poll_s` is set, the most the bridge sleeps between refreshes."""
     module, _ = bridge
+    monkeypatch.setattr(module, "POLL_S", poll_s)
     sent, slept = [], []
 
     def urlopen(req, timeout=None):
@@ -499,7 +605,7 @@ def polled(
         if len(slept) == sleeps:
             raise StopIteration
 
-    monkeypatch.setattr(module.urllib.request, "urlopen", urlopen)
+    network(monkeypatch, module, urlopen)
     monkeypatch.setattr(module.time, "sleep", sleep)
     with pytest.raises(StopIteration):
         module.main()
@@ -534,6 +640,31 @@ def test_the_key_is_read_from_cosmos_secrets_each_poll_so_a_changed_key_needs_no
     assert set(secrets.scopes) == {"OPS"}
 
 
+def test_in_cosmos_the_log_goes_to_its_log_messages_not_the_operators_held_back_stdout(
+    bridge, monkeypatch, capsys
+):
+    module, _ = bridge
+    logged = []
+
+    class Logger:
+        microservice_name = None
+        info = staticmethod(lambda line, scope: logged.append(("INFO", line, scope)))
+        warn = staticmethod(lambda line, scope: logged.append(("WARN", line, scope)))
+
+    monkeypatch.setitem(
+        sys.modules, "openc3.utilities.logger", types.SimpleNamespace(Logger=Logger)
+    )
+    monkeypatch.setenv("OPENC3_MICROSERVICE_NAME", "DEFAULT__USER__CONSTELLATION-BRIDGE")
+    module.log("first start")
+    module.log("no key", warn=True)
+    assert logged == [
+        ("INFO", "constellation-bridge: first start", "DEFAULT"),
+        ("WARN", "constellation-bridge: no key", "DEFAULT"),
+    ]
+    assert Logger.microservice_name == "DEFAULT__USER__CONSTELLATION-BRIDGE"
+    assert capsys.readouterr() == ("", "")
+
+
 def test_outside_cosmos_the_key_comes_from_the_environment(bridge, monkeypatch):
     monkeypatch.setitem(sys.modules, "openc3.utilities.secrets", None)
     sent, _ = polled(monkeypatch, bridge, 1)
@@ -550,6 +681,9 @@ def test_without_a_key_the_bridge_waits_and_says_so_once_a_minute(
     assert slept[:2] == [60, 60]
     out = capsys.readouterr()
     assert (out.out + out.err).count("No CONSTELLATION_API_KEY in Admin > Secrets yet") == 2
+    assert "predictions:read there (https://platform.test/keys)" in out.err
+    # Nothing in the feed for this connection yet: the log says what to do in Constellation.
+    assert "no run for cosmos-bridge yet" in out.out and "connection cosmos-bridge" in out.out
     # Once added, it is used without a restart.
     assert ("/predictions/feed", "added") in sent and all(key == "added" for _, key in sent)
 
@@ -623,6 +757,36 @@ def test_a_lockout_or_hold_is_said_once_and_waited_out_not_hammered(
     out = capsys.readouterr()
     assert (out.out + out.err).count(says) == 1
     assert len([p for p, _ in sent if p == "/predictions/feed"]) == 3
+
+
+@pytest.mark.parametrize(
+    "status, answer",
+    [
+        (401, {}),
+        (402, {"detail": {"error": "upgrade_required"}}),
+        (429, {"error": "rate_limited", "retry_after_seconds": 30}),
+    ],
+)
+def test_while_a_key_or_plan_holds_the_bridge_off_the_forecast_held_keeps_refreshing(
+    bridge, monkeypatch, secrets, status, answer
+):
+    """The minutes left to a swap and the next pass move with the clock: a refused key or a hold
+    of an hour never freezes them."""
+    module, injected = bridge
+    monkeypatch.setattr(module, "resume", lambda _, f: setattr(f, "run", {"WORKFLOW": "w"}) or "")
+    monkeypatch.setattr(module, "REFRESH_S", -1)
+    secrets.key = "good"
+    _, slept = polled(
+        monkeypatch,
+        bridge,
+        9,
+        rotate=lambda n: n == 1 and setattr(Secrets, "key", "held"),
+        refused={"held": status},
+        answer=json.dumps(answer).encode(),
+        poll_s=15,
+    )
+    assert max(slept) <= 15
+    assert len([p for p, _ in injected if p == "RUN"]) == len(slept)
 
 
 # --- where the feed is read from --------------------------------------------------------------
@@ -802,9 +966,9 @@ def test_a_failed_check_in_is_tried_again_until_it_succeeds(bridge, monkeypatch,
         if len(slept) == 3:
             raise StopIteration
 
-    monkeypatch.setattr(
-        module.urllib.request,
-        "urlopen",
+    network(
+        monkeypatch,
+        module,
         lambda req, timeout=None: sent.append(req.full_url) or refuse_first_checkin(req),
     )
     monkeypatch.setattr(module.time, "sleep", sleep)
@@ -824,9 +988,9 @@ def test_the_bridge_checks_in_again_every_checkin_s(bridge, monkeypatch, secrets
         if clock[0] > 700:
             raise StopIteration
 
-    monkeypatch.setattr(
-        module.urllib.request,
-        "urlopen",
+    network(
+        monkeypatch,
+        module,
         lambda req, timeout=None: sent.append(req.full_url) or io.BytesIO(b'{"entries": []}'),
     )
     monkeypatch.setattr(module.time, "time", lambda: clock[0])
@@ -875,13 +1039,13 @@ def test_a_held_swap_run_counts_its_held_items_and_never_takes_them_for_passes(b
     forecast = module.Forecast()
     forecast.take(_resource("pass-yield"), [item(2, 10)])
     forecast.take(_resource("rain-fade-swap"), [held(3, 10), held(4, 10), approved(5, 10, 60)])
-    assert forecast.pending == 2 and [s["entity"]["id"] for s in forecast.swaps] == ["p5"]
+    assert len(forecast.held) == 2 and [s["entity"]["id"] for s in forecast.swaps] == ["p5"]
     assert [p["entity"]["id"] for p in forecast.passes] == ["p2"]
     assert module.priced_passes([held(3, 10)]) == []
     # A state saved before held swaps were counted restores with none held.
     restored = module.Forecast()
-    restored.restore({k: v for k, v in forecast.saved().items() if k != "pending"})
-    assert restored.pending == 0
+    restored.restore({k: v for k, v in forecast.saved().items() if k != "held"})
+    assert restored.held == []
 
 
 def test_a_run_naming_its_template_is_documented_as_that_kind(bridge):
@@ -909,7 +1073,41 @@ def test_a_held_action_sent_with_its_body_is_counted_held_not_shown(bridge):
     assert module.swap_items([with_body]) == []
     forecast = module.Forecast()
     forecast.take(_resource("rain-fade-swap"), [with_body])
-    assert forecast.swaps == [] and forecast.pending == 1
+    assert forecast.swaps == [] and len(forecast.held) == 1
+
+
+def test_a_held_swap_past_its_deadline_is_no_longer_counted(bridge):
+    module, injected = bridge
+    forecast = module.Forecast()
+    late = {**swap(3, 10, 30), "action_status": "pending"}
+    forecast.take(_resource("rain-fade-swap"), [late, held(4, 10)])
+    forecast.publish(NOW)
+    forecast.publish(NOW + timedelta(minutes=31))
+    assert [v["PENDING"] for p, v in injected if p == "SWAP"] == [2, 1]
+
+
+def test_a_held_swap_as_the_api_sends_it_counts_until_the_api_would_expire_it(bridge):
+    """The API sends a held item without its action, so no deadline: it expires as the API's
+    expires_at() says, when its pass starts, or a link's span ends."""
+    module, injected = bridge
+    link = {
+        **held(1, 10),
+        "entity": {"type": "link", "id": "l1"},
+        "until": (NOW + timedelta(hours=5)).isoformat(),
+    }
+    forecast = module.Forecast()
+    forecast.take(_resource("rain-fade-swap"), [held(1, 10), link])
+    for hours in (0, 2, 6):
+        forecast.publish(NOW + timedelta(hours=hours))
+    assert [v["PENDING"] for p, v in injected if p == "SWAP"] == [2, 1, 0]
+
+
+def test_a_state_kept_by_0_8_0_restores_its_held_count(bridge):
+    module, injected = bridge
+    forecast = module.Forecast()
+    forecast.restore({"passes": [], "swaps": [], "pending": 3, "run": {"WORKFLOW": "w"}})
+    forecast.publish(NOW)
+    assert [v["PENDING"] for p, v in injected if p == "SWAP"] == [3]
 
 
 def renamed(it: dict) -> dict:
@@ -996,22 +1194,168 @@ def test_a_standing_approval_is_reported_acted_once_across_runs_and_kept_for_a_r
     assert module.results.first_acted(module.swap_items([approval]), restarted.acted) == 0
 
 
-@pytest.mark.parametrize(
-    "url, stops",
-    [("http://example.com", True), ("http://127.0.0.1:8000", False), ("https://api.test", False)],
-)
-def test_plain_http_to_another_host_stops_at_start_before_the_key_is_sent(
-    bridge, monkeypatch, capsys, url, stops
-):
-    module, _ = bridge
-    monkeypatch.setitem(os.environ, "CONSTELLATION_API_URL", url)
+def started(module, monkeypatch) -> list[float] | None:
+    """Runs the bridge's start: the sleeps it waits on before reaching the poll loop (after 3, it
+    is taken to wait for good), or None when it reaches it."""
+    slept: list[float] = []
+
+    def sleep(seconds):
+        slept.append(seconds)
+        if len(slept) == 3:
+            raise StopIteration
+
     monkeypatch.setattr(module, "api_key", lambda: (_ for _ in ()).throw(SystemExit("started")))
     monkeypatch.setattr(module.results, "http", lambda *a, **k: pytest.fail("sent"))
-    with pytest.raises(SystemExit) as stopped:
+    monkeypatch.setattr(module.time, "sleep", sleep)
+    try:
         module.main()
-    if stops:
-        assert stopped.value.code == 2
+    except StopIteration:
+        return slept
+    except SystemExit as stopped:
+        assert stopped.code == "started"
+    return None
+
+
+@pytest.mark.parametrize(
+    "url, waits",
+    [("http://example.com", True), ("http://127.0.0.1:8000", False), ("https://api.test", False)],
+)
+def test_plain_http_to_another_host_is_said_once_and_waits_before_the_key_is_sent(
+    bridge, monkeypatch, capsys, url, waits
+):
+    """Said once and waited on, not exited: COSMOS's operator respawns a microservice that exits,
+    which would say it again every cycle."""
+    module, _ = bridge
+    monkeypatch.setitem(os.environ, "CONSTELLATION_API_URL", url)
+    slept = started(module, monkeypatch)
+    if waits:
+        assert slept == [module.KEY_WAIT_S] * 3
         (line,) = capsys.readouterr().err.splitlines()
         assert "not sending the API key to http://example.com" in line and "https" in line
     else:
-        assert stopped.value.code == "started"
+        assert slept is None
+
+
+@pytest.mark.parametrize(
+    "consumer, waits",
+    [
+        ("Ops COSMOS", True),
+        ("cosmos_lab", True),
+        ("COSMOS-2", True),
+        ("-cosmos", True),
+        ("a" * 64, True),
+        ("cosmos-2", False),
+        ("a" * 63, False),
+    ],
+)
+def test_a_consumer_constellation_would_refuse_is_said_once_and_waits(
+    bridge, monkeypatch, capsys, consumer, waits
+):
+    """The API takes a connection name of lowercase letters, digits and hyphens, at most 63, not
+    starting with a hyphen; any other is a bare 422 on every call."""
+    module, _ = bridge
+    monkeypatch.setenv("CONSUMER", consumer)
+    slept = started(module, monkeypatch)
+    if waits:
+        assert slept == [module.KEY_WAIT_S] * 3
+        (line,) = capsys.readouterr().err.splitlines()
+        assert repr(consumer) in line and "lowercase letters, digits and hyphens" in line
+    else:
+        assert slept is None
+
+
+def test_the_screen_shows_every_packet_and_only_items_the_packets_have():
+    target = ROOT / "bridges/cosmos/targets/CONSTELLATION"
+    items, packet = set(), None
+    for line in (target / "cmd_tlm/tlm.txt").read_text().splitlines():
+        words = line.split()
+        if words[:1] == ["TELEMETRY"]:
+            packet = words[2]
+        elif words[:1] == ["APPEND_ITEM"]:
+            items.add((packet, words[1]))
+    shown = {
+        (words[2], words[3])
+        for line in (target / "screens/forecast.txt").read_text().splitlines()
+        if (words := line.split()) and words[0].startswith("LABELVALUE")
+    }
+    assert shown <= items
+    assert {p for p, _ in shown} == {p for p, _ in items}
+
+
+@pytest.mark.parametrize(
+    "packet, empty",
+    [("NEXT_PASS", "NO_PASS"), ("CAPACITY", "NO_CAPACITY"), ("MODCOD", "NO_MODCOD")],
+)
+def test_each_empty_packet_writes_every_item_of_its_packet(bridge, packet, empty):
+    module, _ = bridge
+    tlm = (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text()
+    block = tlm.split(f"TELEMETRY CONSTELLATION {packet} ", 1)[1].split("\nTELEMETRY ", 1)[0]
+    items = [
+        line.split()[1] for line in block.splitlines() if line.strip().startswith("APPEND_ITEM")
+    ]
+    assert list(getattr(module, empty)) == items
+
+
+def test_an_api_outage_is_said_once_and_the_forecast_held_keeps_refreshing(
+    bridge, monkeypatch, capsys
+):
+    module, injected = bridge
+    # A forecast is held from before.
+    monkeypatch.setattr(module, "resume", lambda _, f: setattr(f, "run", {"WORKFLOW": "w"}) or "")
+    monkeypatch.setattr(module, "REFRESH_S", -1)
+    down = {"n": 0}
+
+    def urlopen(req, timeout=None):
+        path = urllib.parse.urlsplit(req.full_url).path
+        if down["n"] == 2:
+            raise urllib.error.URLError("Connection refused")
+        if path == "/predictions/feed" and 1 <= down["n"] <= 3:
+            raise urllib.error.HTTPError(req.full_url, 503, "", {}, io.BytesIO(b""))  # type: ignore[arg-type]
+        return io.BytesIO(b'{"entries": [], "next": ""}')
+
+    def sleep(seconds):
+        down["n"] += 1
+        if down["n"] == 6:
+            raise StopIteration
+
+    network(monkeypatch, module, urlopen)
+    monkeypatch.setattr(module.time, "sleep", sleep)
+    with pytest.raises(StopIteration):
+        module.main()
+    out = capsys.readouterr()
+    assert out.out.count("reached Constellation again") == 1
+    assert out.err.splitlines() == [
+        "constellation-bridge: Constellation answered HTTP 503. Showing the forecast held and"
+        " asking again every 15 s",
+        "constellation-bridge: could not reach Constellation (Connection refused). Showing the"
+        " forecast held and asking again every 15 s",
+        "constellation-bridge: Constellation answered HTTP 503. Showing the forecast held and"
+        " asking again every 15 s",
+    ]
+    assert len([p for p, _ in injected if p == "RUN"]) == 6
+
+
+def test_a_state_kept_for_another_api_is_not_resumed(bridge, monkeypatch, capsys):
+    stored: dict[str, bytes] = {}
+    ran(monkeypatch, fed((1, [item(2, 10)])), stored)
+    # The same connection, repointed at another API: its cursor means nothing there.
+    monkeypatch.setitem(os.environ, "CONSTELLATION_API_URL", "https://api.other.test")
+    again = fed((1, [item(2, 10)]), (2, [item(3, 20)]), (3, [item(4, 30)]))
+    _, reported, afters = ran(monkeypatch, again, stored)
+    # A first start's: the newest run only, not runs 2 and 3 after the kept cursor.
+    assert afters[0] == cursor_of(2) and reported == ["run_3"]
+    assert "state kept for https://api.test is not for this API" in capsys.readouterr().out
+    # A state kept before the API was (0.8.0) is resumed.
+    (key,) = stored
+    kept = json.loads(stored[key])
+    stored[key] = json.dumps({k: v for k, v in kept.items() if k != "api"}).encode()
+    _, _, afters = ran(monkeypatch, again, stored)
+    assert afters[0] == cursor_of(3)
+
+
+def test_a_first_start_whose_feed_has_one_run_never_says_there_is_none(
+    bridge, monkeypatch, capsys
+):
+    stored: dict[str, bytes] = {}
+    _, reported, _ = ran(monkeypatch, fed((1, [item(2, 10)])), stored)
+    assert reported == ["run_1"] and "no run for" not in capsys.readouterr().out

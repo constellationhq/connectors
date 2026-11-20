@@ -61,14 +61,15 @@ is the one `contract.lock` pins; the Fleet Agent is released on its own `agent-v
 
 | Release | Contract | Fleet Agent | Yamcs (jar built and tested against) | Python | Node | Go | Open MCT (tested against) | COSMOS | Lattice |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| v0.8.1 | 2.1.0 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | 7.5.1, 7.0.0 | stub only |
 | v0.8.0 | 2.1.0 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | not tested in COSMOS | stub only |
 | v0.7.1 | 1.6.0 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | not tested in COSMOS | stub only |
 | v0.7.0 | 1.5.1 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | not tested in COSMOS | stub only |
 
 CI runs on every pull request and release, against a stub Constellation API: the jar in stock
 Yamcs for each version listed with the Yamcs bridge writing into it; stock Open MCT with the
-plugin in headless Chromium; the COSMOS gem built and its bridge unit tested, not installed into
-a COSMOS; the Lattice bridge against a stub of the Lattice routes it calls. Images are built for
+plugin in headless Chromium; the COSMOS gem loaded into stock COSMOS Core with its CLI and the
+bridge filling the packets; the Lattice bridge against a stub of the Lattice routes it calls. Images are built for
 linux/amd64 and linux/arm64, every test runs on linux/amd64.
 
 ## Verify a release
