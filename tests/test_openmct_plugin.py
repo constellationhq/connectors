@@ -525,3 +525,17 @@ def test_the_gb_chart_axis_reaches_the_highest_hour(tmp_path):
     )
     axis = re.findall(r'class="cf-axis" x="\d+" y="[\d.]+" text-anchor="end">([^<]+)<', _node(tmp_path, script))
     assert axis[-1] == "300"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_a_run_whose_swaps_are_all_held_says_so_once_and_never_no_risk(tmp_path):
+    run = {"kind": "rain-fade-swap", "workflow_version": 2}
+    held = [{**HELD, "entity": {**HELD["entity"], "id": f"p{n}"}} for n in range(3)]
+    script = (
+        "import { VIEWS } from './forecast-view.js';"
+        f"const run = {json.dumps(run)}, items = {json.dumps(held)};"
+        "console.log(JSON.stringify([VIEWS.chart(run, items), VIEWS.warnings(run, items)]))"
+    )
+    chart, warnings = _node(tmp_path, script)
+    assert "No pass is at risk" not in chart and "3 passes at risk awaiting approval in Constellation" in chart
+    assert warnings.count("awaiting approval in Constellation") == 1

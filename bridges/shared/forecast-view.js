@@ -303,8 +303,8 @@ const RFI = {
       return `<div class="cf-card"><div class="cf-card-head"><span class="cf-status-warn" aria-hidden="true">▲</span><b>${approved ? 'Approved: carry out' : 'Reroute advised'}</b></div><div>${esc(linkLabel(i))} from ${minute(i.target_at)}: up to ${num(i.value?.p90)} dB of RFI at p90, lock-loss risk ${pct(risk(i))}.</div><div class="cf-card-action">Reroute off ${esc(shortAntenna(i.entity.antenna_id))}</div>${approved ? '<div class="cf-note">Approved in Constellation.</div>' : ''}</div>`;
     });
     const waiting = held ? ` ${held} awaiting approval in Constellation.` : '';
-    const body = cards.length ? `<div class="cf-cards">${cards.join('')}</div>` : `<p class="cf-empty">No reroutes advised.${waiting}</p>`;
-    return section('Reroutes', body, `Approved first, then the highest lock-loss risk.${waiting}`);
+    if (!cards.length) return section('Reroutes', `<p class="cf-empty">No reroutes advised.${waiting}</p>`);
+    return section('Reroutes', `<div class="cf-cards">${cards.join('')}</div>`, `Approved first, then the highest lock-loss risk.${waiting}`);
   },
   list(run, items, selected) {
     const rows = items
@@ -369,7 +369,12 @@ export const VIEWS = {
     }
     if (run.kind === 'rain-fade-swap') {
       const risky = items.filter(actionable).slice(0, 20);
-      if (!risky.length) return section('Passes at weather risk', '<p class="cf-empty">No pass is at risk in this run.</p>');
+      if (!risky.length) {
+        // A held swap is not shown until it is approved, but its pass is still at risk.
+        const held = items.filter((i) => actionState(i) === 'pending').length;
+        const none = held ? `${held} ${held === 1 ? 'pass' : 'passes'} at risk awaiting approval in Constellation; each shows here once approved.` : 'No pass is at risk in this run.';
+        return section('Passes at weather risk', `<p class="cf-empty">${none}</p>`);
+      }
       return section(
         'What each at-risk pass keeps if it rains',
         dumbbell(
@@ -442,7 +447,8 @@ export const VIEWS = {
     const waiting = held ? ` ${held} awaiting approval in Constellation.` : '';
     const more = (all.length > 6 ? `The ${6} soonest of ${all.length}. Every swap is in Results below.` : 'Approved first, then the soonest decision.') + waiting;
     const title = all.some((i) => actionState(i) === 'approved') ? 'Swaps to carry out and to decide' : 'Swaps to decide';
-    return section(title, cards.length ? `<div class="cf-cards">${cards.join('')}</div>` : `<p class="cf-empty">No swaps to decide.${waiting}</p>`, more);
+    if (!cards.length) return section(title, `<p class="cf-empty">No swaps to decide.${waiting}</p>`);
+    return section(title, `<div class="cf-cards">${cards.join('')}</div>`, more);
   },
 
   list(run, items, selected) {
