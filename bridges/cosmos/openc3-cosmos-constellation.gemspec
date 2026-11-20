@@ -10,7 +10,7 @@ spec = Gem::Specification.new do |s|
   EOF
   s.authors = ['Constellation Space Corp']
   s.email = ['support@constellation.space']
-  s.homepage = 'https://constellation.space'
+  s.homepage = 'https://platform.constellation.space/docs/connectors/cosmos'
   s.metadata = {
     'source_code_uri' => 'https://github.com/constellationhq/connectors',
     'openc3_store_title' => 'Constellation Forecasts',
@@ -23,5 +23,5 @@ spec = Gem::Specification.new do |s|
   s.platform = Gem::Platform::RUBY
   s.version = ENV['VERSION'] || '0.1.0'
   s.licenses = ['Apache-2.0']
-  s.files = Dir.glob('{targets,lib,public,tools,microservices}/**/*').reject { |f| f.include?('__pycache__') } + %w(Rakefile plugin.txt README.md LICENSE)
+  s.files = Dir.glob('{targets,lib,public,tools,microservices}/**/*').reject { |f| f.include?('__pycache__') } + %w(Rakefile plugin.txt LICENSE)
 end
