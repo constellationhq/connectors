@@ -3,13 +3,14 @@ rain-fade risks marked, and reads runs from Yamcs or straight from the Constella
 under Node, against the shipped files."""
 
 import json
+import re
 import shutil
 import subprocess
 import threading
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -510,3 +511,17 @@ def test_an_rfi_watch_run_shows_rfi_in_db_and_its_reroutes_never_as_gb_or_swaps(
     assert "12.0 dB" in views["tiles"] and "1 awaiting approval" in views["tiles"]
     assert views["warnings"].index("Approved: carry out") < views["warnings"].index("Reroute advised")
     assert "25%" in views["list"] and "12.0" in views["list"]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_the_gb_chart_axis_reaches_the_highest_hour(tmp_path):
+    # 250 GB in the next hour: an axis stepping by 100 must go to 300, not stop at 200.
+    soon = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) + timedelta(minutes=30)
+    gb = {"p10": 250.0, "p50": 250.0, "p90": 250.0}
+    item = {**PASS, "target_at": soon.isoformat(), "value": gb, "explain": {}}
+    script = (
+        "import { VIEWS } from './forecast-view.js';"
+        f"console.log(JSON.stringify(VIEWS.chart({{kind: 'pass-yield'}}, {json.dumps([item])})))"
+    )
+    axis = re.findall(r'class="cf-axis" x="\d+" y="[\d.]+" text-anchor="end">([^<]+)<', _node(tmp_path, script))
+    assert axis[-1] == "300"

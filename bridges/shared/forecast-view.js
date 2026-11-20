@@ -86,8 +86,9 @@ function axisTicks(max, n = 4) {
   const raw = max / n;
   const mag = 10 ** Math.floor(Math.log10(raw));
   const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || raw;
-  const out = [];
-  for (let v = 0; v <= max + step * 0.01; v += step) out.push(v);
+  // The top tick is at or above max, so the data never runs past the axis.
+  const out = [0];
+  while (out[out.length - 1] < max - step * 0.01) out.push(out[out.length - 1] + step);
   return out;
 }
 
