@@ -56,6 +56,37 @@ if "OPENC3_SERVICE_PASSWORD" in os.environ:
     os.environ.setdefault("OPENC3_API_PASSWORD", os.environ["OPENC3_SERVICE_PASSWORD"])
 
 
+# The bytes of each STRING item in tlm.txt, by item name (a test holds them to it). COSMOS drops
+# a whole injected packet holding a longer value, and says so only in its decom log, and the API
+# takes ids longer than these, so a value is cut to fit. Its OVERFLOW TRUNCATE does not do it for
+# a string in the Python decom of 7.0 to 7.5.
+STRING_BYTES = {
+    "SATELLITE": 64,
+    "ANTENNA": 64,
+    "AOS": 32,
+    "LOS": 32,
+    "BACKUP_ANTENNA": 64,
+    "BACKUP_AOS": 32,
+    "DEADLINE": 32,
+    "STATUS": 16,
+    "DAY": 16,
+    "TIGHTEST_ANTENNA": 64,
+    "FIRST": 32,
+    "LAST": 32,
+    "WORKFLOW": 64,
+    "TEMPLATE": 32,
+    "RUN_ID": 64,
+}
+
+
+def fit(values: dict[str, Any]) -> dict[str, Any]:
+    """The values with each string cut to its item's bytes, never mid-character."""
+    return {
+        k: v.encode()[: STRING_BYTES[k]].decode(errors="ignore") if k in STRING_BYTES else v
+        for k, v in values.items()
+    }
+
+
 def inject(packet: str, values: dict[str, Any]) -> None:
     """COSMOS's inject_tlm, from whichever module this COSMOS exposes it in."""
     try:
@@ -437,7 +468,7 @@ class Forecast:
         if self.run:
             out["RUN"] = self.run
         for packet, values in out.items():
-            inject(packet, values)
+            inject(packet, fit(values))
         return len(out)
 
 

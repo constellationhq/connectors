@@ -494,6 +494,34 @@ def test_the_run_packet_says_it_is_the_latest_run_not_the_source_of_every_value(
     assert 'HORIZONTALBOX "Latest run received"' in (target / "screens/forecast.txt").read_text()
 
 
+def tlm_items() -> list[tuple[str, str, int, str]]:
+    """Every item of tlm.txt: (packet, item, bits, type)."""
+    rows, packet = [], ""
+    for line in (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text().splitlines():
+        words = line.split()
+        if words[:1] == ["TELEMETRY"]:
+            packet = words[2]
+        elif words[:1] == ["APPEND_ITEM"]:
+            rows.append((packet, words[1], int(words[2]), words[3]))
+    return rows
+
+
+def test_a_value_longer_than_its_string_item_is_cut_to_fit_not_dropped_by_cosmos(bridge):
+    """COSMOS drops a whole injected packet with a value longer than its STRING item, and the
+    API takes ids longer than the items hold, so the bridge cuts each to its item's bytes."""
+    module, injected = bridge
+    sizes = {(name, bits // 8) for _, name, bits, kind in tlm_items() if kind == "STRING"}
+    assert set(module.STRING_BYTES.items()) == sizes
+    long = item(2, 10)
+    long["entity"] = {**long["entity"], "satellite_id": "é" * 40, "antenna_id": "a" * 128}
+    forecast = module.Forecast()
+    forecast.take({**_resource("pass-yield"), "constellation.run_id": "r" * 200}, [long])
+    forecast.publish(NOW)
+    sent = dict(injected)
+    assert sent["NEXT_PASS"]["SATELLITE"] == "é" * 32 and sent["NEXT_PASS"]["ANTENNA"] == "a" * 64
+    assert sent["RUN"]["RUN_ID"] == "r" * 64
+
+
 # --- the API key ------------------------------------------------------------------------------
 
 
