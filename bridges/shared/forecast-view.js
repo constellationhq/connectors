@@ -632,7 +632,7 @@ export function mountForecast(element, { load, refreshMs = REFRESH_MS, theme = '
       body = `<p class="cf-meta">${esc(TITLES[run.kind] ?? run.kind)} · workflow ${esc(run.workflow)} v${esc(run.workflow_version)} · run ${esc(run.run_id)} · delivered ${ago(run.delivered_at)}</p>${flows}<div class="cf-grid2"><div>${main}</div><div>${side}</div></div>`;
     }
     root.innerHTML = `<div class="cf-head"><h2>Constellation Forecast</h2><span class="cf-forecast">Forecast · not scheduled contacts</span></div>
-      <p class="cf-meta">Predictions from Constellation workflows. Measured telemetry lives in its usual place.</p>
+      <p class="cf-meta">Predicted by Constellation workflows. Nothing here is measured telemetry.</p>
       ${error === 'restarting' ? '<p class="cf-note">Waiting for the host to come back; this refreshes on its own.</p>' : error ? `<div class="cf-error">Could not read the forecasts: ${esc(error)}</div>` : ''}
       ${workflows.length ? `<div class="cf-cats" role="tablist">${cats}</div>` : ''}${body}`;
   }
