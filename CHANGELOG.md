@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.8.3 (2026-11-20)
+
+- Forecast view (Yamcs, COSMOS, Open MCT): a MODCOD plan's row says how many times the MODCOD
+  changes over the pass ("3 changes"), counted as the COSMOS `MODCOD CHANGES` item and the
+  Lattice bridge count them: the steps after the one at AOS. It said "N MODCODs" and counted
+  every step, so a plan that stepped up and back down read "10 MODCODs".
+- Forecast view: the ledger shows a probability or share as a percent (`success 97%`), as the
+  lock-loss risk already was, not rounded to one decimal (`1.0 probability`).
+- Forecast view: chart labels show GB at one decimal everywhere (`164.0`, `96.0`) and counts as
+  whole numbers (the MODCOD mix).
+- Forecast view: the Passes tab opens on pass yield when a MODCOD plan is there too, whatever
+  order the workflows are listed in.
+- COSMOS: `MODCOD` shows the plan of the next pass to start, as `NEXT_PASS` does, not a pass
+  already under way, and reads `NONE` with no plan ahead. `PLANNED_PASSES` counts the passes
+  ahead with a plan.
+- COSMOS: `SWAP MINUTES_TO_DEADLINE` says when it turns yellow (30 minutes or less) and red (15
+  or less). COSMOS limits include the value at the limit, so 15.0 is red. The limits are
+  unchanged.
+
 ## v0.8.2 (2026-11-20)
 
 - COSMOS: a new OpenC3 Store cover image (`public/store_img.png`).
