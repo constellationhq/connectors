@@ -447,7 +447,11 @@ def check_in(consumer: str) -> bool:
     except Exception as exc:
         if isinstance(exc, urllib.error.HTTPError) and exc.code in (401, 403):
             raise
-        log(f"could not check in ({exc})", warn=True)
+        # An outage is said by the poll that follows.
+        if not isinstance(exc, OSError) or (
+            isinstance(exc, urllib.error.HTTPError) and exc.code < 500
+        ):
+            log(f"could not check in ({exc})", warn=True)
         return False
     return True
 
@@ -495,6 +499,8 @@ def keep(consumer: str, cursor: str, forecast: Forecast) -> None:
 def main() -> None:
     consumer = os.environ.get("CONSUMER", "cosmos-bridge")
     forecast, refreshed, checked_in, refused, held = Forecast(), 0.0, "", "", ""
+    # Why Constellation could not be read, said once until it can be again.
+    failing = ""
     checked_at = 0.0
     cursor: str | None = None
     if why := results.key_refusal(os.environ["CONSTELLATION_API_URL"]):
@@ -514,6 +520,7 @@ def main() -> None:
         if key == refused:
             time.sleep(KEY_WAIT_S)
             continue
+        failed = ""
         try:
             stale = time.time() - checked_at > results.CHECKIN_S
             if (key != checked_in or stale) and check_in(consumer):
@@ -522,6 +529,9 @@ def main() -> None:
                 cursor = resume(consumer, forecast)
             page = results.results_page(call, consumer, cursor)
             held = ""
+            if failing:
+                log("reached Constellation again")
+                failing = ""
             if lost := results.expired(page, cursor):
                 log(lost, warn=True)
             for entry in page["entries"]:
@@ -562,10 +572,6 @@ def main() -> None:
                 report(consumer, cursor, applied)
                 keep(consumer, cursor, forecast)
                 log(f"injected {applied['parameters']} packets, {cursor}")
-            # The next pass and the minutes left to a swap move with the clock, not only with runs.
-            if time.time() - refreshed > REFRESH_S and forecast.run:
-                forecast.publish(datetime.now(UTC))
-                refreshed = time.time()
             if page["entries"]:
                 continue  # catching up on the runs since the cursor: the next one now
         except urllib.error.HTTPError as exc:
@@ -587,9 +593,26 @@ def main() -> None:
                     held = why
                 time.sleep(wait)
                 continue
-            log(str(exc), warn=True)
+            failed = f"Constellation answered HTTP {exc.code}"
+        except OSError as exc:  # unreachable, refused, timed out (URLError is one)
+            failed = f"could not reach Constellation ({getattr(exc, 'reason', exc)})"
         except Exception as exc:  # a bad poll is logged and retried, never fatal
             log(f"{type(exc).__name__}: {exc}", warn=True)
+        if failed:
+            if failed != failing:
+                log(
+                    f"{failed}. Showing the forecast held and asking again every {POLL_S} s",
+                    warn=True,
+                )
+            failing = failed
+        # Refreshed whether or not the poll worked: the forecast held is the newest there is, and
+        # the next pass and the minutes left to a swap move with the clock, not only with runs.
+        if time.time() - refreshed > REFRESH_S and forecast.run:
+            try:
+                forecast.publish(datetime.now(UTC))
+                refreshed = time.time()
+            except Exception as exc:
+                log(f"could not refresh the packets ({type(exc).__name__}: {exc})", warn=True)
         time.sleep(POLL_S)
 
 

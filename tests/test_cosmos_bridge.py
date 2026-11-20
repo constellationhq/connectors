@@ -168,7 +168,14 @@ def test_only_the_resource_logs_for_this_connection_are_read(bridge):
     forecast = module.Forecast()
     forecast.take(resource, items)
     assert forecast.publish(NOW) == 6
-    assert [p for p, _ in injected] == ["NEXT_24H", "NEXT_PASS", "SWAP", "CAPACITY", "MODCOD", "RUN"]
+    assert [p for p, _ in injected] == [
+        "NEXT_24H",
+        "NEXT_PASS",
+        "SWAP",
+        "CAPACITY",
+        "MODCOD",
+        "RUN",
+    ]
     assert dict(injected)["CAPACITY"] == module.NO_CAPACITY
     assert dict(injected)["MODCOD"] == module.NO_MODCOD
     assert dict(injected)["RUN"]["WORKFLOW_VERSION"] == 3
@@ -1099,11 +1106,53 @@ def test_the_screen_shows_every_packet_and_only_items_the_packets_have():
 
 
 @pytest.mark.parametrize(
-    "packet, empty", [("NEXT_PASS", "NO_PASS"), ("CAPACITY", "NO_CAPACITY"), ("MODCOD", "NO_MODCOD")]
+    "packet, empty",
+    [("NEXT_PASS", "NO_PASS"), ("CAPACITY", "NO_CAPACITY"), ("MODCOD", "NO_MODCOD")],
 )
 def test_each_empty_packet_writes_every_item_of_its_packet(bridge, packet, empty):
     module, _ = bridge
     tlm = (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text()
     block = tlm.split(f"TELEMETRY CONSTELLATION {packet} ", 1)[1].split("\nTELEMETRY ", 1)[0]
-    items = [line.split()[1] for line in block.splitlines() if line.strip().startswith("APPEND_ITEM")]
+    items = [
+        line.split()[1] for line in block.splitlines() if line.strip().startswith("APPEND_ITEM")
+    ]
     assert list(getattr(module, empty)) == items
+
+
+def test_an_api_outage_is_said_once_and_the_forecast_held_keeps_refreshing(
+    bridge, monkeypatch, capsys
+):
+    module, injected = bridge
+    # A forecast is held from before.
+    monkeypatch.setattr(module, "resume", lambda _, f: setattr(f, "run", {"WORKFLOW": "w"}) or "")
+    monkeypatch.setattr(module, "REFRESH_S", -1)
+    down = {"n": 0}
+
+    def urlopen(req, timeout=None):
+        path = urllib.parse.urlsplit(req.full_url).path
+        if down["n"] == 2:
+            raise urllib.error.URLError("Connection refused")
+        if path == "/predictions/feed" and 1 <= down["n"] <= 3:
+            raise urllib.error.HTTPError(req.full_url, 503, "", {}, io.BytesIO(b""))  # type: ignore[arg-type]
+        return io.BytesIO(b'{"entries": [], "next": ""}')
+
+    def sleep(seconds):
+        down["n"] += 1
+        if down["n"] == 6:
+            raise StopIteration
+
+    monkeypatch.setattr(module.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(module.time, "sleep", sleep)
+    with pytest.raises(StopIteration):
+        module.main()
+    out = capsys.readouterr()
+    assert out.out.count("reached Constellation again") == 1
+    assert out.err.splitlines() == [
+        "constellation-bridge: Constellation answered HTTP 503. Showing the forecast held and"
+        " asking again every 15 s",
+        "constellation-bridge: could not reach Constellation (Connection refused). Showing the"
+        " forecast held and asking again every 15 s",
+        "constellation-bridge: Constellation answered HTTP 503. Showing the forecast held and"
+        " asking again every 15 s",
+    ]
+    assert len([p for p, _ in injected if p == "RUN"]) == 6
