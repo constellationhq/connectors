@@ -167,8 +167,10 @@ def test_only_the_resource_logs_for_this_connection_are_read(bridge):
     assert module.output_of(resource)["widget"]["on"]
     forecast = module.Forecast()
     forecast.take(resource, items)
-    assert forecast.publish(NOW) == 4
-    assert [p for p, _ in injected] == ["NEXT_24H", "NEXT_PASS", "SWAP", "RUN"]
+    assert forecast.publish(NOW) == 6
+    assert [p for p, _ in injected] == ["NEXT_24H", "NEXT_PASS", "SWAP", "CAPACITY", "MODCOD", "RUN"]
+    assert dict(injected)["CAPACITY"] == module.NO_CAPACITY
+    assert dict(injected)["MODCOD"] == module.NO_MODCOD
     assert dict(injected)["RUN"]["WORKFLOW_VERSION"] == 3
     assert module.results.unpack(entry(([item(2, 10)], "yamcs-bridge")), CONSUMER) == []
 
@@ -1094,3 +1096,14 @@ def test_the_screen_shows_every_packet_and_only_items_the_packets_have():
     }
     assert shown <= items
     assert {p for p, _ in shown} == {p for p, _ in items}
+
+
+@pytest.mark.parametrize(
+    "packet, empty", [("NEXT_PASS", "NO_PASS"), ("CAPACITY", "NO_CAPACITY"), ("MODCOD", "NO_MODCOD")]
+)
+def test_each_empty_packet_writes_every_item_of_its_packet(bridge, packet, empty):
+    module, _ = bridge
+    tlm = (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text()
+    block = tlm.split(f"TELEMETRY CONSTELLATION {packet} ", 1)[1].split("\nTELEMETRY ", 1)[0]
+    items = [line.split()[1] for line in block.splitlines() if line.strip().startswith("APPEND_ITEM")]
+    assert list(getattr(module, empty)) == items

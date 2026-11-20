@@ -196,6 +196,28 @@ NO_PASS: dict[str, Any] = {
     "MAX_ELEVATION": 0.0,
 }
 
+# The same for CAPACITY and MODCOD, with no antenna-day or no plan ahead.
+NO_CAPACITY: dict[str, Any] = {
+    "DAY": "NONE",
+    "ANTENNAS": 0,
+    "PASSES": 0,
+    "SELLABLE_MIN": 0.0,
+    "GB_P10": 0.0,
+    "GB_P50": 0.0,
+    "TIGHTEST_ANTENNA": "NONE",
+    "TIGHTEST_GB_P50": 0.0,
+}
+NO_MODCOD: dict[str, Any] = {
+    "SATELLITE": "NONE",
+    "ANTENNA": "NONE",
+    "AOS": "",
+    "CHANGES": 0,
+    "FIRST": "NONE",
+    "LAST": "NONE",
+    "MIN_SINR_DB": 0.0,
+    "PLANNED_PASSES": 0,
+}
+
 # Every SWAP item is written each time, so a cleared swap never leaves the last one's values
 # behind. With nothing to decide, the minutes left sit far above the limits: green, not red.
 NO_SWAP: dict[str, Any] = {
@@ -394,12 +416,8 @@ class Forecast:
     def publish(self, now: datetime) -> int:
         pending = sum(d is None or datetime.fromisoformat(d) > now for d in self.held)
         out = packets(self.passes, self.swaps, now, pending)
-        for packet, values in (
-            ("CAPACITY", capacity_packet(self.capacity, now)),
-            ("MODCOD", modcod_packet(self.plans, now)),
-        ):
-            if values is not None:
-                out[packet] = values
+        out["CAPACITY"] = capacity_packet(self.capacity, now) or NO_CAPACITY
+        out["MODCOD"] = modcod_packet(self.plans, now) or NO_MODCOD
         if self.run:
             out["RUN"] = self.run
         for packet, values in out.items():
