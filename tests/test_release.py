@@ -20,7 +20,7 @@ def job(name: str) -> str:
 
 
 def test_only_constellationhq_connectors_publishes_never_a_fork():
-    for name in ("images", "release", "pypi", "npm", "rubygems", "maven-central", "live"):
+    for name in ("images", "release", "pypi", "npm", "rubygems", "maven-central", "live", "platform"):
         assert re.search(rf"^    if: {re.escape(PUBLIC)}", job(name), re.M), name
     for name in ("artifacts", "install"):
         assert "write" not in job(name).split("steps:")[0], name
@@ -141,3 +141,14 @@ def test_the_release_notes_are_the_changelogs_section_for_the_tag():
     release = job("release")
     assert "--generate-notes" not in RELEASE
     assert "contents/CHANGELOG.md?ref=$TAG" in release and "--notes-file notes.md" in release
+
+
+def test_the_platform_pr_follows_a_live_release_and_skips_without_its_repo_or_token():
+    platform = job("platform")
+    assert "needs: live" in platform
+    assert "GH_TOKEN: ${{ secrets.PLATFORM_BUMP_TOKEN }}" in platform
+    assert "PLATFORM: ${{ vars.PLATFORM_REPO }}" in platform
+    assert "      - if: env.GH_TOKEN == '' || env.PLATFORM == ''\n        run: echo \"::notice::" in platform
+    steps = platform.split("steps:")[1].split("\n      - ")[2:]
+    assert steps and all("if: env.GH_TOKEN != '' && env.PLATFORM != ''" in step for step in steps)
+    assert "python3 tools/release/platform_pin.py" in platform
