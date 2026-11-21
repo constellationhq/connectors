@@ -39,6 +39,9 @@ name: Release
 #                                namespace verified in the Central Portal
 #   optional: variables RELEASE_PUBLISH_ROLE_ARN and INSTALL_BUCKET copy the release to
 #     install.constellation.space; skipped with a notice until both are set.
+#   optional: secret PLATFORM_BUMP_TOKEN (contents and pull requests: write, on
+#     ConstellationOS/platform only) opens the PR that pins the release in the Platform; skipped
+#     with a notice until it is set.
 on:
   push:
     tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
@@ -302,6 +305,53 @@ jobs:
       - name: Copy to install.constellation.space/connectors/releases/
         if: env.PUBLISH_ROLE != '' && env.INSTALL_BUCKET != ''
         run: aws s3 cp --recursive dist/ "s3://$INSTALL_BUCKET/connectors/releases/$TAG/"
+
+  # Once the release is live, one PR on ConstellationOS/platform pins it (tools/release/platform_pin.py).
+  platform:
+    needs: live
+    if: github.repository == 'constellationhq/connectors'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ secrets.PLATFORM_BUMP_TOKEN }}
+      PLATFORM: ConstellationOS/platform
+    steps:
+      - if: env.GH_TOKEN == ''
+        run: echo "::notice::PLATFORM_BUMP_TOKEN is not set, so no Platform PR pins $TAG. Add a token with contents and pull requests write on ConstellationOS/platform as that secret."
+      - if: env.GH_TOKEN != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Open or update the Platform PR
+        if: env.GH_TOKEN != ''
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::notice::$TAG is a pre-release, so the Platform keeps its pin."
+            exit 0
+          fi
+          branch="connectors-$TAG"
+          contract="$(< contract/VERSION)"
+          gh repo clone "$PLATFORM" "$RUNNER_TEMP/platform" -- -q --depth 1
+          python3 tools/release/platform_pin.py "$RUNNER_TEMP/platform" "$version" "$contract"
+          cd "$RUNNER_TEMP/platform"
+          if git diff --quiet; then
+            echo "::notice::$PLATFORM main already pins $TAG."
+            exit 0
+          fi
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -b "$branch"
+          git commit -q -am "connectors: pin $TAG"
+          git push -q --force origin "$branch"
+          body="Opened by the connectors release workflow for $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG (contract $contract): CONNECTORS_VERSION and its test, the release's row in docs/api/contract-and-versioning.md, and the item schema row in docs/connectors/index.md, which now reaches ${version%.*}.x. If this release reads a new item schema, correct that row before merging."
+          if [ -z "$(gh pr list -R "$PLATFORM" --head "$branch" --state open --json number -q '.[0].number // ""')" ]; then
+            gh pr create -R "$PLATFORM" --head "$branch" --base main --title "connectors: pin $TAG" --body "$body"
+          fi
+          echo "Platform PR for $TAG is up to date." >> "$GITHUB_STEP_SUMMARY"
 
   # The registries, while the release is still a draft.
   pypi:
