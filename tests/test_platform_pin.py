@@ -1,4 +1,4 @@
-"""tools/release/platform_pin.py points a ConstellationOS/platform checkout at a new connectors
+"""tools/release/platform_pin.py points a Platform repository checkout at a new connectors
 release: the pin, its test and a row of the docs' versions table, copied from the newest row."""
 
 import importlib.util

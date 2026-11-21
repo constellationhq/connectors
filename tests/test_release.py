@@ -143,11 +143,12 @@ def test_the_release_notes_are_the_changelogs_section_for_the_tag():
     assert "contents/CHANGELOG.md?ref=$TAG" in release and "--notes-file notes.md" in release
 
 
-def test_the_platform_pr_follows_a_live_release_and_skips_without_its_token():
+def test_the_platform_pr_follows_a_live_release_and_skips_without_its_repo_or_token():
     platform = job("platform")
     assert "needs: live" in platform
     assert "GH_TOKEN: ${{ secrets.PLATFORM_BUMP_TOKEN }}" in platform
-    assert "      - if: env.GH_TOKEN == ''\n        run: echo \"::notice::" in platform
+    assert "PLATFORM: ${{ vars.PLATFORM_REPO }}" in platform
+    assert "      - if: env.GH_TOKEN == '' || env.PLATFORM == ''\n        run: echo \"::notice::" in platform
     steps = platform.split("steps:")[1].split("\n      - ")[2:]
-    assert steps and all("if: env.GH_TOKEN != ''" in step for step in steps)
+    assert steps and all("if: env.GH_TOKEN != '' && env.PLATFORM != ''" in step for step in steps)
     assert "python3 tools/release/platform_pin.py" in platform

@@ -1,4 +1,4 @@
-"""Point a ConstellationOS/platform checkout at a connectors release (the release workflow's
+"""Point a Platform repository checkout at a connectors release (the release workflow's
 platform job runs this, then opens the PR):
 
     python3 tools/release/platform_pin.py PLATFORM_DIR VERSION CONTRACT_VERSION
