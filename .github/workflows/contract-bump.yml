@@ -2,13 +2,15 @@ name: Contract bump
 
 # Within the hour of the API publishing a newer contract, one PR "contract: bump to X.Y.Z" runs
 # make contract-update on the branch contract-bump, and that PR's CI shows whether the bridges
-# still build and pass. Nothing here merges it. While the PR is open a newer contract updates it
-# in place; once it is closed the next bump starts again from main.
+# still build and pass. A later run merges it (a merge commit) once every check on its head has
+# passed; a failing check leaves it open for a person. While the PR is open a newer contract
+# updates it in place; once it is closed the next bump starts again from main.
 #
 # vars.CONTRACT_REPO is the API's repository (owner/name), secrets.OS_CONTRACTS_READ_TOKEN reads
 # its releases, and secrets.CONTRACT_BUMP_TOKEN (contents and pull requests: write, on this
-# repository only) pushes the branch and opens the PR: one opened with the workflow's own token
-# would run no CI.
+# repository only) pushes the branch, opens the PR and merges it: one opened with the workflow's
+# own token would run no CI. main requires no status checks, so GitHub auto-merge would merge
+# before CI ran; the merge waits on gh pr checks instead.
 on:
   schedule:
     - cron: "17 * * * *"
@@ -50,8 +52,30 @@ jobs:
             echo "version=$newest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Open or update the bump PR
+      - name: Merge the bump PR once its checks pass
+        id: merge
         if: steps.newest.outputs.version
+        env:
+          VERSION: ${{ steps.newest.outputs.version }}
+          GH_TOKEN: ${{ secrets.CONTRACT_BUMP_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${GH_TOKEN:?add the secret CONTRACT_BUMP_TOKEN: contents and pull requests write on this repository}"
+          pr="$(gh pr list --head "$BRANCH" --state open --json number,title,headRefOid \
+            -q ".[] | select(.title == \"contract: bump to $VERSION\") | \"\(.number) \(.headRefOid)\"")"
+          [ -n "$pr" ] || exit 0
+          read -r number head <<< "$pr"
+          # gh pr checks fails while any check is pending or failed, and when there are none.
+          if gh pr checks "$number" > /dev/null; then
+            gh pr merge "$number" --merge --match-head-commit "$head"
+            echo "merged=true" >> "$GITHUB_OUTPUT"
+            echo "contract: bump to $VERSION passed its checks and is merged." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "contract: bump to $VERSION is waiting on its checks, or one failed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Open or update the bump PR
+        if: steps.newest.outputs.version && !steps.merge.outputs.merged
         env:
           VERSION: ${{ steps.newest.outputs.version }}
           READ_TOKEN: ${{ secrets.OS_CONTRACTS_READ_TOKEN }}
@@ -86,7 +110,7 @@ jobs:
           git push -q origin "$BRANCH"
           {
             echo "\`make contract-update VERSION=$VERSION\`, by the contract-bump workflow. This PR's"
-            echo "CI shows whether the bridges still build and pass; merge it by hand once it is green."
+            echo "CI shows whether the bridges still build and pass; the workflow merges it once every check passes."
             echo
             cat "$RUNNER_TEMP/diff.md"
           } > "$RUNNER_TEMP/body.md"
