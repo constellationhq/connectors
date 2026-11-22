@@ -645,6 +645,164 @@
   "run_workflow": {
     "description": "Start a run of a saved workflow over a UTC window (from and to) or at one time (at), optionally against a scenario_id. Returns a run_id for get_run; the run queues and runs in the background. Every time carries a UTC offset. deliver false is a test run: it prices and stores its items and sends nothing, and a run against a scenario is always one. A run that delivers needs the Operator plan or above; a plan without it is refused with 403 plan_required. A run computes at most 4,000,000 link steps (links times steps): more is refused with 422 too_many_link_steps and a suggested_step_s that fits. Requires the workflows:write scope and a live key.",
     "inputSchema": {
+      "$defs": {
+        "Edge": {
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/Port"
+            },
+            "id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Id",
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/$defs/Port"
+            }
+          },
+          "required": [
+            "id",
+            "from",
+            "to"
+          ],
+          "title": "Edge",
+          "type": "object"
+        },
+        "Graph": {
+          "additionalProperties": false,
+          "properties": {
+            "edges": {
+              "items": {
+                "$ref": "#/$defs/Edge"
+              },
+              "maxItems": 400,
+              "title": "Edges",
+              "type": "array"
+            },
+            "nodes": {
+              "items": {
+                "$ref": "#/$defs/Node"
+              },
+              "maxItems": 200,
+              "title": "Nodes",
+              "type": "array"
+            }
+          },
+          "required": [
+            "nodes"
+          ],
+          "title": "Graph",
+          "type": "object"
+        },
+        "Node": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "input",
+                "lane",
+                "transform",
+                "condition",
+                "output"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": true,
+              "title": "Params",
+              "type": "object"
+            },
+            "position": {
+              "$ref": "#/$defs/Position"
+            },
+            "ref": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "ref"
+          ],
+          "title": "Node",
+          "type": "object"
+        },
+        "Port": {
+          "additionalProperties": false,
+          "properties": {
+            "node": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Node",
+              "type": "string"
+            },
+            "port": {
+              "default": "rows",
+              "title": "Port",
+              "type": "string"
+            }
+          },
+          "required": [
+            "node"
+          ],
+          "title": "Port",
+          "type": "object"
+        },
+        "Position": {
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "default": 0.0,
+              "title": "X",
+              "type": "number"
+            },
+            "y": {
+              "default": 0.0,
+              "title": "Y",
+              "type": "number"
+            }
+          },
+          "title": "Position",
+          "type": "object"
+        },
+        "WorkflowDefinition": {
+          "additionalProperties": false,
+          "properties": {
+            "demo": {
+              "default": false,
+              "title": "Demo",
+              "type": "boolean"
+            },
+            "graph": {
+              "$ref": "#/$defs/Graph"
+            },
+            "name": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "graph"
+          ],
+          "title": "WorkflowDefinition",
+          "type": "object"
+        }
+      },
       "additionalProperties": false,
       "properties": {
         "at": {
@@ -671,6 +829,17 @@
           ],
           "default": null,
           "title": "Dataset"
+        },
+        "definition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkflowDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "deliver": {
           "default": true,

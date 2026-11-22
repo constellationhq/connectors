@@ -752,6 +752,16 @@
             ],
             "title": "Dataset"
           },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowDefinition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "deliver": {
             "default": true,
             "title": "Deliver",
@@ -1487,7 +1497,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.2.0"
+    "version": "2.4.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3560,6 +3570,56 @@
       }
     },
     "/predictions/workflows/{slug}": {
+      "delete": {
+        "description": "Deletes a saved workflow, every version of it: a run naming it is 404 from then on. Its\npast runs stay readable by run id. A template is never saved, so it is never deleted.",
+        "operationId": "delete_workflow_predictions_workflows__slug__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "The body is not UTF-8 text."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "No saved workflow of the caller's has the slug."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Delete Workflow"
+      },
       "get": {
         "operationId": "get_workflow_predictions_workflows__slug__get",
         "parameters": [
@@ -4357,6 +4417,27 @@
         "summary": "Load Demo Fleet"
       }
     },
+    "/topology/orbits": {
+      "get": {
+        "description": "Each satellite of the caller's latest network config with the element set a run would\npropagate now, as an OMM record: the satellite's own TLE (source \"config\"), else the orbit\ncatalog's set for its NORAD id (source \"catalog\"). A satellite a run would decline has a null\nomm and the run's code: norad_not_in_catalog, or orbit_propagation_failed for a catalog set\nfurther than the age limit from now. as_of is the catalog snapshot read, null when none was:\na catalog file, no snapshot, or every satellite carries its own TLE.",
+        "operationId": "get_orbits_topology_orbits_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Orbits Topology Orbits Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Orbits"
+      }
+    },
     "/topology/passes": {
       "get": {
         "description": "Every pass between from and to in the latest network config, computed from the fleet's\nelement sets and antenna masks and sampled every step_s from `from`, as a run samples it. Each\npass carries the pass_id a run's item for it carries. Below the satellites feature it covers\nat most FREE_SATELLITES of the tenant's own, as a test run does; the demo fleet's are free.",
@@ -4559,6 +4640,57 @@
           }
         },
         "summary": "Create Scenario"
+      }
+    },
+    "/topology/scenarios/{scenario_id}": {
+      "delete": {
+        "description": "Deletes a scenario; the runs made against it stay readable by run id.",
+        "operationId": "delete_scenario_topology_scenarios__scenario_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "The body is not UTF-8 text."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Delete Scenario"
       }
     },
     "/topology/series": {

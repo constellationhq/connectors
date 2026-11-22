@@ -6,6 +6,41 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.4.0
+
+- added `endpoint DELETE /predictions/workflows/{slug}`
+- added `endpoint DELETE /topology/scenarios/{scenario_id}`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "condition"`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "input"`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "lane"`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "output"`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "transform"`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/demo`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/from`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/from/properties/node`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/from/properties/port`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/id`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/to`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/to/properties/node`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/to/properties/port`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/id`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/params`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/position`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/position/properties/x`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/position/properties/y`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/ref`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/name`
+- added `field openapi.json/components/schemas/RunRequest/properties/definition`
+
+## 2.3.0
+
+- added `endpoint GET /topology/orbits`
+
 ## 2.2.0
 
 - added `field workflow-result.schema.json/properties/action/properties/from_held`
