@@ -870,12 +870,28 @@
             "title": "Antennas Down",
             "type": "array"
           },
+          "demo": {
+            "default": false,
+            "title": "Demo",
+            "type": "boolean"
+          },
           "extra_attenuation_db": {
             "additionalProperties": {
               "type": "number"
             },
             "maxProperties": 1000,
             "title": "Extra Attenuation Db",
+            "type": "object"
+          },
+          "fades": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/TimedFade"
+              },
+              "type": "array"
+            },
+            "maxProperties": 1000,
+            "title": "Fades",
             "type": "object"
           },
           "name": {
@@ -1203,6 +1219,40 @@
         "title": "TelemetryWriteAck",
         "type": "object"
       },
+      "TimedFade": {
+        "additionalProperties": false,
+        "description": "Rain over one antenna from from_utc to to_utc, as lanes.Fade prices it.",
+        "properties": {
+          "from_utc": {
+            "format": "date-time",
+            "title": "From Utc",
+            "type": "string"
+          },
+          "ramp_s": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Ramp S",
+            "type": "number"
+          },
+          "to_utc": {
+            "format": "date-time",
+            "title": "To Utc",
+            "type": "string"
+          },
+          "zenith_db_12ghz": {
+            "minimum": 0.0,
+            "title": "Zenith Db 12Ghz",
+            "type": "number"
+          }
+        },
+        "required": [
+          "from_utc",
+          "to_utc",
+          "zenith_db_12ghz"
+        ],
+        "title": "TimedFade",
+        "type": "object"
+      },
       "UploadResult": {
         "properties": {
           "key": {
@@ -1497,7 +1547,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.5.0"
+    "version": "2.6.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4411,7 +4461,7 @@
     },
     "/topology/demo-fleet": {
       "delete": {
-        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's. The account's own\nstations, antennas, satellites and workflows stay. Safe to repeat.",
+        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's, and its storm. The\naccount's own stations, antennas, satellites, workflows and scenarios stay. Safe to repeat.",
         "operationId": "remove_demo_fleet_topology_demo_fleet_delete",
         "responses": {
           "204": {

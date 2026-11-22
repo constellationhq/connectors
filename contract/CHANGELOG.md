@@ -6,6 +6,23 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.6.0
+
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/demo`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades/additionalProperties/items/properties/from_utc`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades/additionalProperties/items/properties/ramp_s`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades/additionalProperties/items/properties/to_utc`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades/additionalProperties/items/properties/zenith_db_12ghz`
+- added `field openapi.json/components/schemas/Scenario/properties/demo`
+- added `field openapi.json/components/schemas/Scenario/properties/fades`
+- added `field openapi.json/components/schemas/TimedFade/properties/from_utc`
+- added `field openapi.json/components/schemas/TimedFade/properties/ramp_s`
+- added `field openapi.json/components/schemas/TimedFade/properties/to_utc`
+- added `field openapi.json/components/schemas/TimedFade/properties/zenith_db_12ghz`
+-        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's. The account's own\nstations, antennas, satellites and workflows stay. Safe to repeat.",
+-    "description": "Load a ready-made demo fleet into the caller's account, so the other tools have data: 5 ground stations with 7 antennas, 5 sun-synchronous Earth observation satellites on X and Ka band and 1 geostationary one (GOES 19) on L band (ids norad-<NORAD id>) in the network config, and the simulated link telemetry of every pass in the last two hours at a 5 second cadence (es_n0_db, elevation_deg, range_m, frequency_ghz and the rfi noise channel: system_noise_temp_k, noise_diode_on and a contact_id per pass), from the live orbit catalog. The call merges the demo stations, antennas and satellites, with their RF terms, into the caller's network config with PATCH /topology/config, or only the ones it lacks when it already holds the demo (as on a reload), so no tenant entity is overwritten. A network config of the caller's own, holding any station, antenna or satellite and none of the demo, is refused (status 409, network_config_exists) and nothing is written: the demo is simulated and never mixes with a real fleet. Only the demo's own links get telemetry. A key without config:write fails the call, and the error says so. Mission names are real; the telemetry is simulated and implies no access to those missions. The SNR is synthetic: a planted offset per link (a known answer for calibration, not a measured loss), plus a slow wander, noise and a planted evening rain cell over the Singapore antenna. It has gaps a real feed has: none before a pass's modem locks, none while Troll is in its daily 06:00 to 09:00 UTC maintenance, and a modem dropout on about one pass in five. Each link's es_n0_db also drops by the rain attenuation its ground station stored for the last 30 minutes, scaled to the link's elevation, where that is more than the planted rain. Older records are not faded, nor is a link with no stored terms; rain_note counts those links, or says the stored terms could not be read. The data ends at the present and does not advance; calling again rewrites the same points, so it is safe to repeat. The low-orbit demo satellites' links are up only during their passes: ask snr with get_predictions and at, at a time in a pass (get_passes lists them). link_ids answers only while a pass is under way, right after this call. Requires the telemetry:write scope.",
+
 ## 2.5.0
 
 - added `endpoint DELETE /predictions/feed/readers/{consumer}`
