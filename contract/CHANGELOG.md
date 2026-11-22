@@ -6,6 +6,10 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.5.0
+
+- added `endpoint DELETE /predictions/feed/readers/{consumer}`
+
 ## 2.4.0
 
 - added `endpoint DELETE /predictions/workflows/{slug}`
