@@ -1547,7 +1547,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.7.0"
+    "version": "2.7.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2281,10 +2281,10 @@
             "description": "Credential scopes do not permit predictions:read."
           },
           "404": {
-            "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available)."
+            "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available), or with workflow a scenario_id that names no scenario and no run (unknown_scenario)."
           },
           "409": {
-            "description": "With workflow: the workflow version has no finished run yet, or none of the scenario_id the read names (no_finished_run, with its workflow_version). A normal state, not a failure: a workflow just saved, a scenario not yet run, or a workflow only test-run as an unsaved draft (a draft run has no version, so it never answers a saved one) answers it until such a run finishes. Start one with POST /predictions."
+            "description": "With workflow: the workflow version has no finished run yet, or none of the scenario_id or dataset the read names (no_finished_run, with its workflow_version and a detail naming the filter). A normal state, not a failure: a workflow just saved, a scenario not yet run, or a workflow only test-run as an unsaved draft (a draft run has no version, so it never answers a saved one) answers it until such a run finishes. Start one with POST /predictions."
           },
           "422": {
             "content": {
@@ -2389,7 +2389,7 @@
     },
     "/predictions/actions": {
       "get": {
-        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected or expired. A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
+        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected, expired, or unavailable (it books a slot on a ground network link since deleted,\nso it cannot be approved). A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
         "operationId": "list_actions_predictions_actions_get",
         "parameters": [
           {
@@ -2556,7 +2556,7 @@
             "description": "Workflows are off here, or no such run or held action."
           },
           "409": {
-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), or the action books a slot on a ground network link since deleted (offer_unavailable; it can still be rejected)."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."
@@ -2627,7 +2627,7 @@
             "description": "Workflows are off here, or no such run or held action."
           },
           "409": {
-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), or the action books a slot on a ground network link since deleted (offer_unavailable; it can still be rejected)."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."
@@ -3945,7 +3945,7 @@
     },
     "/telemetry": {
       "post": {
-        "description": "Telemetry records, each checked against the latest network config.",
+        "description": "Telemetry records, each checked against the latest network config. A contact record\n(los_utc, bytes_delivered, contact_status) is stamped at its AOS: its time is when the pass\nbegan and los_utc when it ended. An audit matches the record to the pass that window\noverlaps, so a record stamped at LOS matches no pass.",
         "operationId": "post_telemetry_v2_telemetry_post",
         "requestBody": {
           "content": {
@@ -4398,7 +4398,7 @@
             "description": "Successful Response"
           },
           "404": {
-            "description": "No network config was uploaded (unless missing_ok=true), or no such version."
+            "description": "No network config was uploaded (no_network_config, unless missing_ok=true), or the account has one but not the version asked for (config_version_not_found)."
           },
           "422": {
             "content": {

@@ -6,6 +6,17 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.7.1
+
+-            "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available)."
+-            "description": "With workflow: the workflow version has no finished run yet, or none of the scenario_id the read names (no_finished_run, with its workflow_version). A normal state, not a failure: a workflow just saved, a scenario not yet run, or a workflow only test-run as an unsaved draft (a draft run has no version, so it never answers a saved one) answers it until such a run finishes. Start one with POST /predictions."
+-        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected or expired. A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
+-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+-        "description": "Telemetry records, each checked against the latest network config.",
+-            "description": "No network config was uploaded (unless missing_ok=true), or no such version."
+-    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected or expired, with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
+
 ## 2.7.0
 
 - added `field mcp-tools.json/put_workflow/inputSchema/properties/create`

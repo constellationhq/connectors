@@ -460,7 +460,7 @@
     }
   },
   "list_actions": {
-    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected or expired, with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
+    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected, expired or unavailable (its offer's ground network link was deleted), with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
