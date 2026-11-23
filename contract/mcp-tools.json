@@ -510,7 +510,7 @@
     }
   },
   "put_workflow": {
-    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. Requires the workflows:write or config:write scope and a live key.",
+    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. A slug whose workflow was deleted is refused (404 unknown_workflow) unless create is true, which starts a new workflow under it with none of the deleted one's runs or decisions. Requires the workflows:write or config:write scope and a live key.",
     "inputSchema": {
       "$defs": {
         "Edge": {
@@ -647,6 +647,10 @@
       },
       "additionalProperties": false,
       "properties": {
+        "create": {
+          "description": "Start a new workflow under a slug whose workflow was deleted; not needed for a slug never used.",
+          "type": "boolean"
+        },
         "demo": {
           "default": false,
           "title": "Demo",

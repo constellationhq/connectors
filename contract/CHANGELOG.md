@@ -6,6 +6,23 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.7.0
+
+- added `field mcp-tools.json/put_workflow/inputSchema/properties/create`
+-            "description": "A workflow run's id: answers the run (status, stage or items, deliveries); satellite_id, antenna_id, station_id and pass_id narrow its items.",
+-              "description": "A workflow run's id: answers the run (status, stage or items, deliveries); satellite_id, antenna_id, station_id and pass_id narrow its items.",
+-            "description": "A workflow's name: answers its newest finished run (409 when it has none; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
+-              "description": "A workflow's name: answers its newest finished run (409 when it has none; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
+-        "description": "The workflow's runs of every status and version, newest first (to the second): a failed or cancelled run,\nor one of a version since edited, shows here though GET /predictions?workflow= answers only\nthe newest finished run. next_before pages on while older runs may be left.",
+-        "description": "Deletes a saved workflow, every version of it: a run naming it is 404 from then on. Its\npast runs stay readable by run id. A template is never saved, so it is never deleted.",
+-            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+-        "description": "Save a workflow's name and graph as the slug's next version. A graph the validator finds\nissues with is refused whole, with every issue.",
+-            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+-            "description": "No network config was uploaded, or no such version."
+-        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's, and its storm. The\naccount's own stations, antennas, satellites, workflows and scenarios stay. Safe to repeat.",
+-        "description": "Every pass between from and to in the latest network config, computed from the fleet's\nelement sets and antenna masks and sampled every step_s from `from`, as a run samples it. Each\npass carries the pass_id a run's item for it carries. Below the satellites feature it covers\nat most FREE_SATELLITES of the tenant's own, as a test run does; the demo fleet's are free.",
+-    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. Requires the workflows:write or config:write scope and a live key.",
+
 ## 2.6.0
 
 - added `field mcp-tools.json/create_scenario/inputSchema/properties/demo`
