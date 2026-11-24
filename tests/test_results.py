@@ -187,7 +187,7 @@ def test_a_key_is_forgotten_a_week_after_its_action_is_over_and_a_live_one_is_ke
     assert (tmp_path / "acted").read_text() == "live\t2099-01-08T01:00:00+00:00\n"
 
 
-def test_the_latest_of_the_pass_end_and_the_cancel_deadline_sets_when_a_key_is_forgotten():
+def test_the_latest_of_the_pass_end_and_the_decide_by_time_sets_when_a_key_is_forgotten():
     late_deadline = {
         **approved(),
         "action": {**approved()["action"], "deadline": "2099-02-01T00:00:00Z"},
@@ -210,7 +210,7 @@ def test_a_bridge_that_carries_out_approvals_each_run_counts_each_decision_once(
     assert results.first_acted([approved(decision="d1")], acted) == 1
     assert results.first_acted([approved(decision="d1")], acted) == 0
     assert results.first_acted([approved(decision="d2")], acted) == 1
-    # Past its cancel deadline an approval is closed, never carried out.
+    # Past its decide-by time an approval is closed, never carried out.
     assert results.first_acted([approved(decision="d3", year=2030)], acted) == 0
     # A key whose action is long over is dropped.
     acted["old"] = "2030-01-01T00:00:00+00:00"

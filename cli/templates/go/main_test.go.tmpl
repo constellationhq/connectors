@@ -18,12 +18,14 @@ func TestApplyWritesThePassesAboveTheThreshold(t *testing.T) {
 	}
 }
 
-func TestActCarriesOutAnApprovedSwap(t *testing.T) {
-	item := pass(9)
-	item["action"] = map[string]any{"verb": "swap", "from": "pass_1", "to": "pass_backup", "mode": "approve"}
-	item["action_status"] = "approved"
-	if done, err := act(item, nil, results.Run{}); !done || err != nil {
-		t.Fatalf("%v %v", done, err)
+func TestActHandlesAnApprovedSwapToAddOrMove(t *testing.T) {
+	for _, action := range []string{"add", "move"} {
+		item := pass(9)
+		item["action"] = map[string]any{"verb": "swap", "action": action, "from": "pass_1", "to": "pass_backup", "mode": "approve"}
+		item["action_status"] = "approved"
+		if done, err := act(item, nil, results.Run{}); !done || err != nil {
+			t.Fatalf("%s: %v %v", action, done, err)
+		}
 	}
 }
 

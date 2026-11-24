@@ -16,7 +16,8 @@ def test_apply_writes_the_passes_above_the_threshold(tmp_path):
     assert bridge.apply([item(1), item(9)], {"min_p10_gb": 5, "label": "x"}, RUN) == {"passes": 1}
 
 
-def test_act_carries_out_an_approved_swap(tmp_path):
+def test_act_handles_an_approved_swap_to_add_or_move(tmp_path):
     bridge = {{.Class}}(MANIFEST, cursor_file=tmp_path / "cursor.txt")
-    swap = {"verb": "swap", "from": "pass_9", "to": "pass_backup", "mode": "approve"}
-    assert bridge.act(item(9, action=swap, action_status="approved"), {}, RUN) is True
+    for action in ("add", "move"):
+        swap = {"verb": "swap", "action": action, "from": "pass_9", "to": "pass_backup", "mode": "approve"}
+        assert bridge.act(item(9, action=swap, action_status="approved"), {}, RUN) is True

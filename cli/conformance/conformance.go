@@ -149,7 +149,7 @@ const (
 
 // withHistory adds what a bridge finds in the feed on its first start (phase 0): an older run
 // with an approval in it, never to be applied, and the newest run, to be applied. And a run
-// with an approval past its cancel deadline, never to be acted on.
+// with an approval past its decide-by time, never to be acted on.
 func withHistory(s mock.Scenario) mock.Scenario {
 	pass := func(id string, extra map[string]any) map[string]any {
 		item := map[string]any{
@@ -494,7 +494,7 @@ func judge(scenario mock.Scenario, reqs []mock.Request, restartAt int, log actio
 		strings.Join(decisions, "; ")+`: key what was acted on by the result's decision_id, or entity.id|verb|to without one`)
 	never(len(wrong) == 0, "never acts on advice, pending, rejected or unknown-status actions, nor on plain forecasts",
 		"acted on "+strings.Join(wrong, ", "))
-	never(counts[expiredItem+" swap"] == 0, "never acts on an action past its cancel deadline",
+	never(counts[expiredItem+" swap"] == 0, "never acts on an action past its decide-by time",
 		fmt.Sprintf("acted %d time(s) on %s, whose deadline passed in 2020", counts[expiredItem+" swap"], expiredItem))
 
 	var resumed *mock.Request

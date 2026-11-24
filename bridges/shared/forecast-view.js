@@ -173,7 +173,7 @@ function dumbbell(rows, { unit = 'GB' } = {}) {
   const h = pad.t + rows.length * rowH;
   const max = Math.max(...rows.map((r) => r.b), 0.001);
   const x = (v) => pad.l + (v / max) * (W - pad.l - pad.r);
-  return `<svg class="cf-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="p10 against p50 per pass">${rows
+  return `<svg class="cf-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="GB per pass, without and with the advice">${rows
     .map((r, i) => {
       const y = pad.t + i * rowH + rowH / 2;
       return `<g ${tip(r.tip)}><text class="cf-label" x="${pad.l - 8}" y="${y + 4}" text-anchor="end">${esc(r.label)}</text><line class="cf-whisker" x1="${x(r.a)}" x2="${x(r.b)}" y1="${y}" y2="${y}"/><circle class="cf-dot-warn" cx="${x(r.a)}" cy="${y}" r="5"/><circle class="cf-dot" cx="${x(r.b)}" cy="${y}" r="5"/></g>`;
@@ -254,7 +254,7 @@ const tile = (label, value, hint) => `<div class="cf-tile"><div class="cf-tile-v
 const section = (title, body, note) => `<section class="cf-section"><h3>${esc(title)}</h3>${note ? `<p class="cf-note">${esc(note)}</p>` : ''}${body}</section>`;
 
 /** What an item's action is, as the bridges read it (constellation_space.results.action_state):
- * 'advice' (suggested), 'approved' (approved in Constellation: an instruction), 'pending' (held
+ * 'advice' (suggested), 'approved' (approved in Constellation: advice to act on), 'pending' (held
  * for approval; its action is not sent), 'rejected', or null with no action. A status the view
  * does not know is held, never a plain forecast. */
 export function actionState(item) {
@@ -413,16 +413,19 @@ export const VIEWS = {
         return section('Passes at weather risk', `<p class="cf-empty">${none}</p>`);
       }
       return section(
-        'What each at-risk pass keeps if it rains',
+        'What the advice adds to each at-risk pass',
         dumbbell(
-          risky.map((i) => ({
-            label: `${i.entity.satellite_id} @ ${stationTag(i.entity.antenna_id)}`,
-            a: gbOf(i).p10,
-            b: gbOf(i).p50,
-            tip: `${linkLabel(i)} at ${minute(i.target_at)}: ${num(gbOf(i).p10)} GB at p10 against ${num(gbOf(i).p50)} GB at p50`,
-          })),
+          risky.map((i) => {
+            const gain = typeof i.action.gain_gb === 'number' ? i.action.gain_gb : 0;
+            return {
+              label: `${i.entity.satellite_id} @ ${stationTag(i.entity.antenna_id)}`,
+              a: gbOf(i).p50,
+              b: gbOf(i).p50 + gain,
+              tip: `${linkLabel(i)} at ${minute(i.target_at)}: ${num(gbOf(i).p50)} GB expected in the rain, +${num(gain)} GB with the advice`,
+            };
+          }),
         ),
-        'Amber is the wet tail (p10); dark is the median (p50). The wider the gap, the more rain costs.',
+        'Amber is the GB expected in the rain (p50); dark adds the gain the advice brings over doing nothing.',
       );
     }
     if (run.kind === 'audit-ledger') {

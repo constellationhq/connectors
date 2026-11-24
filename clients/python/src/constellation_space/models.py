@@ -74,8 +74,8 @@ _ActionFacets = TypedDict(
         "gain_gb_p10": float,
         # The ground network's offer for the backup: link, network, slot_id, price, cancel_deadline_utc.
         "to_offer": dict[str, Any],
-        # The operator's booking of the original to cancel: link, network, booking_id, price,
-        # cancel_deadline_utc, state.
+        # On a move, the operator's booking of the original to release: link, network,
+        # booking_id, price, cancel_deadline_utc, state.
         "from_held": dict[str, Any],
     },
     total=False,

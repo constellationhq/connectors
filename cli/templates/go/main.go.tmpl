@@ -31,10 +31,17 @@ func apply(items []results.Item, settings map[string]any, run results.Run) (map[
 	return map[string]int{"passes": passes}, nil
 }
 
-// act carries out an approved action (book the backup pass, cancel the original) and returns
-// true once done. Only approved actions arrive here; an error retries the run.
+// act handles an approved action and returns true once done. A swap is advice: "add" a backup
+// pass and keep this one, or "move" to the backup. gain_gb is what it adds over doing nothing,
+// deadline the time to decide by. Constellation books and cancels nothing; your system or team
+// does. Only approved actions arrive here; an error retries the run.
 func act(item results.Item, settings map[string]any, run results.Run) (bool, error) {
 	action := item["action"].(map[string]any)
+	if action["verb"] == "swap" && action["action"] == "move" {
+		// TODO: your booking calls go here: book the backup, then release this pass.
+	} else if action["verb"] == "swap" {
+		// TODO: your booking calls go here: book the backup and keep this pass.
+	}
 	fmt.Printf("approved: %v %v -> %v\n", action["verb"], action["from"], action["to"])
 	return true, nil
 }
