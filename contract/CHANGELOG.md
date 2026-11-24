@@ -6,6 +6,178 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.9.0
+
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "C"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "HF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "K"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "Ka"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "Ku"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "L"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "S"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "UHF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "V"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "VHF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "W"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "X"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "optical"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/properties/direction "downlink"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/properties/direction "uplink"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/mount_type "az_el"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/mount_type "az_el_xel"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/mount_type "x_y"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/catalog/properties/filled/items "latitude_deg"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/catalog/properties/filled/items "longitude_deg"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/catalog/properties/filled/items "name"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/catalog/properties/filled/items "receive_ranges"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "C"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "HF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "K"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "Ka"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "Ku"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "L"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "S"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "UHF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "V"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "VHF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "W"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "X"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band "optical"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/catalog/properties/filled/items "downlink_ranges"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/catalog/properties/filled/items "fleet"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/catalog/properties/filled/items "name"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/catalog/properties/filled/items "norad_id"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/catalog/properties/filled/items "operator"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "C"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "HF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "K"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "Ka"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "Ku"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "L"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "S"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "UHF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "V"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "VHF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "W"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "X"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band "optical"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "C"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "HF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "K"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "Ka"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "Ku"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "L"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "S"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "UHF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "V"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "VHF"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "W"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "X"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band "optical"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/direction "downlink"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/direction "uplink"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcod/properties/standard "dvb-s2"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcod/properties/standard "dvb-s2x"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcod/properties/standard "other"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/polarization "lhcp"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/polarization "linear_horizontal"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/polarization "linear_vertical"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/polarization "rhcp"`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/rolloff 0.05`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/rolloff 0.1`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/rolloff 0.15`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/rolloff 0.2`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/rolloff 0.25`
+- added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/rolloff 0.35`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/catalog_version`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/altitude_m`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/acquisition_s`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/antenna_diameter_m`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/antenna_efficiency`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/demo`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/allOf/0/if/properties/direction`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/allOf/0/then/properties/eirp_dbw`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/allOf/1/if/properties/direction`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/allOf/1/then/properties/g_t_db_k`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/allOf/1/then/properties/g_t_elevation_deg`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/properties/direction`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/properties/eirp_dbw`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/properties/g_t_db_k`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/properties/g_t_elevation_deg`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/properties/half_power_beamwidth_deg`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/properties/max_ghz`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/frequency_ranges/additionalProperties/properties/min_ghz`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/min_elevation_deg`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/mount_type`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/slew_rate_deg_s`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/slew_rate_deg_s/properties/az`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/slew_rate_deg_s/properties/el`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/sun_coupling`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/catalog`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/catalog/properties/filled`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/catalog/properties/station_id`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/latitude_deg`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/longitude_deg`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/maintenance`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/maintenance/items/properties/daily_utc`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/maintenance/items/properties/minutes`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/maintenance/items/properties/reason`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/name`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/band`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/max_ghz`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/receive_ranges/items/properties/min_ghz`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/catalog`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/catalog/properties/filled`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/catalog/properties/norad_id`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/demo`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/band`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/max_ghz`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/downlink_ranges/items/properties/min_ghz`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/fleet`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/name`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/norad_id`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/operator`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/allOf/0/if/properties/direction`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/allOf/0/then/properties/g_t_db_k`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/allOf/1/if/properties/direction`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/allOf/1/then/properties/eirp_dbw`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/band`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/bandwidth_mhz`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/direction`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/eirp_dbw`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/frequency_ghz`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/g_t_db_k`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcod`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcod/allOf/0/if/properties/adaptive`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcod/allOf/1/if/properties/standard`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcod/properties/adaptive`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcod/properties/required_es_n0_db`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcod/properties/standard`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcods`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcods/items/properties/efficiency_bps_hz`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcods/items/properties/min_es_n0_db`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/modcods/items/properties/name`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/polarization`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/radios/additionalProperties/properties/rolloff`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/tle`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/tle/properties/line1`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/satellites/additionalProperties/properties/tle/properties/line2`
+-            "description": "Missing, stale, or invalid signature."
+-          },
+-          "404": {
+-            "description": "No webhook dataset with this id."
+-            "description": "The dataset is paused."
+-            "description": "An action's decision_id is not the decision that stands on it (unknown_decision): nothing of the report is stored."
+-            "description": "The body is not a valid network config document."
+
 ## 2.8.2
 
 -            "description": "Payload accepted for ingest."
