@@ -104,7 +104,7 @@ def http(
 
 def action_state(item: dict[str, Any]) -> str | None:
     """What an item's action is to a bridge. "advice": suggested, never an instruction.
-    "approved": a person approved it in Constellation, an instruction to carry out. "pending":
+    "approved": a person approved it in Constellation, advice to carry out. "pending":
     held for approval; the action itself is not sent, only action_status. "rejected": decided
     against; the original stands. None: the item has no action. Any status other than approved
     or rejected counts as held, so an item a bridge cannot read is never taken for a plain
@@ -152,7 +152,7 @@ def parse_time(value: Any) -> datetime | None:
 
 def acted_until(item: dict[str, Any]) -> str:
     """When an acted key may be forgotten: the latest of the item's time, its end (a pass's end),
-    its action's cancel deadline and now, plus KEEP_ACTED, so a key is never dropped as soon as it
+    its action's deadline and now, plus KEEP_ACTED, so a key is never dropped as soon as it
     is written. "" (kept for good) when none of the item's is a time."""
     action = item.get("action") or {}
     times = [
@@ -164,19 +164,108 @@ def acted_until(item: dict[str, Any]) -> str:
     return (max(*known, now()) + KEEP_ACTED).astimezone(timezone.utc).isoformat(timespec="seconds")
 
 
-def first_acted(items: list[dict[str, Any]], acted: dict[str, str]) -> int:
-    """How many of these items are approved actions still open (before their cancel deadline)
-    carried out for the first time. A bridge that enforces or shows approvals on every run, rather
-    than acting once, counts each decision (action_key) once: `acted` maps each counted to when
-    it may be forgotten (acted_until), kept in the bridge's state, and loses keys long over."""
+def first_acted(
+    items: list[dict[str, Any]],
+    acted: dict[str, str],
+    outcomes: list[dict[str, str]] | None = None,
+    how: str = "",
+) -> int:
+    """How many of these items are approved actions still open (before their deadline) carried
+    out for the first time. A bridge that enforces or shows approvals on every run, rather than
+    acting once, counts each decision (action_key) once: `acted` maps each counted to when it may
+    be forgotten (acted_until), kept in the bridge's state, and loses keys long over. Each one
+    counted goes in `outcomes` as acted (`how` says how), and an approval first seen past its
+    deadline as refused, each once (outcome())."""
     _drop_over(acted)
     first = 0
     for item in items:
         key = action_key(item)
-        if action_state(item) == "approved" and not past_deadline(item) and key not in acted:
-            acted[key] = acted_until(item)
+        if action_state(item) != "approved" or key in acted:
+            continue
+        acted[key] = acted_until(item)
+        if past_deadline(item):
+            said = outcome(item, "refused", too_late(item))
+        else:
             first += 1
+            said = outcome(item, "acted", how)
+        if outcomes is not None and said:
+            outcomes.append(said)
     return first
+
+
+def outcome(item: dict[str, Any], result: str, reason: str = "") -> dict[str, str] | None:
+    """What mission control did with an approved action, for the delivery report's `actions`:
+    acted or refused, and why. None for an item that does not name its action and decision (an
+    API from before outcomes): the API could not match it."""
+    if not (item.get("action_id") and item.get("decision_id")):
+        return None
+    return {
+        "action_id": str(item["action_id"]),
+        "decision_id": str(item["decision_id"]),
+        "outcome": result,
+        "reason": reason[:500],
+    }
+
+
+def too_late(item: dict[str, Any]) -> str:
+    """Why an approval past its deadline was refused."""
+    return f"it arrived after its decide-by time, {minute((item.get('action') or {}).get('deadline'))}"
+
+
+def minute(value: Any) -> str:
+    """An ISO time to the minute, as the texts write it: 2026-11-05 09:45Z."""
+    at = parse_time(value) if value else None
+    return at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%MZ") if at else ""
+
+
+# Why a swap advises its action (the action's `reason`), as a person reads it.
+REASONS = {
+    "adds_capacity": "it adds capacity",
+    "overlap": "both passes use one radio at once",
+    "paid_booking": "releasing the paid booking in time is worth it",
+    "original_empty": "this pass delivers about nothing in the rain",
+}
+
+
+def _gb_text(value: Any) -> str | None:
+    return f"{value:.1f} GB" if isinstance(value, int | float) and not isinstance(value, bool) else None
+
+
+def advice(item: dict[str, Any]) -> str:
+    """A swap as the advice it is, never a command: add a backup pass (and keep this one) or move
+    to the backup, its time and GB, the gain over doing nothing (gain_gb), why, and when to
+    decide by. The customer's contact plan is theirs; Constellation books and cancels nothing."""
+    action = item.get("action") or {}
+    if not action.get("to_antenna_id"):
+        return "No backup pass in the window"
+    move = action.get("action") == "move"
+    text = f"{'Move to the backup' if move else 'Add a backup pass'} on {action['to_antenna_id']}"
+    if at := minute(action.get("to_at")):
+        text += f" at {at}"
+        if until := minute(action.get("to_until")):
+            text += f" to {until[-6:]}"
+    if gb := _gb_text(action.get("to_gb")):
+        text += f" ({gb})"
+    text += " instead of this one" if move else " and keep this one"
+    if gain := _gb_text(action.get("gain_gb")):
+        text += f", +{gain}"
+    if why := REASONS.get(action.get("reason") or ""):
+        text += f": {why}"
+    if deadline := minute(action.get("deadline")):
+        text += f"; decide by {deadline}"
+    return text
+
+
+def loss(item: dict[str, Any]) -> str:
+    """What rain costs the pass, as a person reads it: the note's own sentence ("Rain costs 60%
+    of its dry 0.6 GB"), which only the API can say as it alone knows the dry yield, else the GB
+    the pass is expected to carry in the rain (p50). Never a p10, which equals the p50 in a
+    forecast with no spread."""
+    note = item.get("note") or ""
+    if note.startswith("Rain costs"):
+        return note.split(". ", 1)[0]
+    gb = expected_gb(item)
+    return f"{gb['p50']:.1f} GB expected in the rain" if gb else ""
 
 
 def _drop_over(keys: dict[str, str]) -> bool:
@@ -189,7 +278,7 @@ def _drop_over(keys: dict[str, str]) -> bool:
 
 
 def past_deadline(item: dict[str, Any]) -> bool:
-    """Whether the item's action is past its cancel deadline: closed, never to be carried out."""
+    """Whether the item's action is past its deadline (decide-by): closed, never to be carried out."""
     deadline = parse_time((item.get("action") or {}).get("deadline"))
     return deadline is not None and deadline <= now()
 
@@ -449,22 +538,44 @@ def start_cursor(call: Callable[..., Any], consumer: str) -> str:
     return page["next"]
 
 
+# The most action outcomes the API takes in one delivery report.
+MAX_OUTCOMES = 200
+
+
 def report(
-    call: Callable[..., Any], consumer: str, cursor: str, applied: dict[str, int], target: str
+    call: Callable[..., Any],
+    consumer: str,
+    cursor: str,
+    applied: dict[str, int],
+    target: str,
+    actions: list[dict[str, str]] | None = None,
+    log: Callable[[str], None] = print,
 ) -> None:
-    """Tells Constellation what the run at `cursor` became in the system, shown in Constellation;
-    raises when Constellation does not take it."""
-    call(
-        "POST",
-        "/predictions/feed/deliveries",
-        {
-            "consumer": consumer,
-            "run_id": cursor.split("#", 1)[1],
-            "cursor": cursor,
-            "applied": applied,
-            "target": target,
-        },
-    )
+    """Tells Constellation what the run at `cursor` became in the system, shown in Constellation,
+    and what became of each approved action in it (`actions`, outcome()); raises when
+    Constellation does not take it. An API from before outcomes refuses `actions` (422), and one
+    whose decision has moved on refuses the whole report (409 unknown_decision): either way the
+    report is sent again without them, so the delivery is still recorded."""
+    body = {
+        "consumer": consumer,
+        "run_id": cursor.split("#", 1)[1],
+        "cursor": cursor,
+        "applied": applied,
+        "target": target,
+    }
+    if not actions:
+        call("POST", "/predictions/feed/deliveries", body)
+        return
+    try:
+        call("POST", "/predictions/feed/deliveries", {**body, "actions": actions[:MAX_OUTCOMES]})
+    except Exception as exc:
+        if getattr(exc, "code", None) not in (409, 422):
+            raise
+        log(
+            f"Constellation did not take the outcomes of {len(actions)} approved action(s) of"
+            f" {cursor} (HTTP {exc.code}); reported the delivery without them"
+        )
+        call("POST", "/predictions/feed/deliveries", body)
 
 
 def kind(items: list[dict[str, Any]]) -> str:
