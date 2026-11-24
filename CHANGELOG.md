@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.8.4 (2026-11-23)
+
+### For operators
 
 - Rain-fade swaps read as advice everywhere: "Add a backup pass" (keep this one) or "Move to the
   backup", with the gain over doing nothing (`gain_gb`) and why, and a decide-by time. Never
@@ -22,6 +24,16 @@
   outcomes still gets the delivery, sent again without them.
 - Open MCT: the plugin installs Open MCT 4.3.1's `PlanLayout`, or `Plan` in versions that name it
   so; the passes object was "Unknown Type" in stock 4.3.1.
+
+### For developers
+
+- Built against contract 2.8.1 (was 2.1.0), which adds the advisory swap fields and per-action outcomes.
+- Python (`constellation_space.models`) and TypeScript (`types.ts`) declare the advisory swap
+  fields on an action, all optional: `action` (`add` or `move`; read any other value as `add`),
+  `reason` (`adds_capacity`, `overlap`, `paid_booking` or `original_empty`), the backup pass's
+  `to_until`, `to_duration_s` and `to_gb`, and `gain_gb`, the GB the advice adds over doing
+  nothing at the p50.
+- `gain_gb_p10` is deprecated: use `gain_gb`. It stays declared on both models for now.
 
 ## v0.8.3 (2026-11-20)
 
