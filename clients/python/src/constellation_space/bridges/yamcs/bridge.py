@@ -8,7 +8,8 @@ resources for its own connection (CONSUMER) and nothing else:
 
     events      one per item, from the mapping's message, source and severity rule; a rerun
                 writes one again only for a new item or one whose event would now differ
-    timeline    one item per result that spans time, in the mapping's band; the id is derived
+    timeline    one item per result that spans time, in the mapping's band, and one for an open
+                swap's backup pass, from its AOS to its LOS with its GB; the id is derived
                 from the result, so a rerun updates it, and the bridge deletes its own items
                 (tagged constellation-bridge) that the workflow's newest run no longer carries,
                 only inside that run's window and never one that already started
@@ -18,11 +19,13 @@ resources for its own connection (CONSUMER) and nothing else:
 
 It creates the bands and the "Constellation forecast" view it needs (CREATE_VIEWS=0 turns that
 off), checks in with what it found (which Yamcs, what its account may write, whether the widget is
-installed), and reports what it wrote for each run. Catching up after downtime, it applies only
+installed), and reports what it wrote for each run and what became of each approved action
+(announced, or refused as past its decide-by time). Catching up after downtime, it applies only
 the newest run of each workflow, its events stamped with the run's own time. Its state is in
 STATE_DIR: CURSOR_FILE, the last cursor applied, so it resumes where it stopped, and ACTED_FILE, the
 approved actions it announced, so each "Approved in Constellation" event is written once, however
-often the feed sends that action again. When Yamcs lost what the bridge made (a restart without
+often the feed sends that action again, and SENT_FILE, the last event per item, so a restart
+writes no event twice. When Yamcs lost what the bridge made (a restart without
 persistent storage), it applies the newest run of every workflow again.
 
 Yamcs credentials, when Yamcs has security on, stay here: a service account (YAMCS_CLIENT_ID and
@@ -76,8 +79,14 @@ CURSOR_FILE = f"{STATE_DIR}/yamcs-bridge-cursor.txt"
 # Each workflow's newest run applied, by cursor: what a Yamcs restart without storage lost, read
 # again by cursor rather than by paging the whole feed.
 NEWEST_FILE = f"{STATE_DIR}/yamcs-bridge-newest.json"
+# The last event written per item (_sent), so a restart writes no event Yamcs already holds.
+SENT_FILE = f"{STATE_DIR}/yamcs-bridge-sent.json"
+# How long an item's last event is remembered after its day.
+KEEP_SENT = timedelta(days=8)
 
 written: dict[str, int] = {}
+# What became of each approved action in the run being applied, for the delivery report.
+outcomes: list[dict[str, str]] = []
 
 
 def wrote(kind: str, n: int = 1) -> None:
@@ -308,9 +317,27 @@ def plan(item: dict[str, Any]) -> str | None:
 # The last event written per item (workflow, entity and day, what the item advises): a rerun
 # writes an event only for a new item or one whose event would now say something else. Timeline
 # items need no such memory: their id is derived the same way, so a rerun updates them in place.
-# Kept in memory, so a bridge restart writes each pass's event once more; an approved action's
-# event never: it is an instruction, written once (_acted), not news to repeat.
-_sent: dict[str, tuple[str, str]] = {}
+# Kept in SENT_FILE, so neither a rerun nor a republish after a bridge restart writes an event
+# twice; an approved action's event is written once per decision (_acted), not news to repeat.
+def load_sent() -> dict[str, list[str]]:
+    try:
+        with open(SENT_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def save_sent() -> None:
+    """Writes _sent to SENT_FILE, without the items whose day is KEEP_SENT past."""
+    oldest = (results.now() - KEEP_SENT).date().isoformat()
+    for key in [k for k, (_, _, day) in _sent.items() if day < oldest]:
+        del _sent[key]
+    with open(f"{SENT_FILE}.tmp", "w") as f:
+        json.dump(_sent, f)
+    os.replace(f"{SENT_FILE}.tmp", SENT_FILE)
+
+
+_sent = load_sent()
 _acted = results.Acted(ACTED_FILE)
 
 
@@ -338,7 +365,7 @@ def send_event(
         return
     message, level = render(events["message"], values), severity(events, values)
     if approved:
-        # An instruction, not advice: said so, and never quieter than a warning.
+        # Approved advice for mission control: said so, and never quieter than a warning.
         message = f"Approved in Constellation: {message}"
         if _SEVERITY_RANK.get(level, 0) < _SEVERITY_RANK["WARNING"]:
             level = "WARNING"
@@ -351,59 +378,106 @@ def send_event(
     if run.get("made_at"):
         # The run's own time, so a catch-up after downtime does not stamp old events "now".
         event["time"] = run["made_at"]
-    key, said = event_key(item, run), (event["message"], event["severity"])
+    key, said = event_key(item, run), [event["message"], event["severity"]]
     # An approval is written once by _acted (a new approval of the same swap is news again).
-    if not approved and _sent.get(key) == said:
+    if not approved and _sent.get(key, [])[:2] == said:
         wrote("unchanged")
         return
     yamcs("POST", f"/archive/{INSTANCE}/events", event)
-    _sent[key] = said
+    _sent[key] = [*said, item["target_at"][:10]]
     if approved:
         _acted.add(item)
+        if done := results.outcome(item, "acted", f"announced in Yamcs {INSTANCE} as an event"):
+            outcomes.append(done)
         wrote("acted")
     wrote("events")
 
 
 def timeline(
     item: dict[str, Any], tl: dict[str, Any], values: dict[str, Any], run: dict[str, Any]
-) -> str:
-    """Writes the item's timeline item; returns its id."""
+) -> list[str]:
+    """Writes the item's timeline item, and for an open swap one for its backup pass from AOS to
+    LOS (the action's to_at and to_until), so an operator can book it from the timeline; returns
+    their ids."""
     entity = item["entity"]
-    # A closed action is no longer an instruction or a question: it loses its approved tag.
+    # A closed action is no longer advice or a question: it loses its approved tag.
     state = None if results.past_deadline(item) else results.action_state(item)
     action = item.get("action") or {}
-    item_id = str(uuid.uuid5(NAMESPACE, f"{run['workflow']}|{tl['band']}|{ident(item)}"))
-    start = datetime.fromisoformat(item["target_at"])
-    body = {
-        "type": "EVENT",
-        "name": render(tl["name"], values),
-        "start": item["target_at"],
-        "duration": f"{(datetime.fromisoformat(item['until']) - start).total_seconds():.0f}s",
-        # A PUT replaces the whole item, so the tags go every time; the band's tag routes it.
-        "tags": sorted(
-            {*tl["tags"], f"band-{slug(tl['band'])}", MADE_BY_BRIDGE}
-            | ({"awaiting-approval"} if state == "pending" else set())
-            | ({"approved"} if state == "approved" else set())
-            | ({"rejected"} if state == "rejected" else set())
-        ),
-        "properties": {
-            k: str(v)
-            for k, v in {
-                "workflow": run["workflow"],
+    tags = (
+        {*tl["tags"], f"band-{slug(tl['band'])}", MADE_BY_BRIDGE}
+        | ({"awaiting-approval"} if state == "pending" else set())
+        | ({"approved"} if state == "approved" else set())
+        | ({"rejected"} if state == "rejected" else set())
+    )
+    common = {
+        "workflow": run["workflow"],
+        "action_status": item.get("action_status"),
+        "decision_id": item.get("decision_id"),
+        "deadline": action.get("deadline"),
+        "workflow_version": item.get("workflow_version", run.get("workflow_version")),
+        "run_id": run.get("run_id"),
+    }
+    key = f"{run['workflow']}|{tl['band']}|{ident(item)}"
+    written_ids = [
+        put_item(
+            str(uuid.uuid5(NAMESPACE, key)),
+            render(tl["name"], values),
+            item["target_at"],
+            item["until"],
+            tags,
+            {
+                **common,
                 "pass_id": entity["id"],
                 "antenna_id": entity.get("antenna_id"),
                 "expected_gb_p10": values.get("expected_gb.p10"),
                 "expected_gb_p50": values.get("expected_gb.p50"),
                 "expected_gb_p90": values.get("expected_gb.p90"),
                 "plan": plan(item),
-                "action_status": item.get("action_status"),
                 "backup_antenna": action.get("to_antenna_id"),
-                "deadline": action.get("deadline"),
-                "workflow_version": item.get("workflow_version", run.get("workflow_version")),
-                "run_id": run.get("run_id"),
-            }.items()
-            if v is not None
-        },
+                "backup_pass_id": action.get("to"),
+                "backup_aos": action.get("to_at"),
+                "backup_los": action.get("to_until"),
+                "advice": results.advice(item) if action.get("verb") == "swap" else None,
+            },
+        )
+    ]
+    if state in ("advice", "approved") and action.get("to_at") and action.get("to_until"):
+        gb = action.get("to_gb")
+        name = f"Backup · {entity.get('satellite_id')} @ {action.get('to_antenna_id')}"
+        written_ids.append(
+            put_item(
+                str(uuid.uuid5(NAMESPACE, f"{key}|backup")),
+                name + (f": {gb:.1f} GB expected" if isinstance(gb, int | float) else ""),
+                action["to_at"],
+                action["to_until"],
+                tags | {"backup"},
+                {
+                    **common,
+                    "pass_id": action.get("to"),
+                    "antenna_id": action.get("to_antenna_id"),
+                    "expected_gb_p50": gb,
+                    "gain_gb": action.get("gain_gb"),
+                    "backup_for": entity["id"],
+                    "advice": results.advice(item),
+                },
+            )
+        )
+    return written_ids
+
+
+def put_item(
+    item_id: str, name: str, start: str, end: str, tags: set[str], properties: dict[str, Any]
+) -> str:
+    """Writes one timeline item from `start` to `end`; returns its id."""
+    span = datetime.fromisoformat(end) - datetime.fromisoformat(start)
+    body = {
+        "type": "EVENT",
+        "name": name,
+        "start": start,
+        "duration": f"{span.total_seconds():.0f}s",
+        # A PUT replaces the whole item, so the tags go every time; the band's tag routes it.
+        "tags": sorted(tags),
+        "properties": {k: str(v) for k, v in properties.items() if v is not None},
     }
     try:
         yamcs("PUT", f"/timeline/{INSTANCE}/items/{item_id}", body)
@@ -503,21 +577,26 @@ def ensure_band(name: str) -> None:
 
 def apply(
     item: dict[str, Any], mapping: dict[str, Any], tokens: dict[str, str], run: dict[str, Any]
-) -> str | None:
-    """Writes one item; returns the id of the timeline item it wrote, if any."""
+) -> list[str]:
+    """Writes one item; returns the ids of the timeline items it wrote."""
     values = fields(item, tokens)
     state = results.action_state(item)
     # A held action is decided in Constellation; its event comes once it is approved. A rejected
     # one leaves the original pass, which the workflow's forecast already shows: no event, and
     # its timeline item (written while it was held) is re-tagged rather than left awaiting. An
-    # action past its cancel deadline is closed: no event, approved or not.
+    # action past its deadline is closed: no event, approved or not, and an approval first seen
+    # then is reported refused, once.
     closed = results.past_deadline(item)
+    if closed and state == "approved" and item not in _acted:
+        _acted.add(item)
+        if refused := results.outcome(item, "refused", results.too_late(item)):
+            outcomes.append(refused)
     if mapping["events"]["on"] and state not in ("pending", "rejected") and not closed:
         send_event(item, mapping["events"], values, run)
     if mapping["timeline"]["on"] and item.get("until"):
         ensure_band(mapping["timeline"]["band"])
         return timeline(item, mapping["timeline"], values, run)
-    return None
+    return []
 
 
 _listed: list[bool] = []
@@ -701,7 +780,8 @@ def report(cursor: str) -> None:
     """Tell Constellation what this entry became in Yamcs; a failed report never stops delivery,
     a refusal (Refused) does."""
     try:
-        results.report(constellation, CONSUMER, cursor, dict(written), f"Yamcs {INSTANCE} at {YAMCS}")
+        target = f"Yamcs {INSTANCE} at {YAMCS}"
+        results.report(constellation, CONSUMER, cursor, dict(written), target, outcomes, log)
     except Refused:
         raise
     except Exception as exc:
@@ -767,6 +847,7 @@ def deliver(entry: dict[str, Any], latest: dict[str, Any]) -> dict[str, Any]:
     Yamcs answers with a 4xx as rejected, so none holds up the runs after it. A Yamcs 5xx (after
     its retries) or outage is raised: the run is not acked, and the next poll delivers it again."""
     written.clear()
+    outcomes.clear()
     for resource, found in results.unpack(entry["otlp"], CONSUMER, log):
         output = json.loads(resource.get("constellation.output") or "{}")
         system = resource.get("constellation.system")
@@ -791,8 +872,7 @@ def deliver(entry: dict[str, Any], latest: dict[str, Any]) -> dict[str, Any]:
         for n, item in enumerate(found):
             try:
                 results.check(item)
-                if made := apply(item, mapping, tokens, run):
-                    kept.add(made)
+                kept.update(apply(item, mapping, tokens, run))
             except results.MALFORMED as exc:
                 log(f"skipped item {n} of run {run['run_id']}: it is malformed ({exc!r})")
                 wrote("malformed")
@@ -835,6 +915,7 @@ def deliver(entry: dict[str, Any], latest: dict[str, Any]) -> dict[str, Any]:
                 f" malformed ({exc!r})"
             )
             wrote("malformed")
+    save_sent()
     return latest
 
 
@@ -865,6 +946,7 @@ def republish(upto: str, latest: dict[str, Any]) -> dict[str, Any]:
             continue
         latest = deliver(run, latest)
     written.clear()
+    outcomes.clear()
     set_parameters({"feed_cursor": upto})
     return latest
 
@@ -968,10 +1050,11 @@ def main() -> None:
                     keep_newest(entry, reached)
                 cursor = reached
                 save_cursor(cursor)
-                if written:
+                if written or outcomes:
                     report(cursor)
                     log(f"applied {dict(written)}, cursor {cursor}")
                 written.clear()
+                outcomes.clear()
             # Yamcs restarted without storage since the last run: make again what it lost now,
             # not only when the next run arrives.
             if caught_up and load_cursor() == cursor and saved_cursor() != cursor:

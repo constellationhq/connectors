@@ -12,9 +12,12 @@ Constellation is the judgment; Lattice is the taskable antenna and the common op
     act   Each antenna is a taskable agent for ReservePass. When an operator tasks one, the bridge
           looks up Constellation's forecast for that satellite on that antenna and:
             ALLOW  expected GB p10 at or above the floor -> STATUS_DONE_OK, outcome
-                   ALLOWED_NOT_RESERVED: the bridge decides, it books nothing
-            DENY   below the floor, no forecast, or a forecast made more than MAX_FORECAST_AGE_S
-                   ago                                   -> STATUS_DONE_NOT_OK, ERROR_CODE_REJECTED
+                   ALLOWED_NOT_RESERVED: the bridge decides, it books nothing. A task on an
+                   open swap's backup pass is decided from the swap's action (its AOS, LOS
+                   and expected GB, a p50) when no forecast pass reached the bridge
+            DENY   below the floor, no forecast, a forecast made more than MAX_FORECAST_AGE_S
+                   ago, or a pass approved advice moves off (action move)
+                                                         -> STATUS_DONE_NOT_OK, ERROR_CODE_REJECTED
           Every decision is uploaded to Lattice Objects with its provenance (workflow version,
           run, when the run was made, p10/p50/p90, the floor used, the ledger). The bridge never
           re-tasks: after DONE_NOT_OK the Lattice operator decides.
@@ -453,7 +456,7 @@ class Forecast:
             )[:n]
 
     def open_swaps(self, antenna: str, now: datetime) -> list[dict[str, Any]]:
-        """Swaps advised for this antenna's passes whose cancel deadline is still ahead."""
+        """Swaps advised for this antenna's passes whose decide-by time is still ahead."""
         if not self.mapping(antenna)[0]["advisories"]:
             return []
         with self.lock:
@@ -465,6 +468,33 @@ class Forecast:
                 ),
                 key=lambda s: s["target_at"],
             )
+
+    def backup(
+        self, antenna: str, satellite: str, aos: datetime | None, now: datetime
+    ) -> dict[str, Any] | None:
+        """The open swap whose backup pass a task means: that satellite, the backup on that
+        antenna, at the AOS given or else the soonest still to come. Only a backup the action
+        names with its AOS, LOS and GB (to_at, to_until, to_gb) is taken."""
+        with self.lock:
+            candidates = sorted(
+                (
+                    s
+                    for s in self.swaps.values()
+                    if s["entity"]["satellite_id"] == satellite
+                    and s["action"].get("to_antenna_id") == antenna
+                    and s["action"].get("to_at")
+                    and s["action"].get("to_until")
+                    and isinstance(s["action"].get("to_gb"), int | float)
+                    and when(s["action"]["deadline"]) > now
+                    and when(s["action"]["to_until"]) > now
+                ),
+                key=lambda s: s["action"]["to_at"],
+            )
+        if aos is not None:
+            candidates = [
+                s for s in candidates if abs(when(s["action"]["to_at"]) - aos) <= AOS_SLACK
+            ]
+        return candidates[0] if candidates else None
 
     def held_swaps(self, antenna: str, now: datetime) -> list[dict[str, Any]]:
         """Swaps held for approval in Constellation on this antenna's passes still to start: the
@@ -503,37 +533,28 @@ def satellite_entity_id(satellite: str) -> str:
 
 
 def _gb(gb: dict[str, float]) -> str:
-    return f"p10 {gb['p10']:.1f} / p50 {gb['p50']:.1f} / p90 {gb['p90']:.1f} GB"
-
-
-def _advice(swap: dict[str, Any]) -> str:
-    action = swap["action"]
-    backup = (
-        f"book {swap['entity']['satellite_id']} on {action['to_antenna_id']} at "
-        f"{action['to_at'][:16]}Z"
-        if action.get("to_antenna_id")
-        else "no better pass within 6 h"
-    )
-    return f"{backup}; cancel by {action['deadline'][:16]}Z"
+    return " / ".join(f"{q} {gb[q]:.1f}" for q in results.QUANTILES if q in gb) + " GB"
 
 
 def _swap_alert(s: dict[str, Any]) -> dict[str, Any]:
-    """An open swap's alert: approved in Constellation is an instruction (a warning), else advice
-    (a caution)."""
+    """An open swap's alert: approved in Constellation is approved advice (a warning), else advice
+    (a caution). Either says what rain costs the pass and the advice: add a backup pass or move to
+    it, never a cancel."""
+    head = f"{s['entity']['satellite_id']} at {s['target_at'][:16]}Z ({results.loss(s)})"
     if results.action_state(s) == "approved":
         return {
             "alertCode": "CONSTELLATION_SWAP_APPROVED",
-            "description": f"Swap approved in Constellation for {s['entity']['satellite_id']} "
-            f"at {s['target_at'][:16]}Z ({_gb(gb_of(s))}): {_advice(s)}",
+            "description": f"Advice approved in Constellation for {head}: {results.advice(s)}",
             "level": "ALERT_LEVEL_WARNING",
-            "activeConditions": [{"conditionCode": "SWAP_APPROVED", "description": _advice(s)}],
+            "activeConditions": [
+                {"conditionCode": "SWAP_APPROVED", "description": results.advice(s)}
+            ],
         }
     return {
         "alertCode": "CONSTELLATION_RAIN_FADE_RISK",
-        "description": f"Forecast rain-fade risk for {s['entity']['satellite_id']} "
-        f"at {s['target_at'][:16]}Z ({_gb(gb_of(s))}): {_advice(s)}",
+        "description": f"Forecast rain-fade risk for {head}: {results.advice(s)}",
         "level": "ALERT_LEVEL_CAUTION",
-        "activeConditions": [{"conditionCode": "SWAP_ADVISED", "description": _advice(s)}],
+        "activeConditions": [{"conditionCode": "SWAP_ADVISED", "description": results.advice(s)}],
     }
 
 
@@ -1001,8 +1022,8 @@ def rain_entity(
             "name": f"Forecast · rain fade{', swap approved' if approved else ''} · "
             f"{e['satellite_id']} @ {e['antenna_id']} {swap['target_at'][11:16]}Z{db}"
         },
-        "description": f"Forecast rain fade at {e['ground_station_id']}: "
-        f"{'swap approved in Constellation: ' if approved else ''}{_advice(swap)}.",
+        "description": f"Forecast rain fade at {e['ground_station_id']} ({results.loss(swap)}): "
+        f"{'advice approved in Constellation: ' if approved else ''}{results.advice(swap)}.",
         "milView": {"disposition": "DISPOSITION_FRIENDLY", "environment": "ENVIRONMENT_LAND"},
         "ontology": {"platformType": "Forecast Rain Fade", "template": "TEMPLATE_GEO"},
         "location": {"position": site},
@@ -1143,6 +1164,9 @@ def decide(task: dict[str, Any], antenna: str, forecast: Forecast, now: datetime
         "decided_at": iso(now),
     }
     found = forecast.find(antenna, satellite, aos, now) if satellite else None
+    if found is None and mapping["advisories"] and satellite:
+        if backup := forecast.backup(antenna, satellite, aos, now):
+            return decide_backup(decision, backup, now)
     if found is None:
         return {
             **decision,
@@ -1160,17 +1184,20 @@ def decide(task: dict[str, Any], antenna: str, forecast: Forecast, now: datetime
     }
     swap = forecast.swaps.get(found["entity"]["id"]) if mapping["advisories"] else None
     approved = swap is not None and results.action_state(swap) == "approved"
-    if approved and when(swap["action"]["deadline"]) > now:
-        # A person approved swapping this pass away in Constellation: it is not to be flown.
-        # Past the cancel deadline the swap is closed, as its alert and the next swap run are.
+    is_open = swap is not None and when(swap["action"]["deadline"]) > now
+    if approved and is_open and swap["action"].get("action") == "move":
+        # Approved advice to move to the backup: this pass is the one released. Advice to add a
+        # backup (the default, and any action this bridge does not know) keeps it. Past its
+        # deadline the advice is closed, as its alert and the next swap run are.
         return {
             **decision,
             "decision": "DENY",
-            "diagnostic": f"SWAP_APPROVED: a swap of this pass was approved in Constellation: "
-            f"{_advice(swap)}",
+            "diagnostic": f"SWAP_APPROVED: advice approved in Constellation to move off this "
+            f"pass: {results.advice(swap)}",
         }
-    if swap and not approved:
-        decision["advisory"] = f"rain-fade risk: {_advice(swap)}"
+    if swap and (is_open or not approved):
+        said = "advice approved in Constellation" if approved else "rain-fade risk"
+        decision["advisory"] = f"{said}: {results.advice(swap)}"
     made = decision["provenance"].get("made_at")
     if made is None or now - when(made) > timedelta(seconds=MAX_FORECAST_AGE_S):
         return {
@@ -1192,6 +1219,40 @@ def decide(task: dict[str, Any], antenna: str, forecast: Forecast, now: datetime
         "decision": "ALLOW",
         "diagnostic": f"p10={gb['p10']:.1f} GB >= min={floor:.1f} GB",
     }
+
+
+def decide_backup(decision: dict[str, Any], swap: dict[str, Any], now: datetime) -> dict[str, Any]:
+    """ALLOW or DENY a ReservePass task on a swap's backup pass, from the swap's own action (its
+    AOS, LOS and expected GB, a p50): no pass-yield forecast need reach the bridge for it. The
+    floor is held to that p50, the only GB the action carries."""
+    action = swap["action"]
+    gb = action.get("to_gb")
+    decision |= {
+        "pass_id": action.get("to"),
+        "aos": action["to_at"],
+        "los": action["to_until"],
+        "expected_gb": {"p50": gb},
+        "backup_for": swap["entity"]["id"],
+        "provenance": swap.get("provenance", {}),
+        "advisory": f"Constellation's backup for {swap['entity']['id']}: {results.advice(swap)}",
+    }
+    made = decision["provenance"].get("made_at")
+    floor = decision["min_p10_gb"]
+    if made is None or now - when(made) > timedelta(seconds=MAX_FORECAST_AGE_S):
+        return {
+            **decision,
+            "decision": "DENY",
+            "diagnostic": f"STALE_FORECAST: the advice naming this backup was made "
+            f"{'at ' + made if made else 'at a time this bridge did not record'}, longer ago "
+            f"than MAX_FORECAST_AGE_S={MAX_FORECAST_AGE_S:.0f} s allows",
+        }
+    if gb < floor:
+        return {
+            **decision,
+            "decision": "DENY",
+            "diagnostic": f"EXPECTED_GB_BELOW_FLOOR: backup p50={gb:.1f} GB < min={floor:.1f} GB",
+        }
+    return {**decision, "decision": "ALLOW", "diagnostic": f"backup p50={gb:.1f} GB >= min={floor:.1f} GB"}
 
 
 def result(decision: dict[str, Any]) -> dict[str, Any]:
@@ -1372,21 +1433,24 @@ def check_in() -> bool:
     return True
 
 
-def report(cursor: str, applied: dict[str, int]) -> None:
+def report(cursor: str, applied: dict[str, int], outcomes: list[dict[str, str]]) -> None:
     try:
         target = f"Lattice at {urllib.parse.urlsplit(LATTICE).hostname}"
-        results.report(constellation, CONSUMER, cursor, applied, target)
+        results.report(constellation, CONSUMER, cursor, applied, target, outcomes, warn)
     except Exception as exc:
         warn(f"could not report delivery ({exc})")
 
 
 
-def deliver(entry: dict[str, Any], forecast: Forecast) -> tuple[int, int, int, int]:
+def deliver(
+    entry: dict[str, Any], forecast: Forecast, outcomes: list[dict[str, str]] | None = None
+) -> tuple[int, int, int, int]:
     """One feed entry (a run): each of its feed outputs addressed to this connection, kept by
     that output's Lattice mapping. Outputs for other connections are another bridge's; one to
     this connection for another system (a Yamcs output, as one saved without a mapping is) is
     refused, as the plan that allowed it is not Lattice's. Returns the results used, the outputs
-    refused, the items skipped as malformed and the approved swaps it now enforces."""
+    refused, the items skipped as malformed and the approved swaps it now enforces; what became
+    of each approval goes in `outcomes`."""
     used = refused = malformed = acted = 0
     for resource, found in results.unpack(entry["otlp"], CONSUMER, log):
         if resource.get("constellation.system") != "lattice":
@@ -1406,7 +1470,12 @@ def deliver(entry: dict[str, Any], forecast: Forecast) -> tuple[int, int, int, i
         }
         took, bad = forecast.take(found, mapping, run)
         used, malformed = used + took, malformed + bad
-        acted += results.first_acted([i for i in found if is_swap(i)], forecast.acted)
+        acted += results.first_acted(
+            [i for i in found if is_swap(i)],
+            forecast.acted,
+            outcomes,
+            "shown in Lattice; ReservePass tasks follow it",
+        )
     return used, refused, malformed, acted
 
 
@@ -1545,7 +1614,7 @@ def main() -> None:
     published, listening = 0.0, False
     # What the last publish put on the map, kept so a restart still withdraws what it drops.
     shown: dict[str, Any] = (saved or {}).get("shown") or {}
-    unpublished: list[tuple[str, dict[str, int]]] = []
+    unpublished: list[tuple[str, dict[str, int], list[dict[str, str]]]] = []
     # Checked in again every results.CHECKIN_S; a failed check-in is tried again after POLL_S,
     # doubling up to that.
     next_checkin, retry = 0.0, POLL_S
@@ -1573,14 +1642,15 @@ def main() -> None:
                 warn(lost)
             for entry in page["entries"]:
                 entry = results.whole(entry, rest_of_run)
-                used, refused, malformed, acted = deliver(entry, forecast)
+                outcomes: list[dict[str, str]] = []
+                used, refused, malformed, acted = deliver(entry, forecast, outcomes)
                 cursor = entry["cursor"]
                 # Every run with a part for this connection is reported, also one Lattice draws
                 # nothing for (a swap run advising nothing, an RFI run of links).
                 if results.unpack(entry["otlp"], CONSUMER, lambda _: None):
                     counts = (("refused", refused), ("malformed", malformed), ("acted", acted))
                     applied = {"forecasts": used} | {k: v for k, v in counts if v}
-                    unpublished.append((cursor, applied))
+                    unpublished.append((cursor, applied, outcomes))
             # Catching up after a start reads on without publishing; Lattice gets the result once.
             if page["entries"]:
                 continue
@@ -1588,8 +1658,8 @@ def main() -> None:
                 if unpublished or time.time() - published > PUBLISH_S:
                     count = publish(stations, forecast, shown, satellites)
                     published = time.time()
-                    for done, applied in unpublished:
-                        report(done, {"entities": count, **applied})
+                    for done, applied, said in unpublished:
+                        report(done, {"entities": count, **applied}, said)
                         log(f"published {count} entities with {applied}, {done}")
                     unpublished = []
                     save_state(cursor, forecast, shown)

@@ -8,7 +8,8 @@ target's packets (targets/CONSTELLATION/cmd_tlm/tlm.txt):
 
     NEXT_PASS  the next predicted pass and its expected GB (p10/p50/p90)
     NEXT_24H   passes and expected GB over the next 24 hours
-    SWAP       the soonest rain-fade swap to decide, with minutes left (limits go yellow, then red)
+    SWAP       the soonest rain-fade swap to decide, as advice (add a backup pass or move to it),
+               its backup's AOS, LOS and GB, the gain, and minutes left (limits go yellow, then red)
     CAPACITY   one day's capacity across the antennas, and the tightest
     MODCOD     the next pass's MODCOD plan
     RUN        the latest workflow run received, of any kind
@@ -70,6 +71,8 @@ STRING_BYTES = {
     "LOS": 32,
     "BACKUP_ANTENNA": 64,
     "BACKUP_AOS": 32,
+    "BACKUP_LOS": 32,
+    "ADVICE": 256,
     "DEADLINE": 32,
     "STATUS": 16,
     "DAY": 16,
@@ -188,6 +191,11 @@ def _minute(iso: str | None) -> str:
     return f"{iso[:16].replace('T', ' ')}Z" if iso else ""
 
 
+def _number(value: Any) -> float:
+    """A number for a FLOAT item; 0 for none, as the item cannot be empty."""
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else 0.0
+
+
 
 
 
@@ -223,7 +231,7 @@ def swap_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def held_until(item: dict[str, Any]) -> str:
-    """When a held action can no longer be approved, as the API's expires_at() has it: its cancel
+    """When a held action can no longer be approved, as the API's expires_at() has it: its decide-by
     deadline, else when its pass starts, or a link's span ends. The API sends a held item without
     its action, so mostly the latter."""
     end = item["until"] if (item.get("entity") or {}).get("type") == "link" else item["target_at"]
@@ -280,6 +288,10 @@ NO_SWAP: dict[str, Any] = {
     "STATUS": "NONE",
     "APPROVED": 0,
     "PENDING": 0,
+    "ADVICE": "NONE",
+    "BACKUP_LOS": "",
+    "BACKUP_GB": 0.0,
+    "GAIN_GB": 0.0,
 }
 
 
@@ -404,6 +416,10 @@ def packets(
             "STATUS": "APPROVED" if results.action_state(swap) == "approved" else "ADVISED",
             "APPROVED": sum(results.action_state(s) == "approved" for s in open_swaps),
             "PENDING": pending,
+            "ADVICE": results.advice(swap),
+            "BACKUP_LOS": _minute(action.get("to_until")),
+            "BACKUP_GB": _number(action.get("to_gb")),
+            "GAIN_GB": _number(action.get("gain_gb")),
         }
     return out
 
@@ -507,9 +523,12 @@ def check_in(consumer: str) -> bool:
     return True
 
 
-def report(consumer: str, cursor: str, applied: dict[str, int]) -> None:
+def report(
+    consumer: str, cursor: str, applied: dict[str, int], outcomes: list[dict[str, str]]
+) -> None:
     try:
-        results.report(call, consumer, cursor, applied, f"OpenC3 COSMOS target {TARGET}")
+        target = f"OpenC3 COSMOS target {TARGET}"
+        results.report(call, consumer, cursor, applied, target, outcomes, log)
     except Exception as exc:
         log(f"could not report ({exc})", warn=True)
 
@@ -629,6 +648,7 @@ def main() -> None:
                     keep(consumer, cursor, forecast)
                     continue
                 applied = {"parameters": 0, "forecasts": 0}
+                outcomes: list[dict[str, str]] = []
                 for resource, items in parts:
                     system = resource.get("constellation.system")
                     if system != "cosmos":
@@ -645,8 +665,11 @@ def main() -> None:
                         applied["malformed"] = applied.get("malformed", 0) + bad
                     items = good
                     applied["forecasts"] += forecast.take(resource, items)
-                    # Approved swaps it shows as instructions: the platform shows them carried out.
-                    if acted := results.first_acted(swap_items(items), forecast.acted):
+                    # Approved swaps it shows as approved advice: the platform shows them acted on.
+                    shown = f"shown in the {TARGET} SWAP packet"
+                    if acted := results.first_acted(
+                        swap_items(items), forecast.acted, outcomes, shown
+                    ):
                         applied["acted"] = applied.get("acted", 0) + acted
                     widget = output_of(resource).get("widget") or {}
                     if widget.get("on"):
@@ -656,7 +679,7 @@ def main() -> None:
                 refreshed = time.time()
                 # Only a run applied moves the cursor: one that failed part-way is retried.
                 cursor = entry["cursor"]
-                report(consumer, cursor, applied)
+                report(consumer, cursor, applied, outcomes)
                 keep(consumer, cursor, forecast)
                 log(f"injected {applied['parameters']} packets, {cursor}")
             if page["entries"]:

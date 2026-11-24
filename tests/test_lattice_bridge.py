@@ -211,12 +211,22 @@ def swap_of(healthy: dict, deadline: timedelta = timedelta(minutes=30)) -> dict:
             "from": healthy["entity"]["id"],
             "to": "pass_2",
             "to_antenna_id": "ant-2",
-            "to_at": "2026-11-06T01:00:00Z",
+            "to_at": iso(NOW + timedelta(hours=3)),
+            "to_until": iso(NOW + timedelta(hours=3, minutes=6)),
+            "to_duration_s": 360.0,
+            "to_gb": 8.0,
             "deadline": (NOW + deadline).isoformat(),
             "mode": "suggest",
+            "action": "add",
+            "reason": "adds_capacity",
+            "gain_gb": 8.0,
             "gain_gb_p10": 2.0,
         },
     }
+
+
+def iso(at: datetime) -> str:
+    return at.isoformat().replace("+00:00", "Z")
 
 
 def task(spec: dict, agent: str) -> dict:
@@ -357,8 +367,9 @@ def test_a_rain_fade_swap_rides_along_as_an_advisory(bridge):
     module.deliver(entry([swap_of(healthy)]), forecast)
     decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-1", forecast, NOW)
     assert decision["decision"] == "ALLOW" and decision["advisory"].startswith(
-        "rain-fade risk: book sat-1 on ant-2"
+        "rain-fade risk: Add a backup pass on ant-2"
     )
+    assert "and keep this one, +8.0 GB: it adds capacity; decide by" in decision["advisory"]
 
 
 def test_runs_for_other_connections_are_ignored(bridge):
@@ -447,7 +458,8 @@ def test_a_decided_task_carries_the_decision_as_its_result(bridge):
     assert ok["decision"] == "ALLOW" and ok["expectedGb"]["p10"] == 9.0 and ok["minP10Gb"] == 5.0
     assert ok["summary"].startswith("ALLOW sat-1 on ant-1 AOS ")
     assert "p10 9.0 / p50 13.0 / p90 14.0 GB" in ok["summary"]
-    assert "book sat-1 on ant-2" in ok["summary"] and "cancel by" in ok["advisory"]
+    assert "Add a backup pass on ant-2" in ok["summary"] and "decide by" in ok["advisory"]
+    assert "cancel" not in ok["summary"].lower()
     assert denied["value"]["decision"] == "DENY"
     assert "EXPECTED_GB_BELOW_FLOOR" in denied["value"]["summary"]
 
@@ -556,7 +568,9 @@ def test_an_open_swap_puts_a_rain_fade_alert_on_the_antenna_until_it_closes(brid
     assert health["healthStatus"] == "HEALTH_STATUS_HEALTHY"
     (alert,) = health["activeAlerts"]
     assert alert["level"] == "ALERT_LEVEL_CAUTION"
-    assert "book sat-1 on ant-2" in alert["description"] and "cancel by" in alert["description"]
+    assert "Add a backup pass on ant-2" in alert["description"] and "decide by" in alert["description"]
+    assert "(13.0 GB expected in the rain)" in alert["description"]
+    assert "cancel" not in alert["description"].lower()
     # The next swap run advises nothing for it, and a passed deadline closes a swap too.
     module.deliver(entry([swap_of(item(9.0, ant="ant-2"))]), forecast)
     assert forecast.open_swaps("ant-1", NOW) == []
@@ -1549,22 +1563,82 @@ def test_a_rejected_swap_is_neither_advice_nor_a_forecast(bridge):
     assert forecast.find("ant-1", "sat-1", None, NOW)["provenance"]["workflow"] == "w"
 
 
-def test_a_task_on_a_pass_with_an_approved_swap_is_denied_and_reserves_nothing(bridge):
+def moved(swap: dict, reason: str = "overlap") -> dict:
+    """The swap advising a move to the backup: the original is released."""
+    return {**swap, "action": {**swap["action"], "action": "move", "reason": reason}}
+
+
+def test_a_task_on_a_pass_approved_advice_moves_off_is_denied_and_reserves_nothing(bridge):
     module, lattice = bridge
     forecast = module.Forecast()
     healthy = item(12.4)
     module.deliver(entry([healthy]), forecast)
-    module.deliver(entry([approved_of(healthy)], workflow="swaps", cursor="c#run_2"), forecast)
+    module.deliver(entry([moved(approved_of(healthy))], workflow="swaps", cursor="c#run_2"), forecast)
     agent = module.entity_id("ant-1")
     decision = module.handle(task({"satelliteId": "sat-1"}, agent), {agent: "ant-1"}, forecast)
     assert decision["decision"] == "DENY"
     assert decision["diagnostic"].startswith("SWAP_APPROVED: ")
-    assert "book sat-1 on ant-2" in decision["diagnostic"]
+    assert "Move to the backup on ant-2" in decision["diagnostic"]
     done = lattice.statuses()[-1]
     assert done["status"] == "STATUS_DONE_NOT_OK" and done["result"]["value"]["reserved"] is False
 
 
-def test_an_approved_swap_without_a_backup_still_denies_and_says_so(bridge):
+@pytest.mark.parametrize("action", ["add", None, "something-new"])
+def test_approved_advice_to_add_a_backup_keeps_the_original_taskable(bridge, action):
+    # add is the default, and the contract reads any action it does not know as add.
+    module, _ = bridge
+    forecast = module.Forecast()
+    healthy = item(12.4)
+    module.deliver(entry([healthy]), forecast)
+    approval = approved_of(healthy)
+    approval["action"] = {k: v for k, v in approval["action"].items() if k != "action"}
+    if action:
+        approval["action"]["action"] = action
+    module.deliver(entry([approval], workflow="swaps", cursor="c#run_2"), forecast)
+    decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-1", forecast, NOW)
+    assert decision["decision"] == "ALLOW"
+    assert decision["advisory"].startswith("advice approved in Constellation: Add a backup pass")
+
+
+def test_a_task_on_a_swaps_backup_is_decided_from_the_action_without_a_forecast_pass(bridge):
+    module, _ = bridge
+    forecast = module.Forecast()
+    healthy = item(12.4)
+    module.deliver(entry([healthy]), forecast)
+    module.deliver(entry([swap_of(healthy)], workflow="swaps", cursor="c#run_2"), forecast)
+    # No pass-yield forecast covers ant-2: the backup is known from the swap alone.
+    assert forecast.find("ant-2", "sat-1", None, NOW) is None
+    decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-2", forecast, NOW)
+    assert decision["decision"] == "ALLOW", decision
+    assert (decision["pass_id"], decision["backup_for"]) == ("pass_2", healthy["entity"]["id"])
+    action = swap_of(healthy)["action"]
+    assert (decision["aos"], decision["los"]) == (action["to_at"], action["to_until"])
+    assert decision["expected_gb"] == {"p50": 8.0}
+    assert module.result(decision)["value"]["summary"].startswith("ALLOW sat-1 on ant-2 AOS ")
+    # By its AOS too, and never another satellite's or one outside the slack.
+    at = module.when(action["to_at"])
+    assert module.decide(task({"satelliteId": "sat-1", "aos": action["to_at"]}, "x"), "ant-2", forecast, NOW)["decision"] == "ALLOW"
+    late = (at + timedelta(minutes=30)).isoformat()
+    assert module.decide(task({"satelliteId": "sat-1", "aos": late}, "x"), "ant-2", forecast, NOW)["decision"] == "DENY"
+    assert module.decide(task({"satelliteId": "sat-2"}, "x"), "ant-2", forecast, NOW)["decision"] == "DENY"
+
+
+def test_a_backup_below_the_floor_or_past_its_decide_by_is_denied(bridge):
+    module, _ = bridge
+    forecast = module.Forecast()
+    healthy = item(12.4)
+    module.deliver(entry([healthy]), forecast)
+    thin = swap_of(healthy)
+    thin["action"] = {**thin["action"], "to_gb": 1.0}
+    module.deliver(entry([thin], workflow="swaps", cursor="c#run_2"), forecast)
+    decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-2", forecast, NOW)
+    assert decision["decision"] == "DENY" and "backup p50=1.0 GB < min=5.0 GB" in decision["diagnostic"]
+    module.deliver(entry([swap_of(healthy, timedelta(minutes=-1))], workflow="swaps", cursor="c#run_3"), forecast)
+    decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-2", forecast, NOW)
+    assert decision["diagnostic"].startswith("NO_FORECAST")
+
+
+def test_an_approved_swap_without_a_backup_keeps_the_pass_and_says_there_is_none(bridge):
     module, _ = bridge
     forecast = module.Forecast()
     healthy = item(12.4)
@@ -1572,7 +1646,7 @@ def test_an_approved_swap_without_a_backup_still_denies_and_says_so(bridge):
     alone = approved_of(healthy, to=None)
     module.deliver(entry([alone], workflow="swaps", cursor="c#run_2"), forecast)
     decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-1", forecast, NOW)
-    assert decision["decision"] == "DENY" and "no better pass within 6 h" in decision["diagnostic"]
+    assert decision["decision"] == "ALLOW" and "No backup pass in the window" in decision["advisory"]
 
 
 def test_with_advisories_off_an_approved_swap_does_not_decide_the_task(bridge):
@@ -1774,6 +1848,26 @@ def test_a_run_reports_the_approved_swaps_it_enforces_as_acted(bridge):
     healthy = item(12.0)
     closed = approved_of(item(9.0, ant="ant-2"), deadline=timedelta(minutes=-1))
     assert module.deliver(entry([approved_of(healthy), closed, swap_of(healthy)]), forecast)[3] == 1
+
+
+def test_each_approval_is_reported_acted_or_refused_past_its_deadline_once(bridge, monkeypatch):
+    module, _ = bridge
+    forecast = module.Forecast()
+    shown = {**approved_of(item(12.0)), "action_id": "a1", "decision_id": "d1"}
+    late = {
+        **approved_of(item(9.0, ant="ant-2"), deadline=timedelta(minutes=-1)),
+        "action_id": "a2",
+        "decision_id": "d2",
+    }
+    said: list[dict] = []
+    module.deliver(entry([shown, late]), forecast, said)
+    module.deliver(entry([shown, late], cursor="c#run_2"), forecast, said)
+    assert [(o["action_id"], o["outcome"]) for o in said] == [("a1", "acted"), ("a2", "refused")]
+    assert said[0]["reason"] == "shown in Lattice; ReservePass tasks follow it"
+    sent: list[dict] = []
+    monkeypatch.setattr(module, "constellation", lambda method, path, body=None: sent.append(body))
+    module.report("c#run_1", {"entities": 1}, said)
+    assert sent[0]["actions"] == said
 
 
 def test_a_standing_approval_is_acted_once_across_runs_and_restarts_and_a_new_one_again(bridge):

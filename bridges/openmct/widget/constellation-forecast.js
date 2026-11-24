@@ -237,11 +237,13 @@ export default function ConstellationForecast({
   }
 
   return function install(openmct) {
-    for (const [type, plugin] of [
-      ['plan', 'Plan'],
-      ['time-strip', 'Timeline'],
+    // Open MCT 4.3.1 names its Plan plugin PlanLayout; other versions name it Plan.
+    for (const [type, names] of [
+      ['plan', ['PlanLayout', 'Plan']],
+      ['time-strip', ['Timeline']],
     ]) {
-      if (!openmct.types.listKeys().includes(type) && openmct.plugins[plugin]) openmct.install(openmct.plugins[plugin]());
+      const plugin = names.find((name) => openmct.plugins[name]);
+      if (!openmct.types.listKeys().includes(type) && plugin) openmct.install(openmct.plugins[plugin]());
     }
 
     openmct.types.addType('constellation.forecast', {

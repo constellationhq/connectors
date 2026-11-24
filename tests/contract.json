@@ -22,7 +22,8 @@
     "delivered_gb": "value.delivered_gb",
     "status": "value.status",
     "rfi_db.p90": "value.p90",
-    "lock_loss_risk": "value.lock_loss_risk"
+    "lock_loss_risk": "value.lock_loss_risk",
+    "note": "note"
   },
   "yamcs_defaults": {
     "pass-yield": {
@@ -133,7 +134,7 @@
         "events": {
           "on": true,
           "source": "Constellation forecast",
-          "message": "Recommendation (forecast): rain fade risk for {satellite} over {antenna} at {at}, keeps {expected_gb.p10} of {expected_gb.p50} GB at p10; backup {backup}; cancel by {action.deadline}",
+          "message": "Advice (forecast): rain fade risk for {satellite} over {antenna} at {at}, {expected_gb.p50} GB expected. {note}",
           "severity": "WARNING",
           "warn_if": null
         },

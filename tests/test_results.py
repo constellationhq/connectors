@@ -1,9 +1,11 @@
 """The workflow results protocol every bridge here shares (constellation_space.results)."""
 
+import io
 import json
 import threading
 import urllib.error
 from datetime import UTC, datetime, timezone
+from email.message import Message
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import api
@@ -213,7 +215,118 @@ def test_a_bridge_that_carries_out_approvals_each_run_counts_each_decision_once(
     # A key whose action is long over is dropped.
     acted["old"] = "2030-01-01T00:00:00+00:00"
     results.first_acted([], acted)
-    assert sorted(acted) == ["d1", "d2"]
+    assert sorted(acted) == ["d1", "d2", "d3"]
+
+
+def test_each_approval_is_reported_acted_once_and_one_past_its_deadline_refused_once(monkeypatch):
+    monkeypatch.setattr(results, "now", lambda: datetime(2098, 6, 1, tzinfo=timezone.utc))
+    acted: dict[str, str] = {}
+    open_, late = approved(decision="d1"), approved(decision="d2", year=2030)
+    # An API from before outcomes sends no action_id: nothing it could match is reported.
+    old = approved(decision="d3")
+    for item in (open_, late):
+        item["action_id"] = f"a-{item['decision_id']}"
+    said: list[dict] = []
+    assert results.first_acted([open_, late, old], acted, said, "shown") == 2
+    assert results.first_acted([open_, late, old], acted, said, "shown") == 0
+    assert said == [
+        {"action_id": "a-d1", "decision_id": "d1", "outcome": "acted", "reason": "shown"},
+        {
+            "action_id": "a-d2",
+            "decision_id": "d2",
+            "outcome": "refused",
+            "reason": "it arrived after its decide-by time, 2029-12-31 23:00Z",
+        },
+    ]
+
+
+def _calls(*failures: int):
+    """A Constellation call that fails with each of `failures` in turn, then answers; it records
+    every body it was sent."""
+    sent: list[dict] = []
+    left = list(failures)
+
+    def call(method, path, body=None):
+        sent.append(body)
+        if left:
+            raise urllib.error.HTTPError(path, left.pop(0), "", Message(), io.BytesIO(b"{}"))
+
+    return call, sent
+
+
+OUTCOME = {"action_id": "a1", "decision_id": "d1", "outcome": "acted", "reason": ""}
+
+
+def test_a_report_carries_the_outcomes_and_none_when_there_are_none():
+    call, sent = _calls()
+    results.report(call, "c", "x#run_1", {"events": 1}, "t", [OUTCOME])
+    results.report(call, "c", "x#run_1", {"events": 1}, "t", [])
+    assert sent[0]["actions"] == [OUTCOME] and "actions" not in sent[1]
+
+
+@pytest.mark.parametrize("status", [409, 422])
+def test_an_api_that_refuses_the_outcomes_still_gets_the_delivery(status):
+    # 422: an API from before outcomes forbids the field. 409: the decision moved on.
+    call, sent = _calls(status)
+    logged: list[str] = []
+    results.report(call, "c", "x#run_1", {"events": 1}, "t", [OUTCOME], logged.append)
+    assert [("actions" in b) for b in sent] == [True, False]
+    assert f"HTTP {status}" in logged[0]
+
+
+def test_any_other_refusal_of_a_report_with_outcomes_is_raised():
+    call, sent = _calls(500)
+    with pytest.raises(urllib.error.HTTPError):
+        results.report(call, "c", "x#run_1", {}, "t", [OUTCOME])
+    assert len(sent) == 1
+
+
+SWAP_ADVICE = {
+    "entity": {"type": "pass", "id": "p"},
+    "target_at": "2026-01-16T01:00:00+00:00",
+    "value": {"p10": 0.6, "p50": 0.6, "p90": 0.6},
+    "action": {
+        "verb": "swap",
+        "to_antenna_id": "ant-2",
+        "to_at": "2026-01-16T01:30:00Z",
+        "to_until": "2026-01-16T01:35:00Z",
+        "to_gb": 2.0,
+        "gain_gb": 2.0,
+        "gain_gb_p10": 9.9,
+        "action": "add",
+        "reason": "adds_capacity",
+        "deadline": "2026-01-16T00:45:00+00:00",
+    },
+    "note": "Rain costs 60% of its dry 1.5 GB. Advice: add a backup pass on ant-2 ...",
+}
+
+
+def test_a_swap_reads_as_advice_to_add_a_backup_with_its_gain_never_a_cancel():
+    assert results.advice(SWAP_ADVICE) == (
+        "Add a backup pass on ant-2 at 2026-01-16 01:30Z to 01:35Z (2.0 GB) and keep this one,"
+        " +2.0 GB: it adds capacity; decide by 2026-01-16 00:45Z"
+    )
+    moved = {**SWAP_ADVICE["action"], "action": "move", "reason": "overlap", "gain_gb": 1.4}
+    assert results.advice({**SWAP_ADVICE, "action": moved}) == (
+        "Move to the backup on ant-2 at 2026-01-16 01:30Z to 01:35Z (2.0 GB) instead of this"
+        " one, +1.4 GB: both passes use one radio at once; decide by 2026-01-16 00:45Z"
+    )
+    for reason in results.REASONS.values():
+        assert "cancel" not in reason
+
+
+def test_an_older_swap_reads_as_advice_with_no_gain_rather_than_the_p10_one():
+    # Before gain_gb an API sent gain_gb_p10 alone: the original's p10 taken off, wrongly.
+    old = {k: v for k, v in SWAP_ADVICE["action"].items() if k not in ("gain_gb", "action", "reason", "to_until", "to_gb")}
+    assert results.advice({"action": old}) == (
+        "Add a backup pass on ant-2 at 2026-01-16 01:30Z and keep this one; decide by 2026-01-16 00:45Z"
+    )
+    assert results.advice({"action": {"verb": "swap"}}) == "No backup pass in the window"
+
+
+def test_the_loss_is_the_notes_own_sentence_else_the_p50_never_the_p10():
+    assert results.loss(SWAP_ADVICE) == "Rain costs 60% of its dry 1.5 GB"
+    assert results.loss({**SWAP_ADVICE, "note": "Waiting for approval"}) == "0.6 GB expected in the rain"
 
 
 def _feed(*connections: str | None) -> list[dict]:

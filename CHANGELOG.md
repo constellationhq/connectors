@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- Rain-fade swaps read as advice everywhere: "Add a backup pass" (keep this one) or "Move to the
+  backup", with the gain over doing nothing (`gain_gb`) and why, and a decide-by time. Never
+  "cancel": Constellation books and cancels nothing. The loss is the note's "Rain costs N% of its
+  dry X GB", else the GB expected in the rain, never a p10 that equals the p50.
+- Yamcs: a timeline item for each open swap's backup pass, AOS to LOS with its expected GB; the
+  pass's own item names the backup pass, its AOS and LOS and the decision.
+- Yamcs: no duplicate events after a bridge restart. The last event per item is kept in
+  `STATE_DIR` (`yamcs-bridge-sent.json`), so a republished run writes nothing Yamcs already holds.
+- Yamcs: `compose.yaml` and `.env.example` show how to join the Yamcs container's Docker network.
+- COSMOS: `SWAP` gains `ADVICE`, `BACKUP_LOS`, `BACKUP_GB` and `GAIN_GB` (appended, so earlier
+  items keep their place). `KEEPS_GB_P10` is deprecated and off the screen; `DEADLINE` is
+  "Decide by"; `EXPECTED_GB_P50` is the GB expected in the rain, not "GB if dry".
+- Lattice: a ReservePass task on a swap's backup pass is decided from the swap's own action (its
+  AOS, LOS and expected GB), with no pass-yield feed needed. Only approved advice to move
+  (`action: move`) denies the original; advice to add keeps it taskable.
+- Yamcs, COSMOS and Lattice report each approved action's outcome in the delivery report
+  (`actions`: acted, or refused when it arrived past its decide-by time). An API from before
+  outcomes still gets the delivery, sent again without them.
+- Open MCT: the plugin installs Open MCT 4.3.1's `PlanLayout`, or `Plan` in versions that name it
+  so; the passes object was "Unknown Type" in stock 4.3.1.
+
 ## v0.8.3 (2026-11-20)
 
 - Forecast view (Yamcs, COSMOS, Open MCT): a MODCOD plan's row says how many times the MODCOD

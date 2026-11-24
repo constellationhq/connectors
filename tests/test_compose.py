@@ -77,3 +77,27 @@ def test_the_yamcs_compose_still_says_so_when_the_env_file_has_no_key(tmp_path):
     dotenv = filled_env_example("yamcs").replace("CONSTELLATION_API_KEY=x", "CONSTELLATION_API_KEY=")
     code, out = config("yamcs", tmp_path, {}, dotenv=dotenv)
     assert code != 0 and "CONSTELLATION_API_KEY" in out
+
+
+def test_the_yamcs_compose_puts_the_bridge_on_yamcss_docker_network_once_uncommented(tmp_path):
+    # Yamcs in Docker is reached by container name only on its network: the commented lines do it.
+    lines = (ROOT / "bridges/yamcs/deploy/compose.yaml").read_text().splitlines()
+    uncommented = []
+    for line in lines:
+        bare = line.replace("# ", "", 1)
+        if bare.strip().startswith(("networks:", "yamcs:", "name:", "external:")):
+            line = bare.replace("<the Yamcs container's network>", "yamcs_default")
+        uncommented.append(line)
+    (tmp_path / "compose.yaml").write_text("\n".join(uncommented) + "\n")
+    done = subprocess.run(
+        ["docker", "compose", "config", "--format", "json"],
+        cwd=tmp_path,
+        env={"PATH": os.environ["PATH"], "HOME": os.environ.get("HOME", "/tmp"), **YAMCS},
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 0, done.stderr
+    config = json.loads(done.stdout)
+    assert list(config["services"]["yamcs-bridge"]["networks"]) == ["yamcs"]
+    network = config["networks"]["yamcs"]
+    assert (network["name"], network["external"]) == ("yamcs_default", True)
