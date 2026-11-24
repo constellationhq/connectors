@@ -19,5 +19,16 @@ services:
     volumes:
       - yamcs-bridge-state:/var/lib/constellation
 
+    # Yamcs in Docker on this machine: the bridge reaches it by container name only on Yamcs's
+    # network. Uncomment the networks lines here and at the end, name that network there (docker
+    # inspect -f '{{json .NetworkSettings.Networks}}' <yamcs container>), and set YAMCS_URL to
+    # http://<yamcs container>:8090.
+    # networks: [yamcs]
+
 volumes:
   yamcs-bridge-state:
+
+# networks:
+#   yamcs:
+#     name: <the Yamcs container's network>
+#     external: true
