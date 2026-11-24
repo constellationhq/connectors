@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.8.1"
+    "version": "2.8.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1920,7 +1920,7 @@
                 "schema": {}
               }
             },
-            "description": "Payload accepted for ingest."
+            "description": "Payload written at once: run_id, records_written, and error naming what was dropped and why (null when nothing was), as GET /datasets/{id}/runs has them."
           },
           "400": {
             "description": "Body is not valid JSON."
@@ -2627,7 +2627,7 @@
     },
     "/predictions/actions/{run_id}/{item_id}/reject": {
       "post": {
-        "description": "Reject an action a run holds: nothing is published, it cannot be decided again, and the\nworkflow's later runs hold the same action back as rejected.",
+        "description": "Reject an action a run holds: the run's feed outputs are published again with it\nrejected (feed_cursor), so a bridge shows it rejected at once; its action is never sent. It\ncannot be decided again, and the workflow's later runs hold the same action back as\nrejected. An action on the demo fleet, or of a run with no feed output, publishes nothing.",
         "operationId": "reject_action_predictions_actions__run_id___item_id__reject_post",
         "parameters": [
           {
@@ -2737,7 +2737,7 @@
     },
     "/predictions/connectors/{name}": {
       "delete": {
-        "description": "Forgets a custom connector; it registers pending again the next time its bridge checks in.",
+        "description": "Forgets a custom connector and revokes the keys its bridge checked in with (key_ids), so\nthe bridge reads no more results and cannot register it again. A key the bridge never\nchecked in with is not known here: revoke it under Keys.",
         "operationId": "remove_connector_predictions_connectors__name__delete",
         "parameters": [
           {
@@ -3109,7 +3109,7 @@
     },
     "/predictions/feed/checkin": {
       "post": {
-        "description": "Records what a bridge found on its side. A custom bridge's manifest registers it with the\naccount, pending until someone who may edit workflows approves it; a changed manifest waits\nfor approval again, so a bridge's key can propose a connector but never enable one. A Lattice\nor COSMOS bridge checks in only on the plan its output needs.",
+        "description": "Records what a bridge found on its side. A custom bridge's manifest registers it with the\naccount, pending until someone who may edit workflows approves it; a changed manifest waits\nfor approval again, so a bridge's key can propose a connector but never enable one. The\nconnector keeps every key its bridge checked in with, which its delete revokes. A Lattice\nor COSMOS bridge checks in only on the plan its output needs.",
         "operationId": "check_in_predictions_feed_checkin_post",
         "requestBody": {
           "content": {
