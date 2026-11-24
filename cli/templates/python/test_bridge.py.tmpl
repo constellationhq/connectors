@@ -6,14 +6,14 @@ MANIFEST = Path(__file__).with_name("connector.json")
 RUN = {"workflow": "w", "workflow_version": 1, "run_id": "run_20300101T000000_00000000"}
 
 
-def item(p10, **facets):
-    return {"entity": {"type": "pass", "id": f"pass_{p10}"}, "target_at": "2030-01-01T00:00:00+00:00",
-            "value": {"p10": p10}, **facets}
+def item(gb, **facets):
+    return {"entity": {"type": "pass", "id": f"pass_{gb}"}, "target_at": "2030-01-01T00:00:00+00:00",
+            "value": {"p50": gb}, **facets}
 
 
 def test_apply_writes_the_passes_above_the_threshold(tmp_path):
     bridge = {{.Class}}(MANIFEST, cursor_file=tmp_path / "cursor.txt")
-    assert bridge.apply([item(1), item(9)], {"min_p10_gb": 5, "label": "x"}, RUN) == {"passes": 1}
+    assert bridge.apply([item(1), item(9)], {"min_gb": 5, "label": "x"}, RUN) == {"passes": 1}
 
 
 def test_act_handles_an_approved_swap_to_add_or_move(tmp_path):

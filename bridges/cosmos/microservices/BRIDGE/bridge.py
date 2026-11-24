@@ -6,7 +6,7 @@ resourceLogs whose constellation.connection is CONSUMER; one for another system 
 reported, as the Yamcs and Lattice bridges do), and injects the forecast into the CONSTELLATION
 target's packets (targets/CONSTELLATION/cmd_tlm/tlm.txt):
 
-    NEXT_PASS  the next predicted pass and its expected GB (p10/p50/p90)
+    NEXT_PASS  the next predicted pass and its expected GB
     NEXT_24H   passes and expected GB over the next 24 hours
     SWAP       the soonest rain-fade swap to decide, as advice (add a backup pass or move to it),
                its backup's AOS, LOS and GB, the gain, and minutes left (limits go yellow, then red)

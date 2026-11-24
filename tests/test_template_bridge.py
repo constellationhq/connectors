@@ -21,9 +21,9 @@ SWAP = {"verb": "swap", "from": "p", "to": "q", "deadline": "2030-01-01T00:00:00
 PASS = {"type": "pass", "id": "p"}
 
 
-def run(cursor: str, *items: dict) -> dict:
+def run(cursor: str, *items: dict, settings: dict | None = None) -> dict:
     run_id = cursor.split("#", 1)[1]
-    feed_output = output("my-bridge", {"system": "custom", "settings": {"label": "x"}})
+    feed_output = output("my-bridge", {"system": "custom", "settings": settings or {"label": "x"}})
     otlp = to_otlp(
         "t",
         list(items),
@@ -412,3 +412,20 @@ def test_with_no_key_the_template_stops_at_once_except_against_the_mock(monkeypa
     with pytest.raises(SystemExit) as polled:
         bridge.run_forever()
     assert polled.value.code == 0
+
+
+def test_a_manifests_deprecated_min_p10_gb_is_read_as_min_gb_and_said_once(env, capsys):
+    cursor_file, _ = env
+    entries = [
+        run("1#run_1", *passes(("a", {})), settings={"min_p10_gb": 5}),
+        run("2#run_2", *passes(("b", {})), settings={"min_p10_gb": 5}),
+        run("3#run_3", *passes(("c", {})), settings={"min_p10_gb": 5, "min_gb": 7}),
+    ]
+    bridge = Recorder(MANIFEST, client=ResultsApi(entries), cursor_file=cursor_file)
+    bridge.poll()
+    assert [settings["min_gb"] for _, settings, _ in bridge.applied] == [5, 5, 7]
+    said = [line for line in capsys.readouterr().out.splitlines() if "deprecated" in line]
+    assert said == [
+        "my-bridge: setting min_p10_gb is deprecated: it is read as min_gb, the expected GB a pass"
+        " must reach. Rename it in connector.json"
+    ]

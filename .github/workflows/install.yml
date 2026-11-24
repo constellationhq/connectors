@@ -99,7 +99,7 @@ jobs:
           }
           start
           timeout 120 sh -c 'until docker logs lattice 2>&1 | grep -q "published"; do sleep 2; done'
-          docker logs lattice 2>&1 | grep -F "MIN_P10_GB=0 (default), MAX_FORECAST_AGE_S=21600 (default)"
+          docker logs lattice 2>&1 | grep -F "MIN_GB=0 (default), MAX_FORECAST_AGE_S=21600 (default)"
           curl -sf localhost:8080/_calls | jq -e 'any(.[]; . == ["PUT", "/api/v1/entities"])'
           docker exec lattice test -f /var/lib/constellation/heartbeat
           before="$(reported)"

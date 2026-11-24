@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+Models have no spread yet, so every bridge, scaffold and view shows one typical value, the
+expected GB (`expected_gb.p50`), and never a p10 or p90.
+
+### For operators
+
+- Lattice: a ReservePass task is allowed when the pass's expected GB reaches the floor, as the
+  Platform labels it. It was held to the p10, so a pass the Platform read as clearing the floor
+  could be denied. Antenna and pass entities, task results and decisions in Lattice Objects carry
+  the expected GB alone (`expectedGb: {p50}`, the ledger without p10/p90), and the task result's
+  floor is `minGb` (was `minP10Gb`), a decision's `min_gb` (was `min_p10_gb`).
+- Lattice: the env floor is `MIN_GB`. `MIN_P10_GB` still works as a deprecated name, read when
+  `MIN_GB` is unset, with one line at start saying to rename it.
+- Forecast view (Yamcs, COSMOS, Open MCT): the expected GB per hour is a line with no p10 to p90
+  band; tables, bars, the ledger and RFI show the expected value alone.
+- COSMOS: the screen shows "GB expected" and drops the p10 and p90 rows. `EXPECTED_GB_P10`,
+  `EXPECTED_GB_P90` and `GB_P10` stay in their packets, deprecated: read the matching `_P50`.
+- Yamcs: timeline items no longer carry `expected_gb_p10` or `expected_gb_p90`.
+  `next_pass_expected_gb_p10` and `_p90` stay in the MDB, deprecated.
+
+### For developers
+
+- The bridge scaffolds (`constellation bridge new`) and the custom bridge examples ask for
+  `min_gb`, "Only passes expected to deliver at least (GB)", and filter on `value.p50`. They
+  asked for `min_p10_gb` "(GB, p10)" and filtered on the p10.
+- The Python, Go and TypeScript `Bridge` base classes still accept a manifest that sets
+  `min_p10_gb`: they hand it to `apply()` and `act()` as `min_gb` too, and log one deprecation
+  line.
+
 ## v0.8.5 (2026-11-24)
 
 v0.8.4 was never published to PyPI, npm, RubyGems or Maven (only its ghcr images were pushed); its

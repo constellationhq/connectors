@@ -68,6 +68,7 @@ class Bridge:
         self._from_head = not self.cursor and os.environ.get("BACKFILL") != "1"
         self._acted = results.Acted(f"{self.cursor_file}.acted")
         self._unreported: dict[str, list[tuple[dict[str, int], list[bool], list[Item]]]] = {}
+        self._said_min_p10_gb = False
 
     def apply(self, items: list[Item], settings: dict[str, Any], run: Run) -> dict[str, int]:
         """Write one run's items into your system; return what you wrote, e.g. {"passes": 12}.
@@ -167,6 +168,16 @@ class Bridge:
                 if n == len(done):
                     output = json.loads(resource.get("constellation.output") or "{}")
                     settings = (output.get("mapping") or {}).get("settings") or {}
+                    if "min_p10_gb" in settings and "min_gb" not in settings:
+                        # A manifest from before models had one typical value: its threshold is
+                        # the expected GB.
+                        settings = {**settings, "min_gb": settings["min_p10_gb"]}
+                        if not self._said_min_p10_gb:
+                            self._said_min_p10_gb = True
+                            self.log(
+                                "setting min_p10_gb is deprecated: it is read as min_gb, the"
+                                " expected GB a pass must reach. Rename it in connector.json"
+                            )
                     run: Run = {
                         "workflow": resource.get("constellation.workflow"),
                         "workflow_version": resource.get("constellation.workflow_version"),

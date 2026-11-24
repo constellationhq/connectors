@@ -13,7 +13,7 @@ import (
 )
 
 const manifest = `{"name": "fake-bridge", "title": "Fake", "version": "0.1.0",
-  "settings": {"min_p10_gb": {"type": "number", "title": "Min", "default": 0, "minimum": 0}}}`
+  "settings": {"min_gb": {"type": "number", "title": "Min", "default": 0, "minimum": 0}}}`
 
 // TestMain runs this test binary as a fake bridge when FAKE_BRIDGE names how it behaves.
 func TestMain(m *testing.M) {

@@ -6,13 +6,13 @@ import (
 	"{{.Module}}/results"
 )
 
-func pass(p10 float64) results.Item {
+func pass(gb float64) results.Item {
 	return results.Item{"entity": map[string]any{"type": "pass", "id": "pass_1"}, "target_at": "2030-01-01T00:00:00+00:00",
-		"value": map[string]any{"p10": p10}}
+		"value": map[string]any{"p50": gb}}
 }
 
 func TestApplyWritesThePassesAboveTheThreshold(t *testing.T) {
-	got, err := apply([]results.Item{pass(1), pass(9)}, map[string]any{"min_p10_gb": 5.0, "label": "x"}, results.Run{})
+	got, err := apply([]results.Item{pass(1), pass(9)}, map[string]any{"min_gb": 5.0, "label": "x"}, results.Run{})
 	if err != nil || got["passes"] != 1 {
 		t.Fatalf("%v %v", got, err)
 	}

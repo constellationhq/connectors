@@ -405,3 +405,31 @@ func TestWithNoKeyRunForeverStopsAtOnceExceptAgainstTheMock(t *testing.T) {
 		t.Fatalf("the mock was not polled: %v", err)
 	}
 }
+
+func TestAManifestsDeprecatedMinP10GbIsReadAsMinGbAndSaidOnce(t *testing.T) {
+	b, _ := feed(t, nil, nil)
+	var got []map[string]any
+	var said []string
+	b.Apply = func(_ []Item, settings map[string]any, _ Run) (map[string]int, error) {
+		got = append(got, settings)
+		return nil, nil
+	}
+	b.Log = func(m string) {
+		if strings.Contains(m, "deprecated") {
+			said = append(said, m)
+		}
+	}
+	b.unreported = map[string][]written{}
+	for i, output := range []string{`{"min_p10_gb": 5}`, `{"min_p10_gb": 5}`, `{"min_p10_gb": 5, "min_gb": 7}`} {
+		part := Part{Resource: map[string]any{"constellation.output": `{"mapping": {"settings": ` + output + `}}`}}
+		if err := b.applyPart(string(rune('1'+i))+"#run", 0, part); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got[0]["min_gb"] != 5.0 || got[1]["min_gb"] != 5.0 || got[2]["min_gb"] != 7.0 {
+		t.Fatalf("settings %v", got)
+	}
+	if len(said) != 1 {
+		t.Fatalf("said %v", said)
+	}
+}

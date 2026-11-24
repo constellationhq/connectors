@@ -12,7 +12,7 @@ class {{.Class}}(Bridge):
         """Write one run's items into your system, keyed on item["entity"]["id"]; return what
         you wrote. The run is the whole answer for its window: withdraw what you wrote earlier
         for run["workflow"] inside the window that `items` no longer carries."""
-        kept = [i for i in items if (i.get("value") or {}).get("p10", 0) >= settings.get("min_p10_gb", 0)]
+        kept = [i for i in items if (i.get("value") or {}).get("p50", 0) >= settings.get("min_gb", 0)]
         for item in kept:
             print(f"{settings.get('label')}: {item['entity']['id']} at {item['target_at']}", flush=True)
         return {"passes": len(kept)}

@@ -62,7 +62,7 @@ ENV = {
     "LATTICE_URL": "https://env.sandboxes.test",
     "LATTICE_TOKEN": "env-token",
     "LATTICE_SANDBOX_TOKEN": "account-token",
-    "MIN_P10_GB": "5",
+    "MIN_GB": "5",
     "MAX_FORECAST_AGE_S": "21600",
 }
 
@@ -97,14 +97,15 @@ def bridge(monkeypatch):
 
 
 def item(
-    p10: float,
+    p50: float,
     sat: str = "sat-1",
     ant: str = "ant-1",
     start: timedelta = timedelta(hours=1),
     **facets,
 ) -> dict:
     at = NOW + start
-    gb = {"p10": p10, "p50": p10 + 4, "p90": p10 + 5}
+    # The feed still carries p10 and p90; the bridge reads only the p50.
+    gb = {"p10": p50 - 4, "p50": p50, "p90": p50 + 1}
     return spec_item(
         {
             "type": "pass",
@@ -251,7 +252,7 @@ def test_a_pass_with_a_healthy_tail_is_allowed_and_leaves_provenance(bridge):
     ((path, provenance),) = lattice.objects()
     assert path == "/objects/constellation-decisions-allow-task-1.json"
     assert (
-        provenance["expected_gb"]["p10"] == 12.4
+        provenance["expected_gb"] == {"p50": 12.4}
         and provenance["provenance"]["workflow_version"] == 4
     )
     versions = [b["statusVersion"] for _, p, b, _ in lattice.calls if p.endswith("/status")]
@@ -289,7 +290,7 @@ def test_a_forecast_older_than_the_max_age_is_refused_as_stale(bridge):
     module.deliver(entry([item(12.4, start=timedelta(hours=8))], made=made), forecast)
     agent = module.entity_id("ant-1")
     decision = module.handle(task({"satelliteId": "sat-1"}, agent), {agent: "ant-1"}, forecast)
-    assert decision["decision"] == "DENY" and decision["expected_gb"]["p10"] == 12.4
+    assert decision["decision"] == "DENY" and decision["expected_gb"]["p50"] == 12.4
     assert decision["diagnostic"].startswith("STALE_FORECAST: ")
     assert "MAX_FORECAST_AGE_S=21600" in decision["diagnostic"]
     assert decision["max_forecast_age_s"] == 21600
@@ -334,7 +335,7 @@ def test_a_thin_tail_is_refused_with_the_diagnostic_and_no_retask(bridge):
     assert done["status"] == "STATUS_DONE_NOT_OK"
     assert done["taskError"]["code"] == "ERROR_CODE_REJECTED"
     assert done["taskError"]["message"].startswith(
-        "EXPECTED_GB_BELOW_FLOOR: p10=3.1 GB < min=5.0 GB"
+        "EXPECTED_GB_BELOW_FLOOR: expected 3.1 GB < min=5.0 GB"
     )
     assert not [p for m, p, _, _ in lattice.calls if m == "POST" and p == "/tasks"]
 
@@ -356,7 +357,7 @@ def test_a_task_naming_an_aos_picks_that_pass(bridge):
     decision = module.decide(
         task({"satelliteId": "sat-1", "aos": later}, "x"), "ant-1", forecast, NOW
     )
-    assert decision["decision"] == "DENY" and decision["expected_gb"]["p10"] == 2.0
+    assert decision["decision"] == "DENY" and decision["expected_gb"]["p50"] == 2.0
 
 
 def test_a_rain_fade_swap_rides_along_as_an_advisory(bridge):
@@ -385,7 +386,7 @@ def test_only_this_connections_output_of_a_run_is_read(bridge):
     # The entry also carries the yamcs-bridge output, every pass priced at zero.
     assert module.deliver(entry([item(12.0)], min_p10_gb=6), forecast) == (1, 0, 0, 0)
     found = forecast.find("ant-1", "sat-1", None, NOW)
-    assert module.gb_of(found)["p10"] == 12.0
+    assert module.gb_of(found) == 12.0
     made_at = found["provenance"].pop("made_at")
     assert abs(module.when(made_at) - NOW) < timedelta(milliseconds=1)
     assert found["provenance"] == {"workflow": "w", "run_id": "run_1", "workflow_version": 4}
@@ -435,7 +436,7 @@ def test_antennas_are_taskable_ground_stations_grouped_by_site_with_both_tokens(
     assert offered["taskSpecificationUrl"] == "type.googleapis.com/google.protobuf.Struct"
     assert "satelliteId" in ant1["description"]
     (row,) = ant1["health"]["components"]
-    assert row["name"].startswith("Pass sat-1 · ") and "16.4 GB (p10 12.4)" in row["name"]
+    assert row["name"].startswith("Pass sat-1 · ") and "12.4 GB" in row["name"] and "p10" not in row["name"]
     assert ant1["health"]["healthStatus"] == "HEALTH_STATUS_HEALTHY"
     assert ant1["health"]["activeAlerts"] == []
     headers = lattice.calls[0][3]
@@ -455,9 +456,10 @@ def test_a_decided_task_carries_the_decision_as_its_result(bridge):
     allowed, denied = (s["result"] for s in lattice.statuses() if "result" in s)
     assert allowed["@type"] == "type.googleapis.com/google.protobuf.Struct"
     ok = allowed["value"]
-    assert ok["decision"] == "ALLOW" and ok["expectedGb"]["p10"] == 9.0 and ok["minP10Gb"] == 5.0
+    assert ok["decision"] == "ALLOW" and ok["expectedGb"] == {"p50": 9.0} and ok["minGb"] == 5.0
     assert ok["summary"].startswith("ALLOW sat-1 on ant-1 AOS ")
-    assert "p10 9.0 / p50 13.0 / p90 14.0 GB" in ok["summary"]
+    assert ": 9.0 GB expected; floor 5.0 GB. " in ok["summary"]
+    assert "p10" not in ok["summary"] and "p90" not in ok["summary"]
     assert "Add a backup pass on ant-2" in ok["summary"] and "decide by" in ok["advisory"]
     assert "cancel" not in ok["summary"].lower()
     assert denied["value"]["decision"] == "DENY"
@@ -469,7 +471,7 @@ def test_no_forecast_still_leaves_a_readable_result(bridge):
     agent = module.entity_id("ant-1")
     module.handle(task({"satelliteId": "sat-9"}, agent), {agent: "ant-1"}, module.Forecast())
     (outcome,) = (s["result"]["value"] for s in lattice.statuses() if "result" in s)
-    assert outcome["summary"].startswith("DENY sat-9 on ant-1; floor p10 5.0 GB. NO_FORECAST")
+    assert outcome["summary"].startswith("DENY sat-9 on ant-1; floor 5.0 GB. NO_FORECAST")
 
 
 def test_an_antenna_shows_its_two_soonest_swaps_and_counts_the_rest(bridge):
@@ -502,6 +504,23 @@ def test_a_task_made_over_rest_carries_its_fields_in_a_struct(bridge):
     assert module.handle(rest, {agent: "ant-1"}, forecast)["decision"] == "ALLOW"
 
 
+def test_the_floor_holds_the_expected_gb_never_a_p10_below_it(bridge):
+    # Models have no spread yet: a pass expected to deliver 6 GB clears a 5 GB floor even when
+    # the feed still sends a p10 of 2 GB, and nothing written to Lattice names a p10 or p90.
+    module, _ = bridge
+    forecast = module.Forecast()
+    module.deliver(entry([item(6.0)]), forecast)
+    decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-1", forecast, NOW)
+    assert (decision["decision"], decision["expected_gb"]) == ("ALLOW", {"p50": 6.0})
+    (kept,) = forecast.upcoming("ant-1", NOW)
+    entities = [
+        module.antenna_entity(STATION, "ant-1", forecast, NOW),
+        module.pass_entity(kept, module.position(STATION), NOW),
+    ]
+    written = json.dumps([module.result(decision), decision, entities])
+    assert "p10" not in written.lower() and "p90" not in written.lower()
+
+
 def test_the_floor_is_the_workflows_whose_forecast_decided(bridge):
     module, _ = bridge
     forecast = module.Forecast()
@@ -509,13 +528,13 @@ def test_the_floor_is_the_workflows_whose_forecast_decided(bridge):
     module.deliver(entry([item(3.0, ant="ant-2")], workflow="v", min_p10_gb=2), forecast)
     strict = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-1", forecast, NOW)
     loose = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-2", forecast, NOW)
-    assert (strict["decision"], strict["min_p10_gb"], strict["floor_from"]) == (
+    assert (strict["decision"], strict["min_gb"], strict["floor_from"]) == (
         "DENY",
         10,
         "workflow",
     )
-    assert strict["diagnostic"].startswith("EXPECTED_GB_BELOW_FLOOR: p10=8.0 GB < min=10.0 GB")
-    assert (loose["decision"], loose["min_p10_gb"]) == ("ALLOW", 2)
+    assert strict["diagnostic"].startswith("EXPECTED_GB_BELOW_FLOOR: expected 8.0 GB < min=10.0 GB")
+    assert (loose["decision"], loose["min_gb"]) == ("ALLOW", 2)
 
 
 def test_an_output_for_another_system_is_refused_and_counted_never_applied(bridge, capsys):
@@ -529,7 +548,7 @@ def test_an_output_for_another_system_is_refused_and_counted_never_applied(bridg
     assert forecast.antennas() == set()
     assert "refused an output of run run_1: it is a yamcs output" in capsys.readouterr().err
     decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-1", forecast, NOW)
-    assert (decision["decision"], decision["min_p10_gb"], decision["floor_from"]) == (
+    assert (decision["decision"], decision["min_gb"], decision["floor_from"]) == (
         "DENY",
         5.0,
         "env",
@@ -569,7 +588,7 @@ def test_an_open_swap_puts_a_rain_fade_alert_on_the_antenna_until_it_closes(brid
     (alert,) = health["activeAlerts"]
     assert alert["level"] == "ALERT_LEVEL_CAUTION"
     assert "Add a backup pass on ant-2" in alert["description"] and "decide by" in alert["description"]
-    assert "(13.0 GB expected in the rain)" in alert["description"]
+    assert "(9.0 GB expected in the rain)" in alert["description"]
     assert "cancel" not in alert["description"].lower()
     # The next swap run advises nothing for it, and a passed deadline closes a swap too.
     module.deliver(entry([swap_of(item(9.0, ant="ant-2"))]), forecast)
@@ -592,7 +611,7 @@ def test_listed_passes_are_their_own_entities_until_los_and_withdrawn_when_dropp
     first = listed[0]
     assert first["provenance"]["dataType"] == "constellation-forecast"
     assert first["description"].startswith("Predicted pass: ")
-    assert first["aliases"]["name"].endswith("13.0 GB (p10 9.0)")
+    assert first["aliases"]["name"].endswith("· 9.0 GB")
     assert module.when(first["expiryTime"]) > module.when(passes[0]["until"])
     (window,) = first["schedules"]["schedules"][0]["windows"]
     assert window["durationMillis"] == str(8 * 60 * 1000)
@@ -623,7 +642,7 @@ def test_an_audit_ledger_run_does_not_replace_the_forecast(bridge):
     past["explain"] = {**past["explain"], "ledger": {"value": ledger}}
     module.deliver(entry([past]), forecast)
     found = forecast.find("ant-1", "sat-1", None, NOW)
-    assert module.gb_of(found)["p10"] == 9.0
+    assert module.gb_of(found) == 9.0
 
 
 def test_a_task_that_fails_midway_is_closed_with_the_lattice_error_not_lost(bridge, capsys):
@@ -675,7 +694,7 @@ def test_a_pass_is_a_line_along_its_ground_track_in_time_order(bridge):
         (52.5, 4.0),
         (60.0, 11.0),
     ]
-    assert "location" not in line and line["aliases"]["name"].endswith("16.4 GB (p10 12.4)")
+    assert "location" not in line and line["aliases"]["name"].endswith("· 12.4 GB")
     # A pass with no track (the schema makes it optional) is still a point at its station.
     bare = item(12.4)
     del bare["entity"]["track"]
@@ -816,7 +835,7 @@ def test_the_forecast_is_a_named_service_never_the_antenna_itself(bridge):
     assert service["health"]["healthStatus"] == "HEALTH_STATUS_HEALTHY"
     text = service["description"]
     assert text.startswith("Constellation's forecast for antenna ant-1 at gs-1: ")
-    assert "16.4 GB (p10 12.4) ok" in text and "6.0 GB (p10 2.0) below the 5.0 GB floor" in text
+    assert "12.4 GB ok" in text and "2.0 GB below the 5.0 GB floor" in text and "p10" not in text
     assert "ReservePass" in text
     # Every forecast shape on the map reads as one and shares the forecast colour.
     (line,) = [
@@ -1021,11 +1040,29 @@ def test_a_missing_variable_stops_with_one_line_naming_it(monkeypatch, capsys, n
 
 
 def test_unset_decision_settings_take_their_defaults_and_the_start_log_says_so(monkeypatch):
-    module = started(monkeypatch, Network(), without=("MIN_P10_GB", "MAX_FORECAST_AGE_S"))
-    assert (module.MIN_P10_GB, module.MAX_FORECAST_AGE_S) == (0, 21600)
-    assert module.settings() == "MIN_P10_GB=0 (default), MAX_FORECAST_AGE_S=21600 (default)"
+    module = started(monkeypatch, Network(), without=("MIN_GB", "MAX_FORECAST_AGE_S"))
+    assert (module.MIN_GB, module.MAX_FORECAST_AGE_S) == (0, 21600)
+    assert module.settings() == "MIN_GB=0 (default), MAX_FORECAST_AGE_S=21600 (default)"
     module = started(monkeypatch, Network(), without=("MAX_FORECAST_AGE_S",))
-    assert module.settings() == "MIN_P10_GB=5, MAX_FORECAST_AGE_S=21600 (default)"
+    assert module.settings() == "MIN_GB=5, MAX_FORECAST_AGE_S=21600 (default)"
+
+
+def test_the_deprecated_min_p10_gb_still_sets_the_floor_and_says_so_once(monkeypatch, capsys):
+    monkeypatch.setitem(ENV, "MIN_P10_GB", "7")
+    module = started(monkeypatch, Network(), without=("MIN_GB", "MAX_FORECAST_AGE_S"))
+    assert module.MIN_GB == 7 and module.FALLBACK["min_p10_gb"] == 7
+    assert module.settings() == "MIN_GB=7, MAX_FORECAST_AGE_S=21600 (default)"
+    monkeypatch.setattr(module, "ready", lambda: (_ for _ in ()).throw(SystemExit))
+    with pytest.raises(SystemExit):
+        module.main()
+    (line,) = capsys.readouterr().err.splitlines()
+    assert line == (
+        "lattice-bridge: MIN_P10_GB is deprecated: rename it MIN_GB, the floor on a pass's"
+        " expected GB"
+    )
+    # MIN_GB wins when both are set, and then nothing is said.
+    module = started(monkeypatch, Network())
+    assert module.MIN_GB == 5
 
 
 def test_state_lives_in_state_dir(monkeypatch, tmp_path):
@@ -1051,7 +1088,7 @@ def test_outside_docker_state_is_in_the_users_state_directory_not_tmp(monkeypatc
     assert module.CURSOR_FILE == f"{tmp_path}/.local/state/constellation/lattice-bridge-cursor.json"
 
 
-@pytest.mark.parametrize("name", ["MIN_P10_GB", "MAX_FORECAST_AGE_S"])
+@pytest.mark.parametrize("name", ["MIN_GB", "MAX_FORECAST_AGE_S"])
 @pytest.mark.parametrize("value", ["five", "-1", "nan"])
 def test_a_decision_setting_that_is_not_a_number_stops_rather_than_defaulting(
     monkeypatch, capsys, name, value
@@ -1526,7 +1563,7 @@ def test_a_held_swap_run_leaves_the_antennas_other_passes_taskable(bridge):
     module.deliver(entry([held_of(at_risk)], workflow="swaps", cursor="c#run_2"), forecast)
     decision = module.decide(task({"satelliteId": "sat-2"}, "x"), "ant-1", forecast, NOW)
     assert decision["decision"] == "ALLOW"
-    assert module.gb_of(forecast.find("ant-1", "sat-1", None, NOW))["p10"] == 9.0
+    assert module.gb_of(forecast.find("ant-1", "sat-1", None, NOW)) == 9.0
 
 
 def test_a_held_swap_run_of_the_same_workflow_drops_only_the_pass_it_holds(bridge):
@@ -1632,7 +1669,7 @@ def test_a_backup_below_the_floor_or_past_its_decide_by_is_denied(bridge):
     thin["action"] = {**thin["action"], "to_gb": 1.0}
     module.deliver(entry([thin], workflow="swaps", cursor="c#run_2"), forecast)
     decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-2", forecast, NOW)
-    assert decision["decision"] == "DENY" and "backup p50=1.0 GB < min=5.0 GB" in decision["diagnostic"]
+    assert decision["decision"] == "DENY" and "backup expected 1.0 GB < min=5.0 GB" in decision["diagnostic"]
     module.deliver(entry([swap_of(healthy, timedelta(minutes=-1))], workflow="swaps", cursor="c#run_3"), forecast)
     decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-2", forecast, NOW)
     assert decision["diagnostic"].startswith("NO_FORECAST")
@@ -1782,7 +1819,7 @@ def test_a_run_replaces_only_its_own_workflows_passes_on_a_shared_antenna(bridge
     module.deliver(entry([item(9.0)], workflow="a"), forecast)
     module.deliver(entry([item(12.0, sat="sat-2")], workflow="b", cursor="c#run_2"), forecast)
     module.deliver(entry([item(10.0)], workflow="a", cursor="c#run_3"), forecast)
-    assert module.gb_of(forecast.find("ant-1", "sat-1", None, NOW))["p10"] == 10.0
+    assert module.gb_of(forecast.find("ant-1", "sat-1", None, NOW)) == 10.0
     assert forecast.find("ant-1", "sat-2", None, NOW)["provenance"]["workflow"] == "b"
     module.deliver(entry([held_of(item(10.0))], workflow="a", cursor="c#run_4"), forecast)
     assert forecast.find("ant-1", "sat-1", None, NOW) is None
@@ -1806,7 +1843,7 @@ def test_expected_gb_is_read_from_the_item_whatever_node_id_its_ledger_uses(brid
     copied["explain"] = {"gb_node": copied["explain"].pop("expected_gb"), **copied["explain"]}
     module.deliver(entry([copied]), forecast)
     decision = module.decide(task({"satelliteId": "sat-1"}, "x"), "ant-1", forecast, NOW)
-    assert decision["decision"] == "ALLOW" and decision["expected_gb"]["p10"] == 12.0
+    assert decision["decision"] == "ALLOW" and decision["expected_gb"]["p50"] == 12.0
 
 
 def test_a_failed_first_check_in_is_retried_with_backoff_then_repeated(monkeypatch, cursor_file):

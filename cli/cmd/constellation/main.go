@@ -327,7 +327,7 @@ func runConformance(args []string, stdout, stderr io.Writer) int {
 	asJSON := fs.Bool("json", false, "print the result as JSON")
 	port := fs.Int("port", 0, "the mock's port on 127.0.0.1 (default: a free one)")
 	timeout := fs.Duration("timeout", 60*time.Second, "how long each run of the bridge has to catch up with the mock")
-	settings := fs.String("settings", "", `JSON settings to send instead of the manifest's defaults, e.g. '{"min_p10_gb": 5}'`)
+	settings := fs.String("settings", "", `JSON settings to send instead of the manifest's defaults, e.g. '{"min_gb": 5}'`)
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
