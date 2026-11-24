@@ -27,6 +27,7 @@
 
 ### For developers
 
+- Built against contract 2.8.1 (was 2.1.0), which adds the advisory swap fields and per-action outcomes.
 - Python (`constellation_space.models`) and TypeScript (`types.ts`) declare the advisory swap
   fields on an action, all optional: `action` (`add` or `move`; read any other value as `add`),
   `reason` (`adds_capacity`, `overlap`, `paid_booking` or `original_empty`), the backup pass's
