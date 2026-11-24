@@ -6,6 +6,132 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.8.1
+
+-            "description": "The account has a network config of its own, holding a station, antenna or satellite (network_config_exists)."
+-        "description": "Every pass between from and to in the latest network config, computed from the fleet's\nelement sets and antenna masks and sampled on the step_s grid a run samples (grid_start). Each\npass carries the pass_id a run's item for it carries. Below the satellites feature it covers\nat most FREE_SATELLITES of the tenant's own, as a test run does; the demo fleet's are free.",
+-    "description": "Load a ready-made demo fleet into the caller's account, so the other tools have data: 5 ground stations with 7 antennas, 5 sun-synchronous Earth observation satellites on X and Ka band and 1 geostationary one (GOES 19) on L band (ids norad-<NORAD id>) in the network config, and the simulated link telemetry of every pass in the last two hours at a 5 second cadence (es_n0_db, elevation_deg, range_m, frequency_ghz and the rfi noise channel: system_noise_temp_k, noise_diode_on and a contact_id per pass), from the live orbit catalog. The call merges the demo stations, antennas and satellites, with their RF terms, into the caller's network config with PATCH /topology/config, or only the ones it lacks when it already holds the demo (as on a reload), so no tenant entity is overwritten. A network config of the caller's own, holding any station, antenna or satellite and none of the demo, is refused (status 409, network_config_exists) and nothing is written: the demo is simulated and never mixes with a real fleet. Only the demo's own links get telemetry. A key without config:write fails the call, and the error says so. Mission names are real; the telemetry is simulated and implies no access to those missions. The SNR is synthetic: a planted offset per link (a known answer for calibration, not a measured loss), plus a slow wander and noise. It has gaps a real feed has: none before a pass's modem locks, none while Troll is in its daily 06:00 to 09:00 UTC maintenance, and a modem dropout on about one pass in five. Each link's es_n0_db also drops by the rain attenuation its ground station stored for the last 30 minutes, scaled to the link's elevation. Older records are not faded, nor is a link with no stored terms; rain_note counts those links, or says the stored terms could not be read. The data ends at the present and does not advance; calling again rewrites the same points, so it is safe to repeat. The low-orbit demo satellites' links are up only during their passes: ask snr with get_predictions and at, at a time in a pass (get_passes lists them). link_ids answers only while a pass is under way, right after this call. The call also saves the demo workflows pass-yield and rain-fade-swap, marked demo, under any of those slugs the account has not used, and starts a run of each over the next 48 hours, as it does again on a later call once the newest run ends within 24 hours. It saves the scenario \"Storm over Singapore tonight\" (scenario_id scn_demo-storm-singapore, demo: true) again on every call: a rain cell over the Singapore Ka antenna for the next 17:00 to 20:00 UTC window. The demo's forecasts carry real weather only; run a workflow with that scenario_id to see the storm. POST /topology/demo-fleet does exactly the same. The telemetry needs the telemetry:write scope: without it the network config, the workflows and the scenario are still written and the call is an error that says the telemetry was refused.",
+
+## 2.8.0
+
+- added `enum openapi.json/components/schemas/ActionOutcome/properties/outcome "acted"`
+- added `enum openapi.json/components/schemas/ActionOutcome/properties/outcome "refused"`
+- added `enum workflow-result.schema.json/properties/action/properties/action/anyOf/0 "add"`
+- added `enum workflow-result.schema.json/properties/action/properties/action/anyOf/0 "move"`
+- added `enum workflow-result.schema.json/properties/action/properties/reason/anyOf/0 "adds_capacity"`
+- added `enum workflow-result.schema.json/properties/action/properties/reason/anyOf/0 "original_empty"`
+- added `enum workflow-result.schema.json/properties/action/properties/reason/anyOf/0 "overlap"`
+- added `enum workflow-result.schema.json/properties/action/properties/reason/anyOf/0 "paid_booking"`
+- added `field openapi.json/components/schemas/ActionOutcome/properties/action_id`
+- added `field openapi.json/components/schemas/ActionOutcome/properties/decision_id`
+- added `field openapi.json/components/schemas/ActionOutcome/properties/outcome`
+- added `field openapi.json/components/schemas/ActionOutcome/properties/reason`
+- added `field openapi.json/components/schemas/Delivery/properties/actions`
+- added `field workflow-result.schema.json/properties/action/properties/action`
+- added `field workflow-result.schema.json/properties/action/properties/gain_gb`
+- added `field workflow-result.schema.json/properties/action/properties/reason`
+- added `field workflow-result.schema.json/properties/action/properties/to_duration_s`
+- added `field workflow-result.schema.json/properties/action/properties/to_gb`
+- added `field workflow-result.schema.json/properties/action/properties/to_until`
+-        "description": "What a plugin wrote into mission control for one run, e.g. {\"timeline_items\": 540}.",
+-        "description": "Approve an action a run holds: it is published to the workflow's feed outputs as an\ninstruction for the connected mission control to carry out, and it cannot be rejected\nafterwards. The approval stands for the same action on the workflow's later runs. Asking\nagain is safe: it answers the same feed cursor, or publishes if the first try did not.\nRefused on a plan without Act, even for an action held while the account had it.",
+-        "description": "What a plugin wrote into mission control for one of the tenant's runs.",
+-            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+-          "description": "The operator's booking of the original to cancel: link, network, booking_id, price, cancel_deadline_utc, state.",
+-      "description": "What the item's action comes to, as a sentence for a person: the swap to make, or why there is none to act on (no backup pass, waiting for approval, rejected, shown for review).",
+-    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as an instruction to carry out (a swap can cancel a booked pass) and cannot be rejected afterwards. The approval stands for the same action on the workflow's later runs. Needs the Operator + Act plan (403 plan_required below it), the act:approve scope and a live key.",
+-    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected, expired or unavailable (its offer's ground network link was deleted), with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
+
+## 2.7.1
+
+-            "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available)."
+-            "description": "With workflow: the workflow version has no finished run yet, or none of the scenario_id the read names (no_finished_run, with its workflow_version). A normal state, not a failure: a workflow just saved, a scenario not yet run, or a workflow only test-run as an unsaved draft (a draft run has no version, so it never answers a saved one) answers it until such a run finishes. Start one with POST /predictions."
+-        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected or expired. A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
+-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+-        "description": "Telemetry records, each checked against the latest network config.",
+-            "description": "No network config was uploaded (unless missing_ok=true), or no such version."
+-    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected or expired, with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
+
+## 2.7.0
+
+- added `field mcp-tools.json/put_workflow/inputSchema/properties/create`
+-            "description": "A workflow run's id: answers the run (status, stage or items, deliveries); satellite_id, antenna_id, station_id and pass_id narrow its items.",
+-              "description": "A workflow run's id: answers the run (status, stage or items, deliveries); satellite_id, antenna_id, station_id and pass_id narrow its items.",
+-            "description": "A workflow's name: answers its newest finished run (409 when it has none; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
+-              "description": "A workflow's name: answers its newest finished run (409 when it has none; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
+-        "description": "The workflow's runs of every status and version, newest first (to the second): a failed or cancelled run,\nor one of a version since edited, shows here though GET /predictions?workflow= answers only\nthe newest finished run. next_before pages on while older runs may be left.",
+-        "description": "Deletes a saved workflow, every version of it: a run naming it is 404 from then on. Its\npast runs stay readable by run id. A template is never saved, so it is never deleted.",
+-            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+-        "description": "Save a workflow's name and graph as the slug's next version. A graph the validator finds\nissues with is refused whole, with every issue.",
+-            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+-            "description": "No network config was uploaded, or no such version."
+-        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's, and its storm. The\naccount's own stations, antennas, satellites, workflows and scenarios stay. Safe to repeat.",
+-        "description": "Every pass between from and to in the latest network config, computed from the fleet's\nelement sets and antenna masks and sampled every step_s from `from`, as a run samples it. Each\npass carries the pass_id a run's item for it carries. Below the satellites feature it covers\nat most FREE_SATELLITES of the tenant's own, as a test run does; the demo fleet's are free.",
+-    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. Requires the workflows:write or config:write scope and a live key.",
+
+## 2.6.0
+
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/demo`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades/additionalProperties/items/properties/from_utc`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades/additionalProperties/items/properties/ramp_s`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades/additionalProperties/items/properties/to_utc`
+- added `field mcp-tools.json/create_scenario/inputSchema/properties/fades/additionalProperties/items/properties/zenith_db_12ghz`
+- added `field openapi.json/components/schemas/Scenario/properties/demo`
+- added `field openapi.json/components/schemas/Scenario/properties/fades`
+- added `field openapi.json/components/schemas/TimedFade/properties/from_utc`
+- added `field openapi.json/components/schemas/TimedFade/properties/ramp_s`
+- added `field openapi.json/components/schemas/TimedFade/properties/to_utc`
+- added `field openapi.json/components/schemas/TimedFade/properties/zenith_db_12ghz`
+-        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's. The account's own\nstations, antennas, satellites and workflows stay. Safe to repeat.",
+-    "description": "Load a ready-made demo fleet into the caller's account, so the other tools have data: 5 ground stations with 7 antennas, 5 sun-synchronous Earth observation satellites on X and Ka band and 1 geostationary one (GOES 19) on L band (ids norad-<NORAD id>) in the network config, and the simulated link telemetry of every pass in the last two hours at a 5 second cadence (es_n0_db, elevation_deg, range_m, frequency_ghz and the rfi noise channel: system_noise_temp_k, noise_diode_on and a contact_id per pass), from the live orbit catalog. The call merges the demo stations, antennas and satellites, with their RF terms, into the caller's network config with PATCH /topology/config, or only the ones it lacks when it already holds the demo (as on a reload), so no tenant entity is overwritten. A network config of the caller's own, holding any station, antenna or satellite and none of the demo, is refused (status 409, network_config_exists) and nothing is written: the demo is simulated and never mixes with a real fleet. Only the demo's own links get telemetry. A key without config:write fails the call, and the error says so. Mission names are real; the telemetry is simulated and implies no access to those missions. The SNR is synthetic: a planted offset per link (a known answer for calibration, not a measured loss), plus a slow wander, noise and a planted evening rain cell over the Singapore antenna. It has gaps a real feed has: none before a pass's modem locks, none while Troll is in its daily 06:00 to 09:00 UTC maintenance, and a modem dropout on about one pass in five. Each link's es_n0_db also drops by the rain attenuation its ground station stored for the last 30 minutes, scaled to the link's elevation, where that is more than the planted rain. Older records are not faded, nor is a link with no stored terms; rain_note counts those links, or says the stored terms could not be read. The data ends at the present and does not advance; calling again rewrites the same points, so it is safe to repeat. The low-orbit demo satellites' links are up only during their passes: ask snr with get_predictions and at, at a time in a pass (get_passes lists them). link_ids answers only while a pass is under way, right after this call. Requires the telemetry:write scope.",
+
+## 2.5.0
+
+- added `endpoint DELETE /predictions/feed/readers/{consumer}`
+
+## 2.4.0
+
+- added `endpoint DELETE /predictions/workflows/{slug}`
+- added `endpoint DELETE /topology/scenarios/{scenario_id}`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "condition"`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "input"`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "lane"`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "output"`
+- added `enum mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind "transform"`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/demo`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/from`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/from/properties/node`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/from/properties/port`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/id`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/to`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/to/properties/node`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/edges/items/properties/to/properties/port`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/id`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/kind`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/params`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/position`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/position/properties/x`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/position/properties/y`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/graph/properties/nodes/items/properties/ref`
+- added `field mcp-tools.json/run_workflow/inputSchema/properties/definition/anyOf/0/properties/name`
+- added `field openapi.json/components/schemas/RunRequest/properties/definition`
+
+## 2.3.0
+
+- added `endpoint GET /topology/orbits`
+
+## 2.2.0
+
+- added `field workflow-result.schema.json/properties/action/properties/from_held`
+- added `field workflow-result.schema.json/properties/action/properties/to_offer`
+- added `field workflow-result.schema.json/properties/entity/properties/booking`
+
 ## 2.1.0
 
 - added `endpoint DELETE /topology/demo-fleet`
