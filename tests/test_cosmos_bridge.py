@@ -1052,6 +1052,31 @@ def test_an_approved_swap_without_a_backup_reads_none(bridge):
     module, _ = bridge
     out = module.packets([], [approved(1, 10, 20, to=None)], NOW)
     assert out["SWAP"]["BACKUP_ANTENNA"] == "NONE" and out["SWAP"]["STATUS"] == "APPROVED"
+    assert out["SWAP"]["ADVICE"] == "No backup pass in the window"
+
+
+def test_the_swap_packet_reads_as_advice_with_the_backups_los_gb_and_the_gain(bridge):
+    module, _ = bridge
+    s = swap(1, 10, 20)
+    to_at, to_until = (NOW + timedelta(hours=3)).isoformat(), (NOW + timedelta(hours=3, minutes=6)).isoformat()
+    action = {**s["action"], "to_at": to_at, "to_until": to_until, "to_gb": 4.0, "gain_gb": 1.5, "action": "move", "reason": "overlap"}
+    out = module.packets([], [{**s, "action": action}], NOW)["SWAP"]
+    assert (out["BACKUP_AOS"], out["BACKUP_LOS"]) == ("2026-11-06 15:00Z", "2026-11-06 15:06Z")
+    assert (out["BACKUP_GB"], out["GAIN_GB"]) == (4.0, 1.5)
+    assert out["ADVICE"].startswith("Move to the backup on ant-2 at 2026-11-06 15:00Z to 15:06Z (4.0 GB)")
+    assert "both passes use one radio at once" in out["ADVICE"] and "cancel" not in out["ADVICE"].lower()
+    # An API from before the backup's LOS and GB: empty and 0, never a guess.
+    old = module.packets([], [s], NOW)["SWAP"]
+    assert (old["BACKUP_LOS"], old["BACKUP_GB"], old["GAIN_GB"]) == ("", 0.0, 0.0)
+
+
+def test_the_swap_screen_says_decide_by_and_never_shows_the_p10_as_if_rain(bridge):
+    screen = (ROOT / "bridges/cosmos/targets/CONSTELLATION/screens/forecast.txt").read_text()
+    tlm = (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text()
+    assert "Cancel" not in screen and "cancel" not in tlm.lower()
+    assert "SWAP KEEPS_GB_P10" not in screen and "GB if dry" not in screen
+    for name in ("ADVICE", "BACKUP_LOS", "BACKUP_GB", "GAIN_GB"):
+        assert f"SWAP {name} " in screen
 
 
 def test_a_held_swap_run_counts_its_held_items_and_never_takes_them_for_passes(bridge):
@@ -1084,7 +1109,8 @@ def test_every_swap_value_is_an_item_of_the_swap_packet(bridge):
         line.split()[1] for line in block.splitlines() if line.strip().startswith("APPEND_ITEM")
     ]
     assert list(module.NO_SWAP) == items
-    assert items[-3:] == ["STATUS", "APPROVED", "PENDING"]
+    # Items added later go after the rest, so the packet's earlier items keep their place.
+    assert items[-7:] == ["STATUS", "APPROVED", "PENDING", "ADVICE", "BACKUP_LOS", "BACKUP_GB", "GAIN_GB"]
 
 
 def test_a_held_action_sent_with_its_body_is_counted_held_not_shown(bridge):
@@ -1179,6 +1205,42 @@ def test_a_run_reports_the_approved_swaps_it_shows_as_acted(bridge, monkeypatch)
         module.main()
     (report,) = reports
     assert report["acted"] == 1
+
+
+def test_a_run_reports_each_approvals_outcome_acted_or_refused_past_its_deadline(
+    bridge, monkeypatch
+):
+    shown = {**approved(2, 10, 30), "action_id": "a1", "decision_id": "d1"}
+    late = {**approved(4, 10, -5), "action_id": "a2", "decision_id": "d2"}
+    feed = fed((1, [shown, late]))
+    module = load(monkeypatch)
+    monkeypatch.setattr(module.results, "now", lambda: NOW)
+    reports = []
+
+    def call(method, path, body=None):
+        if path.startswith("/predictions/feed?"):
+            after = dict(urllib.parse.parse_qsl(path.split("?", 1)[1])).get("after", "")
+            entries = [e for e in feed if e["cursor"] > after][:1]
+            return {"entries": entries, "next": entries[-1]["cursor"] if entries else after}
+        if path == "/predictions/feed/deliveries":
+            reports.append(body)
+        return None
+
+    sleeps = iter(range(1))
+    monkeypatch.setattr(module, "call", call)
+    monkeypatch.setattr(module, "inject", lambda packet, values: None)
+    monkeypatch.setattr(module, "publish_documents", lambda *a: None)
+    monkeypatch.setattr(module, "resume", lambda consumer, forecast: "")
+    monkeypatch.setattr(module, "keep", lambda *a: None)
+    monkeypatch.setattr(module.time, "sleep", lambda s: next(sleeps))
+    with pytest.raises(StopIteration):
+        module.main()
+    (report,) = reports
+    assert [(a["action_id"], a["outcome"]) for a in report["actions"]] == [
+        ("a1", "acted"),
+        ("a2", "refused"),
+    ]
+    assert report["actions"][0]["reason"] == "shown in the CONSTELLATION SWAP packet"
 
 
 def test_a_standing_approval_is_reported_acted_once_across_runs_and_kept_for_a_restart(

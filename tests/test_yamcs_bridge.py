@@ -144,10 +144,18 @@ SWAP = {
         "to": "pass_2",
         "to_antenna_id": "ant-2",
         "to_at": "2026-11-05T11:00:00+00:00",
+        "to_until": "2026-11-05T11:06:00+00:00",
+        "to_duration_s": 360.0,
+        "to_gb": 4.0,
         "deadline": "2026-11-05T09:45:00+00:00",
         "mode": "suggest",
+        "action": "add",
+        "reason": "adds_capacity",
+        "gain_gb": 4.0,
         "gain_gb_p10": 4.0,
     },
+    "note": "Rain costs 50% of its dry 20.0 GB. Advice: add a backup pass on ant-2 at 2026-11-05"
+    " 11:00Z to 11:06Z (6 min, 4.0 GB) and keep this one, +4.0 GB; decide by 2026-11-05 09:45Z",
 }
 # The span of time a run is the whole answer for.
 WINDOW = {"window_from": "2026-11-05T00:00:00+00:00", "window_to": "2026-11-06T00:00:00+00:00"}
@@ -260,15 +268,16 @@ def test_with_create_views_off_the_bridge_makes_no_band(bridge, monkeypatch):
     assert yamcs.bands == [] and yamcs.paths("/timeline/simulator/items")
 
 
-def test_a_rain_fade_swap_is_a_warning_with_the_backup_and_no_timeline(bridge):
+def test_a_rain_fade_swap_is_a_warning_with_the_advice_and_no_timeline(bridge):
     module, yamcs = bridge
     module.deliver(entry([SWAP], "rain-fade-swap"), {})
     (event,) = yamcs.events()
     assert event["severity"] == "WARNING"
     assert event["message"] == (
-        "Recommendation (forecast): rain fade risk for sat-1 over ant-1 at 2026-11-05 10:00Z, "
-        "keeps 2.0 of 10.0 GB at p10; backup ant-2; cancel by 2026-11-05 09:45Z"
+        "Advice (forecast): rain fade risk for sat-1 over ant-1 at 2026-11-05 10:00Z, "
+        f"10.0 GB expected. {SWAP['note']}"
     )
+    assert "cancel" not in event["message"].lower()
     assert not yamcs.paths("/timeline/") and not yamcs.paths("/processors/")
     (published,) = yamcs.objects("workflow-w.json")
     assert published["kind"] == "rain-fade-swap"
@@ -276,10 +285,14 @@ def test_a_rain_fade_swap_is_a_warning_with_the_backup_and_no_timeline(bridge):
 
 def test_a_swap_without_a_backup_arrives_without_to_and_still_warns(bridge):
     module, yamcs = bridge
-    alone = {**SWAP, "action": {"verb": "swap", "deadline": SWAP["action"]["deadline"]}}
+    alone = {
+        **SWAP,
+        "action": {"verb": "swap", "deadline": SWAP["action"]["deadline"]},
+        "note": "No backup pass in the window",
+    }
     module.deliver(entry([alone], "rain-fade-swap"), {})
     (event,) = yamcs.events()
-    assert event["severity"] == "WARNING" and "backup ; cancel by" in event["message"]
+    assert event["severity"] == "WARNING" and event["message"].endswith("No backup pass in the window")
 
 
 def test_a_modcod_plan_lists_each_change_on_one_timeline_item(bridge):
@@ -476,6 +489,31 @@ def capacity_day(day: str, p50: float) -> dict:
     }
 
 
+def test_a_restart_writes_no_event_yamcs_already_holds_when_the_run_is_republished(
+    bridge, monkeypatch
+):
+    # Each approval republishes the run: after a restart its unchanged passes stay unwritten.
+    module, yamcs = bridge
+    other = {**PASS, "entity": {**PASS["entity"], "id": "pass_2"}}
+    module.deliver(entry([PASS, other]), {})
+    assert len(yamcs.events()) == 2
+    restarted, yamcs = load(monkeypatch)
+    restarted.deliver(entry([PASS, other]), {})
+    assert yamcs.events() == [] and restarted.written.get("unchanged") == 2
+    lower = {"p10": 1.0, "p50": 7.0, "p90": 9.0}
+    changed = {**PASS, "value": lower, "explain": {**PASS["explain"], "expected_gb": {"value": lower}}}
+    restarted.deliver(entry([changed, other]), {})
+    assert len(yamcs.events()) == 1
+
+
+def test_the_events_remembered_lose_their_items_a_week_after_their_day(bridge, monkeypatch, tmp_path):
+    module, _ = bridge
+    module.deliver(entry([PASS]), {})
+    monkeypatch.setattr(results, "now", lambda: datetime(2026, 11, 14, tzinfo=UTC))
+    module.deliver(entry([]), {})
+    assert json.loads((tmp_path / "yamcs-bridge-sent.json").read_text()) == {}
+
+
 def test_each_day_of_an_antennas_capacity_is_its_own_event_and_timeline_item(bridge):
     module, yamcs = bridge
     mapping, _ = YAMCS_DEFAULTS["antenna-capacity"]
@@ -654,8 +692,8 @@ def test_an_approved_swap_is_an_instruction_at_warning_or_above(bridge, configur
     module.deliver(swap_run([APPROVED], swap_mapping(events={"severity": configured})), {})
     (event,) = yamcs.events()
     assert event["severity"] == sent
-    assert event["message"].startswith("Approved in Constellation: Recommendation (forecast)")
-    assert "backup ant-2; cancel by 2026-11-05 09:45Z" in event["message"]
+    assert event["message"].startswith("Approved in Constellation: Advice (forecast)")
+    assert event["message"].endswith("+4.0 GB; decide by 2026-11-05 09:45Z")
 
 
 def test_a_held_swap_writes_no_event_and_its_run_still_reads_as_a_swap_run(bridge):
@@ -675,12 +713,45 @@ def test_a_held_swap_on_the_timeline_is_tagged_awaiting_approval(bridge):
 
 def test_an_approved_swap_on_the_timeline_names_the_backup_and_deadline(bridge):
     module, yamcs = bridge
-    module.deliver(swap_run([APPROVED], swap_mapping(timeline={"on": True})), {})
-    (put,) = [b for m, p, b in yamcs.writes if m == "PUT" and "/items/" in p]
+    approved = {**APPROVED, "decision_id": "d1"}
+    module.deliver(swap_run([approved], swap_mapping(timeline={"on": True})), {})
+    put, _ = [b for m, p, b in yamcs.writes if m == "PUT" and "/items/" in p]
     assert "approved" in put["tags"]
     assert put["properties"]["action_status"] == "approved"
     assert put["properties"]["backup_antenna"] == "ant-2"
+    assert put["properties"]["backup_pass_id"] == "pass_2"
+    assert put["properties"]["backup_aos"] == SWAP["action"]["to_at"]
+    assert put["properties"]["backup_los"] == SWAP["action"]["to_until"]
+    assert put["properties"]["decision_id"] == "d1"
     assert put["properties"]["deadline"] == SWAP["action"]["deadline"]
+
+
+def test_a_swaps_backup_pass_is_its_own_timeline_item_from_aos_to_los_with_its_gb(bridge):
+    module, yamcs = bridge
+    module.deliver(swap_run([SWAP], swap_mapping(timeline={"on": True})), {})
+    original, backup = [b for m, p, b in yamcs.writes if m == "PUT" and "/items/" in p]
+    assert (backup["start"], backup["duration"]) == ("2026-11-05T11:00:00+00:00", "360s")
+    assert backup["name"] == "Backup · sat-1 @ ant-2: 4.0 GB expected"
+    assert "backup" in backup["tags"] and "backup" not in original["tags"]
+    assert backup["tags"].count("constellation-bridge") == 1
+    props = backup["properties"]
+    assert (props["pass_id"], props["antenna_id"], props["backup_for"]) == ("pass_2", "ant-2", "pass_1")
+    assert (props["expected_gb_p50"], props["gain_gb"]) == ("4.0", "4.0")
+    assert props["advice"].startswith("Add a backup pass on ant-2 at 2026-11-05 11:00Z to 11:06Z")
+    assert original["properties"]["advice"] == props["advice"]
+    # A rerun updates both in place, and a run that no longer advises it deletes the backup.
+    module.deliver(swap_run([SWAP], swap_mapping(timeline={"on": True}), run_id="run_2"), {})
+    assert len(yamcs.items) == 2
+    module.deliver(swap_run([HELD], swap_mapping(timeline={"on": True}), run_id="run_3"), {})
+    ((_, left),) = yamcs.items.items()
+    assert "awaiting-approval" in left["tags"]
+
+
+def test_a_swap_from_an_api_without_the_backups_los_writes_no_backup_item(bridge):
+    module, yamcs = bridge
+    old = {**SWAP, "action": {k: v for k, v in SWAP["action"].items() if k != "to_until"}}
+    module.deliver(swap_run([old], swap_mapping(timeline={"on": True})), {})
+    assert len(yamcs.items) == 1
 
 
 def test_approving_a_held_swap_writes_one_event_then_and_none_before(bridge):
@@ -735,6 +806,54 @@ def test_an_approved_swap_past_its_cancel_deadline_is_never_announced(bridge, mo
     module.deliver(swap_run([APPROVED]), {})
     module.deliver(swap_run([APPROVED], run_id="run_2"), {})
     assert yamcs.events() == []
+
+
+def test_the_delivery_report_says_each_approval_was_acted_on_once(bridge):
+    module, yamcs = bridge
+    approved = {**APPROVED, "action_id": "a1", "decision_id": "d1"}
+    module.deliver(swap_run([approved]), {})
+    module.report("c#run_1")
+    module.deliver(swap_run([approved], run_id="run_2"), {})
+    module.report("c#run_2")
+    first, again = (b for _, p, b in yamcs.sent if p == "/predictions/feed/deliveries")
+    assert first["actions"] == [
+        {
+            "action_id": "a1",
+            "decision_id": "d1",
+            "outcome": "acted",
+            "reason": "announced in Yamcs simulator as an event",
+        }
+    ]
+    assert "actions" not in again
+
+
+def test_an_approval_first_seen_past_its_deadline_is_reported_refused_once(bridge, monkeypatch):
+    module, yamcs = bridge
+    monkeypatch.setattr(results, "now", lambda: datetime(2026, 11, 6, tzinfo=UTC))
+    approved = {**APPROVED, "action_id": "a1", "decision_id": "d1"}
+    module.deliver(swap_run([approved]), {})
+    (refused,) = module.outcomes
+    assert refused["outcome"] == "refused" and "2026-11-05 09:45Z" in refused["reason"]
+    restarted, _ = load(monkeypatch)
+    restarted.deliver(swap_run([approved], run_id="run_2"), {})
+    assert restarted.outcomes == [] and yamcs.events() == []
+
+
+def test_an_api_from_before_outcomes_still_gets_the_delivery_report(bridge, monkeypatch):
+    module, _ = bridge
+    taken: list[dict] = []
+
+    def old_api(method, path, body=None):
+        # Its delivery body forbids extra fields.
+        if "actions" in body:
+            raise urllib.error.HTTPError(path, 422, "", Message(), io.BytesIO(b"{}"))
+        taken.append(body)
+
+    monkeypatch.setattr(module, "constellation", old_api)
+    module.deliver(swap_run([{**APPROVED, "action_id": "a1", "decision_id": "d1"}]), {})
+    module.report("c#run_1")
+    (report,) = taken
+    assert report["applied"]["acted"] == 1
 
 
 def test_a_rejected_swap_writes_no_event_and_retags_its_held_timeline_item(bridge):
@@ -854,15 +973,15 @@ def test_an_action_no_longer_approved_loses_its_approved_tag_on_the_timeline(bri
     module, yamcs = bridge
     mapping = swap_mapping(timeline={"on": True})
     module.deliver(swap_run([APPROVED], mapping), {})
-    ((_, item),) = yamcs.items.items()
-    assert "approved" in item["tags"]
+    assert all("approved" in i["tags"] for i in yamcs.items.values())
     module.deliver(swap_run([SWAP], mapping, run_id="run_2"), {})
-    ((_, item),) = yamcs.items.items()
-    assert "approved" not in item["tags"]
+    assert len(yamcs.items) == 2
+    assert not any("approved" in i["tags"] for i in yamcs.items.values())
+    # A closed swap's backup is no longer advised: its item goes, the pass's stays untagged.
     closed = {**APPROVED, "action": {**APPROVED["action"], "deadline": "2020-01-01T00:00:00+00:00"}}
     module.deliver(swap_run([closed], mapping, run_id="run_3"), {})
     ((_, item),) = yamcs.items.items()
-    assert "approved" not in item["tags"]
+    assert "approved" not in item["tags"] and "backup" not in item["tags"]
     assert len(yamcs.events()) == 2
 
 
