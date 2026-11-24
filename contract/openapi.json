@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.9.0"
+    "version": "2.9.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2306,6 +2306,60 @@
               ],
               "description": "With workflow: the newest finished run that read this telemetry dataset (live, audit or sim), so a pass-log audit never stands in for a live review.",
               "title": "Dataset"
+            }
+          },
+          {
+            "description": "weather-attenuation only: the point's latitude, -90 to 90 degrees. With longitude_deg and at, answers the raw weather there (weather-forecast-v1).",
+            "in": "query",
+            "name": "latitude_deg",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "weather-attenuation only: the point's latitude, -90 to 90 degrees. With longitude_deg and at, answers the raw weather there (weather-forecast-v1).",
+              "title": "Latitude Deg"
+            }
+          },
+          {
+            "description": "weather-attenuation only: the point's longitude, -180 to 180.",
+            "in": "query",
+            "name": "longitude_deg",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "weather-attenuation only: the point's longitude, -180 to 180.",
+              "title": "Longitude Deg"
+            }
+          },
+          {
+            "description": "weather-attenuation only: the point's altitude, -500 to 10000 m; 0 when absent.",
+            "in": "query",
+            "name": "altitude_m",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "weather-attenuation only: the point's altitude, -500 to 10000 m; 0 when absent.",
+              "title": "Altitude M"
             }
           }
         ],

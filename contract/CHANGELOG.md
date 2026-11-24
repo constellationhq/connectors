@@ -6,6 +6,10 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.9.1
+
+- Descriptions only.
+
 ## 2.9.0
 
 - added `enum openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/band "C"`
