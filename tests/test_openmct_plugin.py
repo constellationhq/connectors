@@ -293,7 +293,7 @@ def test_a_pass_shows_its_expected_gb_whatever_node_id_its_ledger_uses(tmp_path)
     )
     plan, rows = _node(tmp_path, script)
     assert plan["ant-1"][0]["name"] == "Forecast · sat-1 · 10.0 GB"
-    assert "<b>10.0</b>" in rows
+    assert ">10.0</td>" in rows
 
 
 class PagedApi(api.ResultsApi):
@@ -575,9 +575,31 @@ def test_an_rfi_watch_run_shows_rfi_in_db_and_its_reroutes_never_as_gb_or_swaps(
     views = _node(tmp_path, script)
     html = " ".join(views.values())
     assert "GB" not in html and "swap" not in html.lower()
-    assert "12.0 dB" in views["tiles"] and "1 awaiting approval" in views["tiles"]
+    assert "11.0 dB" in views["tiles"] and "1 awaiting approval" in views["tiles"]
     assert views["warnings"].index("Approved: carry out") < views["warnings"].index("Reroute advised")
-    assert "25%" in views["list"] and "12.0" in views["list"]
+    assert "25%" in views["list"] and "11.0" in views["list"]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+@pytest.mark.parametrize("kind", ["pass-yield", "antenna-capacity", "rfi-watch"])
+def test_every_view_shows_one_typical_value_never_a_p10_or_p90(tmp_path, kind):
+    # Models have no spread yet: the view shows the p50 alone, never its p10 (2.0) or p90 (11.0).
+    soon = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+    item = {**(RFI if kind == "rfi-watch" else PASS), "target_at": soon}
+    if kind == "antenna-capacity":
+        gb = {**PASS["value"], "passes": 9, "sellable_min": 60}
+        item = {"entity": {"type": "antenna", "id": "ant-1"}, "target_at": soon, "value": gb,
+                "explain": {"expected_gb": {"value": gb}}}
+    script = (
+        "import { VIEWS } from './forecast-view.js';"
+        f"const run = {{ kind: '{kind}', workflow: 'w', workflow_version: 2, run_id: 'r' }}, items = {json.dumps([item])};"
+        "console.log(JSON.stringify(Object.values(VIEWS).map((f) => f(run, items, null)).join(' ')))"
+    )
+    html = _node(tmp_path, script)
+    low, typical, high = (item["value"][q] for q in ("p10", "p50", "p90"))
+    assert f"{typical:.1f}" in html
+    assert not re.search(r"p10|p90|9 times out of 10", html, re.IGNORECASE)
+    assert f">{low:.1f}<" not in html and f"{high:.1f}" not in html
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")

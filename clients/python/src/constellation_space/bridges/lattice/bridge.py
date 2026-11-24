@@ -11,7 +11,7 @@ Constellation is the judgment; Lattice is the taskable antenna and the common op
           Everything is labelled a forecast, never a scheduled contact.
     act   Each antenna is a taskable agent for ReservePass. When an operator tasks one, the bridge
           looks up Constellation's forecast for that satellite on that antenna and:
-            ALLOW  expected GB p10 at or above the floor -> STATUS_DONE_OK, outcome
+            ALLOW  expected GB at or above the floor -> STATUS_DONE_OK, outcome
                    ALLOWED_NOT_RESERVED: the bridge decides, it books nothing. A task on an
                    open swap's backup pass is decided from the swap's action (its AOS, LOS
                    and expected GB, a p50) when no forecast pass reached the bridge
@@ -19,13 +19,13 @@ Constellation is the judgment; Lattice is the taskable antenna and the common op
                    ago, or a pass approved advice moves off (action move)
                                                          -> STATUS_DONE_NOT_OK, ERROR_CODE_REJECTED
           Every decision is uploaded to Lattice Objects with its provenance (workflow version,
-          run, when the run was made, p10/p50/p90, the floor used, the ledger). The bridge never
+          run, when the run was made, the expected GB, the floor used, the ledger). The bridge never
           re-tasks: after DONE_NOT_OK the Lattice operator decides.
 
 The floor, how many passes to list, whether to attach rain-fade advice and publish pass entities,
 and which antennas to cover are the workflow's Lattice mapping, set on its feed output node and
-read per run from the feed; MIN_P10_GB (default 0) is only the floor a decision records for an
-antenna no workflow has forecast yet. MAX_FORECAST_AGE_S defaults to 21600 (6 hours, one
+read per run from the feed; MIN_GB (default 0; MIN_P10_GB is its deprecated name) is only the floor
+a decision records for an antenna no workflow has forecast yet. MAX_FORECAST_AGE_S defaults to 21600 (6 hours, one
 weather-model cycle). The start log says which are defaults; a value that is not a number at
 least 0 stops the bridge at start (exit 2).
 
@@ -79,9 +79,15 @@ def number(name: str, default: float) -> float | None:
     return value if math.isfinite(value) and value >= 0 else None
 
 
-# Checked by ready(). The p10 floor (GB) for an antenna no workflow has forecast yet: 0 accepts
+# Checked by ready(). The expected GB floor for an antenna no workflow has forecast yet: 0 accepts
 # any forecast pass there until a workflow forecasts the antenna and its own floor wins.
-MIN_P10_GB = number("MIN_P10_GB", 0)
+# MIN_P10_GB is its deprecated name, read when MIN_GB is unset.
+MIN_GB_VAR = (
+    "MIN_P10_GB"
+    if os.environ.get("MIN_P10_GB", "").strip() and not os.environ.get("MIN_GB", "").strip()
+    else "MIN_GB"
+)
+MIN_GB = number(MIN_GB_VAR, 0)
 # Checked by ready(). The oldest forecast (seconds since its run was made) a decision may use.
 MAX_FORECAST_AGE_S = number("MAX_FORECAST_AGE_S", 21600)
 POLL_S = int(os.environ.get("POLL_SECONDS", "15"))
@@ -138,9 +144,10 @@ EARTH_RATE_RAD_S = 7.2921150e-5
 SATELLITE_S = 10
 # The feed output mapping versions this bridge reads.
 MAPPING_VERSIONS = [2]
-# What an output without a Lattice mapping gets.
+# What an output without a Lattice mapping gets. min_p10_gb is the mapping's name for the floor on
+# a pass's expected GB (its p50): models have no spread, so there is no p10 to hold it to.
 FALLBACK = {
-    "min_p10_gb": MIN_P10_GB,
+    "min_p10_gb": MIN_GB,
     "passes_listed": 3,
     "advisories": True,
     "pass_entities": True,
@@ -229,11 +236,22 @@ def when(text: str) -> datetime:
 
 
 
-def gb_of(kept: dict[str, Any]) -> dict[str, float]:
-    """The expected GB of a pass the forecast kept (it keeps only passes that have it)."""
+def typical(explain: dict[str, Any]) -> dict[str, Any]:
+    """The ledger with each quantile value cut to its p50: models have no spread yet, so a p10 or
+    p90 is never written to Lattice."""
+    return {
+        node: {**e, "value": {k: v for k, v in e["value"].items() if k not in ("p10", "p90")}}
+        if isinstance(e, dict) and isinstance(e.get("value"), dict)
+        else e
+        for node, e in explain.items()
+    }
+
+
+def gb_of(kept: dict[str, Any]) -> float:
+    """The expected GB (the p50) of a pass the forecast kept (it keeps only passes that have it)."""
     gb = results.expected_gb(kept)
     assert gb is not None
-    return gb
+    return gb["p50"]
 
 
 
@@ -532,10 +550,6 @@ def satellite_entity_id(satellite: str) -> str:
     return str(uuid.uuid5(NAMESPACE, f"satellite|{satellite}"))
 
 
-def _gb(gb: dict[str, float]) -> str:
-    return " / ".join(f"{q} {gb[q]:.1f}" for q in results.QUANTILES if q in gb) + " GB"
-
-
 def _swap_alert(s: dict[str, Any]) -> dict[str, Any]:
     """An open swap's alert: approved in Constellation is approved advice (a warning), else advice
     (a caution). Either says what rain costs the pass and the advice: add a backup pass or move to
@@ -773,13 +787,13 @@ def _row(row_id: str, name: str, message: str, now: datetime) -> dict[str, Any]:
 
 def pass_row(p: dict[str, Any], floor: float, now: datetime) -> dict[str, Any]:
     gb, e = gb_of(p), p["entity"]
-    ok = gb["p10"] >= floor
+    ok = gb >= floor
     elevation = results.max_elevation(p)
     return _row(
         f"pass|{e['id']}",
-        f"Pass {e['satellite_id']} · {p['target_at'][11:16]}Z · {gb['p50']:.1f} GB "
-        f"(p10 {gb['p10']:.1f})" + ("" if ok else " · below floor"),
-        f"p10 {gb['p10']:.1f} GB {'clears' if ok else 'is below'} the {floor:.1f} GB floor"
+        f"Pass {e['satellite_id']} · {p['target_at'][11:16]}Z · {gb:.1f} GB"
+        + ("" if ok else " · below floor"),
+        f"{gb:.1f} GB expected {'clears' if ok else 'is below'} the {floor:.1f} GB floor"
         + (f"; max elevation {elevation:.0f}°" if elevation is not None else "")
         + f"; LOS {p['until'][11:16]}Z; run {p.get('provenance', {}).get('run_id')}",
         now,
@@ -803,8 +817,7 @@ def capacity_row(c: dict[str, Any], now: datetime) -> dict[str, Any]:
     return _row(
         f"capacity|{day}",
         f"Capacity {day} · {v['p50']:.1f} GB · {v['passes']} passes",
-        f"p10 {v['p10']:.1f} / p50 {v['p50']:.1f} / p90 {v['p90']:.1f} GB over "
-        f"{v.get('sellable_min', 0):.0f} sellable minutes",
+        f"{v['p50']:.1f} GB expected over {v.get('sellable_min', 0):.0f} sellable minutes",
         now,
     )
 
@@ -821,9 +834,8 @@ def antenna_entity(
     swaps = forecast.open_swaps(antenna, now)
     upcoming = forecast.upcoming(antenna, now)
     summary = " · ".join(
-        f"{p['entity']['satellite_id']} {p['target_at'][11:16]}Z {gb_of(p)['p50']:.1f} GB "
-        f"(p10 {gb_of(p)['p10']:.1f}) "
-        + ("ok" if gb_of(p)["p10"] >= floor else f"below the {floor:.1f} GB floor")
+        f"{p['entity']['satellite_id']} {p['target_at'][11:16]}Z {gb_of(p):.1f} GB "
+        + ("ok" if gb_of(p) >= floor else f"below the {floor:.1f} GB floor")
         for p in upcoming
     )
     rows = (
@@ -842,7 +854,7 @@ def antenna_entity(
         )
         rows.append(_row("swaps|held", waiting, waiting, now))
     gs = station["ground_station_id"]
-    low = [p for p in upcoming if gb_of(p)["p10"] < floor]
+    low = [p for p in upcoming if gb_of(p) < floor]
     return {
         **_asset(now, f"Constellation forecast · {antenna}", "Constellation Forecast"),
         "ontology": {
@@ -867,11 +879,11 @@ def antenna_entity(
                 {
                     "alertCode": "CONSTELLATION_LOW_YIELD_FORECAST",
                     "description": f"Forecast: {p['entity']['satellite_id']} at "
-                    f"{p['target_at'][11:16]}Z is expected to deliver {_gb(gb_of(p))}, below the "
+                    f"{p['target_at'][11:16]}Z is expected to deliver {gb_of(p):.1f} GB, below the "
                     f"{floor:.1f} GB floor",
                     "level": "ALERT_LEVEL_ADVISORY",
                     "activeConditions": [
-                        {"conditionCode": "BELOW_FLOOR", "description": f"p10 below {floor:.1f} GB"}
+                        {"conditionCode": "BELOW_FLOOR", "description": f"expected below {floor:.1f} GB"}
                     ],
                 }
                 for p in low[:ALERTS_SHOWN]
@@ -933,7 +945,7 @@ def pass_entity(
         "expiryTime": iso(max(los, now) + timedelta(minutes=2)),
         "aliases": {
             "name": f"Forecast · {e['satellite_id']} @ {e['antenna_id']} "
-            f"{p['target_at'][11:16]}Z · {gb['p50']:.1f} GB (p10 {gb['p10']:.1f})"
+            f"{p['target_at'][11:16]}Z · {gb:.1f} GB"
         },
         "ontology": {"platformType": "Forecast Pass", "template": "TEMPLATE_GEO"},
         **shape,
@@ -1158,7 +1170,7 @@ def decide(task: dict[str, Any], antenna: str, forecast: Forecast, now: datetime
         "task_id": task["version"]["taskId"],
         "antenna_id": antenna,
         "satellite_id": satellite,
-        "min_p10_gb": floor,
+        "min_gb": floor,
         "floor_from": source,
         "max_forecast_age_s": MAX_FORECAST_AGE_S,
         "decided_at": iso(now),
@@ -1178,9 +1190,9 @@ def decide(task: dict[str, Any], antenna: str, forecast: Forecast, now: datetime
         "pass_id": found["entity"]["id"],
         "aos": found["target_at"],
         "los": found["until"],
-        "expected_gb": gb,
+        "expected_gb": {"p50": gb},
         "provenance": found.get("provenance", {}),
-        "explain": found.get("explain", {}),
+        "explain": typical(found.get("explain", {})),
     }
     swap = forecast.swaps.get(found["entity"]["id"]) if mapping["advisories"] else None
     approved = swap is not None and results.action_state(swap) == "approved"
@@ -1207,18 +1219,13 @@ def decide(task: dict[str, Any], antenna: str, forecast: Forecast, now: datetime
             f"{'at ' + made if made else 'at a time this bridge did not record'}, longer ago "
             f"than MAX_FORECAST_AGE_S={MAX_FORECAST_AGE_S:.0f} s allows",
         }
-    if gb["p10"] < floor:
+    if gb < floor:
         return {
             **decision,
             "decision": "DENY",
-            "diagnostic": f"EXPECTED_GB_BELOW_FLOOR: p10={gb['p10']:.1f} GB < min={floor:.1f} GB "
-            f"(p50={gb['p50']:.1f}, p90={gb['p90']:.1f})",
+            "diagnostic": f"EXPECTED_GB_BELOW_FLOOR: expected {gb:.1f} GB < min={floor:.1f} GB",
         }
-    return {
-        **decision,
-        "decision": "ALLOW",
-        "diagnostic": f"p10={gb['p10']:.1f} GB >= min={floor:.1f} GB",
-    }
+    return {**decision, "decision": "ALLOW", "diagnostic": f"expected {gb:.1f} GB >= min={floor:.1f} GB"}
 
 
 def decide_backup(decision: dict[str, Any], swap: dict[str, Any], now: datetime) -> dict[str, Any]:
@@ -1237,7 +1244,7 @@ def decide_backup(decision: dict[str, Any], swap: dict[str, Any], now: datetime)
         "advisory": f"Constellation's backup for {swap['entity']['id']}: {results.advice(swap)}",
     }
     made = decision["provenance"].get("made_at")
-    floor = decision["min_p10_gb"]
+    floor = decision["min_gb"]
     if made is None or now - when(made) > timedelta(seconds=MAX_FORECAST_AGE_S):
         return {
             **decision,
@@ -1250,9 +1257,9 @@ def decide_backup(decision: dict[str, Any], swap: dict[str, Any], now: datetime)
         return {
             **decision,
             "decision": "DENY",
-            "diagnostic": f"EXPECTED_GB_BELOW_FLOOR: backup p50={gb:.1f} GB < min={floor:.1f} GB",
+            "diagnostic": f"EXPECTED_GB_BELOW_FLOOR: backup expected {gb:.1f} GB < min={floor:.1f} GB",
         }
-    return {**decision, "decision": "ALLOW", "diagnostic": f"backup p50={gb:.1f} GB >= min={floor:.1f} GB"}
+    return {**decision, "decision": "ALLOW", "diagnostic": f"backup expected {gb:.1f} GB >= min={floor:.1f} GB"}
 
 
 def result(decision: dict[str, Any]) -> dict[str, Any]:
@@ -1261,8 +1268,8 @@ def result(decision: dict[str, Any]) -> dict[str, Any]:
     gb = decision.get("expected_gb")
     head = f"{decision['decision']} {decision['satellite_id']} on {decision['antenna_id']}"
     if gb:
-        head += f" AOS {decision['aos'][11:16]}Z: {_gb(gb)}"
-    summary = f"{head}; floor p10 {decision['min_p10_gb']:.1f} GB. {decision['diagnostic']}"
+        head += f" AOS {decision['aos'][11:16]}Z: {gb['p50']:.1f} GB expected"
+    summary = f"{head}; floor {decision['min_gb']:.1f} GB. {decision['diagnostic']}"
     if decision.get("advisory"):
         summary += f". {decision['advisory']}"
     allowed = decision["decision"] == "ALLOW"
@@ -1274,7 +1281,7 @@ def result(decision: dict[str, Any]) -> dict[str, Any]:
         # The bridge decides and books nothing, so DONE_OK never reads as a reservation made.
         "outcome": "ALLOWED_NOT_RESERVED" if allowed else "DENIED",
         "reserved": False,
-        "minP10Gb": decision["min_p10_gb"],
+        "minGb": decision["min_gb"],
         **({"passId": decision["pass_id"], "aos": decision["aos"], "expectedGb": gb} if gb else {}),
         **({"advisory": decision["advisory"]} if decision.get("advisory") else {}),
     }
@@ -1522,9 +1529,9 @@ def ready() -> dict[str, Any]:
             stop(f"{name} is not set")
     if why := results.key_refusal(API):
         stop(why)
-    if MIN_P10_GB is None:
+    if MIN_GB is None:
         stop(
-            "MIN_P10_GB is not a number (GB, at least 0): the expected GB p10 floor a"
+            f"{MIN_GB_VAR} is not a number (GB, at least 0): the expected GB floor a"
             " ReservePass decision uses for an antenna no workflow has forecast yet; unset, it is 0"
         )
     if MAX_FORECAST_AGE_S is None:
@@ -1578,8 +1585,11 @@ def ready() -> dict[str, Any]:
 def settings() -> str:
     """The decision settings in effect, each marked when it is the default."""
     return ", ".join(
-        f"{name}={value:g}" + ("" if os.environ.get(name, "").strip() else " (default)")
-        for name, value in (("MIN_P10_GB", MIN_P10_GB), ("MAX_FORECAST_AGE_S", MAX_FORECAST_AGE_S))
+        f"{name}={value:g}" + ("" if os.environ.get(var, "").strip() else " (default)")
+        for name, var, value in (
+            ("MIN_GB", MIN_GB_VAR, MIN_GB),
+            ("MAX_FORECAST_AGE_S", "MAX_FORECAST_AGE_S", MAX_FORECAST_AGE_S),
+        )
     )
 
 
@@ -1594,6 +1604,8 @@ def network(
 
 def main() -> None:
     forecast = Forecast()
+    if MIN_GB_VAR == "MIN_P10_GB":
+        warn("MIN_P10_GB is deprecated: rename it MIN_GB, the floor on a pass's expected GB")
     document = ready()
     log(settings())
     stations, satellites, agents = network(document)

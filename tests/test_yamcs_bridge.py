@@ -227,6 +227,7 @@ def test_a_pass_yield_run_writes_events_timeline_parameters_and_the_widget(bridg
     assert put["name"] == "Forecast · sat-1 @ ant-1: 10.0 GB expected"
     assert "band-forecast-predicted-passes" in put["tags"]
     assert put["properties"]["expected_gb_p50"] == "10.0"
+    assert not {"expected_gb_p10", "expected_gb_p90"} & put["properties"].keys()
     assert put["properties"]["workflow_version"] == "3" and put["properties"]["run_id"] == "run_1"
     assert yamcs.paths("/processors/")
     (published,) = yamcs.objects("workflow-w.json")

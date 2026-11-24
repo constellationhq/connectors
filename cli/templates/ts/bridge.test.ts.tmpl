@@ -4,12 +4,12 @@ import { MemoryCursorStore } from "@constellationspace/client/bridge";
 import { {{.Class}}, manifest } from "./bridge.ts";
 
 const run = { workflow: "w", workflow_version: 1, run_id: "run_20300101T000000_00000000" } as never;
-const pass = (p10: number, facets = {}) =>
-  ({ entity: { type: "pass", id: `pass_${p10}` }, target_at: "2030-01-01T00:00:00+00:00", value: { p10 }, ...facets }) as never;
+const pass = (gb: number, facets = {}) =>
+  ({ entity: { type: "pass", id: `pass_${gb}` }, target_at: "2030-01-01T00:00:00+00:00", value: { p50: gb }, ...facets }) as never;
 
 test("apply writes the passes above the threshold", () => {
   const bridge = new {{.Class}}({ manifest, store: new MemoryCursorStore() });
-  assert.deepEqual(bridge.apply([pass(1), pass(9)], { min_p10_gb: 5, label: "x" }, run), { passes: 1 });
+  assert.deepEqual(bridge.apply([pass(1), pass(9)], { min_gb: 5, label: "x" }, run), { passes: 1 });
 });
 
 test("act handles an approved swap to add or move", () => {

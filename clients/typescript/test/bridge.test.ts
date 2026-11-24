@@ -92,6 +92,31 @@ describe("Bridge", () => {
     expect(b.acted).toEqual(["s1"]);
   });
 
+  it("reads a manifest's deprecated min_p10_gb as min_gb and says so once", async () => {
+    // The fake feed's settings are { min_p10_gb: 5 }, a manifest from before min_gb.
+    const settings: Record<string, unknown>[] = [];
+    const said: string[] = [];
+    class Settings extends Bridge {
+      apply(items: Result[], given: Record<string, unknown>) {
+        settings.push(given);
+        return { items: items.length };
+      }
+      act() {
+        return true;
+      }
+      log(message: string) {
+        said.push(message);
+      }
+    }
+    const api = fakeApi(entries);
+    const b = new Settings({ manifest, client: new Client({ apiKey: "k", baseUrl: "https://api.test", fetch: api.fetch, retryDelayMs: 0, log: () => {} }), store: new MemoryCursorStore(), conformanceLog: "", pollMs: 1, backfill: true });
+    await b.poll();
+    expect(settings.map((s) => s.min_gb)).toEqual([5, 5]);
+    expect(said.filter((m) => m.includes("deprecated"))).toEqual([
+      "setting min_p10_gb is deprecated: it is read as min_gb, the expected GB a pass must reach. Rename it in connector.json",
+    ]);
+  });
+
   it("resumes from the saved cursor after a restart without acting twice", async () => {
     const path = join(mkdtempSync(join(tmpdir(), "bridge-")), "state", "cursor.txt");
     const first = bridge(fakeApi(entries.slice(0, 1)), { store: new FileCursorStore(path) });

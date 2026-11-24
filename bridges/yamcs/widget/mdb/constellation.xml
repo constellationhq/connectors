@@ -17,13 +17,13 @@
       <StringParameterType name="text"/>
     </ParameterTypeSet>
     <ParameterSet>
-      <Parameter name="next_pass_expected_gb_p10" parameterTypeRef="gigabytes">
+      <Parameter name="next_pass_expected_gb_p10" parameterTypeRef="gigabytes" shortDescription="Deprecated: equal to next_pass_expected_gb_p50 while forecasts have no spread">
         <ParameterProperties dataSource="local"/>
       </Parameter>
       <Parameter name="next_pass_expected_gb_p50" parameterTypeRef="gigabytes">
         <ParameterProperties dataSource="local"/>
       </Parameter>
-      <Parameter name="next_pass_expected_gb_p90" parameterTypeRef="gigabytes">
+      <Parameter name="next_pass_expected_gb_p90" parameterTypeRef="gigabytes" shortDescription="Deprecated: equal to next_pass_expected_gb_p50 while forecasts have no spread">
         <ParameterProperties dataSource="local"/>
       </Parameter>
       <Parameter name="next_pass_max_elevation" parameterTypeRef="degrees">

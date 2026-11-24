@@ -188,6 +188,7 @@ export abstract class Bridge {
   private nextCheckIn = 0;
   private readonly backfill: boolean;
   private started = false;
+  private saidMinP10Gb = false;
   private readonly unreported = new Map<string, { counts: Record<string, number>; acted: boolean[]; items: Result[] }[]>();
   private actedKeys: Map<string, string> | undefined;
 
@@ -269,11 +270,18 @@ export abstract class Bridge {
             if (why) this.log(`skipped item ${i} of run ${part.run.run_id}: it is malformed (${why})`);
             return !why;
           });
-          const counts = { ...(await this.apply(items, part.settings, part.run)) };
+          const settings = { ...part.settings };
+          if ("min_p10_gb" in settings && !("min_gb" in settings)) {
+            // A manifest from before models had one typical value: its threshold is the expected GB.
+            settings.min_gb = settings.min_p10_gb;
+            if (!this.saidMinP10Gb) this.log("setting min_p10_gb is deprecated: it is read as min_gb, the expected GB a pass must reach. Rename it in connector.json");
+            this.saidMinP10Gb = true;
+          }
+          const counts = { ...(await this.apply(items, settings, part.run)) };
           if (items.length < part.items.length) counts.malformed = part.items.length - items.length;
           const acted: boolean[] = [];
           for (const item of items)
-            acted.push(actionState(item) === "approved" && (await this.carryOut(item, part.settings, part.run)));
+            acted.push(actionState(item) === "approved" && (await this.carryOut(item, settings, part.run)));
           // So the platform can show that an approval was carried out.
           if (acted.some(Boolean)) counts.acted = acted.filter(Boolean).length;
           done.push({ counts, acted, items });

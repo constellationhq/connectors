@@ -4,9 +4,9 @@
   "description": "Forecast passes proposed into my mission control's schedule.",
   "version": "0.1.0",
   "settings": {
-    "min_p10_gb": {
+    "min_gb": {
       "type": "number",
-      "title": "Only passes forecast to deliver at least (GB, p10)",
+      "title": "Only passes expected to deliver at least (GB)",
       "default": 0,
       "minimum": 0,
       "maximum": 10000

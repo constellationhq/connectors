@@ -4,13 +4,13 @@ TELEMETRY CONSTELLATION NEXT_PASS BIG_ENDIAN "Forecast: the next predicted pass"
   APPEND_ITEM ANTENNA 512 STRING "Antenna id"
   APPEND_ITEM AOS 256 STRING "Predicted acquisition of signal, UTC"
   APPEND_ITEM LOS 256 STRING "Predicted loss of signal, UTC"
-  APPEND_ITEM EXPECTED_GB_P10 32 FLOAT "Expected GB, wet tail (p10)"
+  APPEND_ITEM EXPECTED_GB_P10 32 FLOAT "Deprecated: equal to EXPECTED_GB_P50 while forecasts have no spread. Read EXPECTED_GB_P50"
     UNITS Gigabytes GB
     FORMAT_STRING "%.3f"
-  APPEND_ITEM EXPECTED_GB_P50 32 FLOAT "Expected GB, median (p50)"
+  APPEND_ITEM EXPECTED_GB_P50 32 FLOAT "Expected GB (p50)"
     UNITS Gigabytes GB
     FORMAT_STRING "%.3f"
-  APPEND_ITEM EXPECTED_GB_P90 32 FLOAT "Expected GB, best case (p90)"
+  APPEND_ITEM EXPECTED_GB_P90 32 FLOAT "Deprecated: equal to EXPECTED_GB_P50 while forecasts have no spread. Read EXPECTED_GB_P50"
     UNITS Gigabytes GB
     FORMAT_STRING "%.3f"
   APPEND_ITEM MAX_ELEVATION 32 FLOAT "Peak elevation"
@@ -20,10 +20,10 @@ TELEMETRY CONSTELLATION NEXT_PASS BIG_ENDIAN "Forecast: the next predicted pass"
 TELEMETRY CONSTELLATION NEXT_24H BIG_ENDIAN "Forecast: every predicted pass in the next 24 hours, summed"
   ALLOW_SHORT
   APPEND_ITEM PASSES 32 UINT "Predicted passes"
-  APPEND_ITEM EXPECTED_GB_P10 64 FLOAT "Expected GB, wet tail (p10)"
+  APPEND_ITEM EXPECTED_GB_P10 64 FLOAT "Deprecated: equal to EXPECTED_GB_P50 while forecasts have no spread. Read EXPECTED_GB_P50"
     UNITS Gigabytes GB
     FORMAT_STRING "%.3f"
-  APPEND_ITEM EXPECTED_GB_P50 64 FLOAT "Expected GB, median (p50)"
+  APPEND_ITEM EXPECTED_GB_P50 64 FLOAT "Expected GB (p50)"
     UNITS Gigabytes GB
     FORMAT_STRING "%.3f"
 
@@ -67,10 +67,10 @@ TELEMETRY CONSTELLATION CAPACITY BIG_ENDIAN "Forecast: one day's capacity across
   APPEND_ITEM SELLABLE_MIN 32 FLOAT "Sellable contact minutes"
     UNITS Minutes min
     FORMAT_STRING "%.1f"
-  APPEND_ITEM GB_P10 64 FLOAT "Expected GB, wet tail (p10)"
+  APPEND_ITEM GB_P10 64 FLOAT "Deprecated: equal to GB_P50 while forecasts have no spread. Read GB_P50"
     UNITS Gigabytes GB
     FORMAT_STRING "%.3f"
-  APPEND_ITEM GB_P50 64 FLOAT "Expected GB, median (p50)"
+  APPEND_ITEM GB_P50 64 FLOAT "Expected GB (p50)"
     UNITS Gigabytes GB
     FORMAT_STRING "%.3f"
   APPEND_ITEM TIGHTEST_ANTENNA 512 STRING "Antenna with the least expected GB that day"

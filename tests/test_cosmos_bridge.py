@@ -1079,6 +1079,13 @@ def test_the_swap_screen_says_decide_by_and_never_shows_the_p10_as_if_rain(bridg
         assert f"SWAP {name} " in screen
 
 
+def test_the_screen_shows_one_expected_gb_never_a_p10_or_p90():
+    screen = (ROOT / "bridges/cosmos/targets/CONSTELLATION/screens/forecast.txt").read_text()
+    assert "P10" not in screen and "P90" not in screen
+    assert "p10" not in screen.lower() and "p90" not in screen.lower()
+    assert screen.count('"GB expected"') >= 3
+
+
 def test_a_held_swap_run_counts_its_held_items_and_never_takes_them_for_passes(bridge):
     module, _ = bridge
     forecast = module.Forecast()

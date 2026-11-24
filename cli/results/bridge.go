@@ -47,8 +47,9 @@ type Bridge struct {
 	// at its newest run (BACKFILL=1).
 	Backfill bool
 
-	cursor  string
-	started bool
+	cursor       string
+	started      bool
+	saidMinP10Gb bool
 	// unreported keeps, by cursor, what each part of a run wrote until the run is reported, so a
 	// failed report is retried without writing or acting again.
 	unreported map[string][]written
@@ -402,6 +403,16 @@ func (b *Bridge) applyPart(cursor string, n int, part Part) error {
 	settings := output.Mapping.Settings
 	if settings == nil {
 		settings = map[string]any{}
+	}
+	if old, ok := settings["min_p10_gb"]; ok {
+		// A manifest from before models had one typical value: its threshold is the expected GB.
+		if _, ok := settings["min_gb"]; !ok {
+			settings["min_gb"] = old
+			if !b.saidMinP10Gb {
+				b.saidMinP10Gb = true
+				b.Log("setting min_p10_gb is deprecated: it is read as min_gb, the expected GB a pass must reach. Rename it in connector.json")
+			}
+		}
 	}
 	str := func(k string) string { s, _ := r[k].(string); return s }
 	version, _ := r["constellation.workflow_version"].(int64)

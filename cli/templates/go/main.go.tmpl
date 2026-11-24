@@ -17,11 +17,11 @@ var manifest []byte
 // what it wrote. The run is the whole answer for its window: withdraw what you wrote earlier
 // for run.Workflow inside the window that items no longer carries.
 func apply(items []results.Item, settings map[string]any, run results.Run) (map[string]int, error) {
-	min, _ := settings["min_p10_gb"].(float64)
+	min, _ := settings["min_gb"].(float64)
 	passes := 0
 	for _, item := range items {
 		value, _ := item["value"].(map[string]any)
-		if p10, ok := value["p10"].(float64); ok && p10 < min {
+		if gb, ok := value["p50"].(float64); ok && gb < min {
 			continue
 		}
 		entity, _ := item["entity"].(map[string]any)

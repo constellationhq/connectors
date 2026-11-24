@@ -48,8 +48,8 @@ const until = (iso) => {
   const m = Math.round((Date.parse(iso) - Date.now()) / 60000);
   return m <= 0 ? 'passed' : m < 120 ? `in ${m} min` : `in ${Math.round(m / 60)} h`;
 };
-// Expected GB at p10/p50/p90 (and, for an antenna-day, its passes and sellable minutes); null for
-// a pass pricing could not price.
+// Expected GB, read as its p50, the one typical value (and, for an antenna-day, its passes and
+// sellable minutes); null for a pass pricing could not price.
 const gbOf = (item) => {
   // The ledger node first (it carries an antenna-day's passes and minutes), else the item's value,
   // the output column, as a copied workflow may rename the node.
@@ -60,6 +60,8 @@ const gbOf = (item) => {
 // A MODCOD plan's series holds each switch, the first at AOS: its changes are the steps after it,
 // as the COSMOS MODCOD packet's CHANGES and the Lattice bridge count them.
 const changes = (series) => `${series.length - 1} change${series.length === 2 ? '' : 's'}`;
+// A row's value for the per-key bars: the expected GB.
+const expected = (item) => (gbOf(item) ? { value: gbOf(item).p50 } : null);
 const ledgerOf = (item) => item.explain?.ledger?.value || {};
 // A pass's max elevation: the ledger entry the orbit wrote, under whichever node wrote it.
 const elevationOf = (item) =>
@@ -95,16 +97,15 @@ function axisTicks(max, n = 4) {
   return out;
 }
 
-/** p10 to p90 band with a p50 line over time buckets. */
-function bandChart(buckets, { height = 180, unit = 'GB' } = {}) {
+/** The expected value as a line over time buckets. */
+function lineChart(buckets, { height = 180, unit = 'GB' } = {}) {
   const pad = { l: 44, r: 12, t: 12, b: 26 };
   const h = height;
-  const max = Math.max(...buckets.map((b) => b.p90), 0.001);
+  const max = Math.max(...buckets.map((b) => b.p50), 0.001);
   const ticks = axisTicks(max);
   const top = ticks[ticks.length - 1];
   const x = (i) => pad.l + (i / Math.max(buckets.length - 1, 1)) * (W - pad.l - pad.r);
   const y = (v) => h - pad.b - (v / top) * (h - pad.t - pad.b);
-  const band = buckets.map((b, i) => `${x(i)},${y(b.p90)}`).join(' ') + ' ' + [...buckets].reverse().map((b, i) => `${x(buckets.length - 1 - i)},${y(b.p10)}`).join(' ');
   const line = buckets.map((b, i) => `${i ? 'L' : 'M'}${x(i)},${y(b.p50)}`).join(' ');
   const grid = ticks
     .map((t) => `<line class="cf-grid" x1="${pad.l}" x2="${W - pad.r}" y1="${y(t)}" y2="${y(t)}"/><text class="cf-axis" x="${pad.l - 6}" y="${y(t) + 4}" text-anchor="end">${big(t)}</text>`)
@@ -115,28 +116,28 @@ function bandChart(buckets, { height = 180, unit = 'GB' } = {}) {
   const hits = buckets
     .map(
       (b, i) =>
-        `<rect class="cf-hit" x="${x(i) - (W - pad.l - pad.r) / buckets.length / 2}" y="${pad.t}" width="${(W - pad.l - pad.r) / buckets.length}" height="${h - pad.t - pad.b}" ${tip(`${b.label} · ${num(b.p50)} ${unit} expected (p10 ${num(b.p10)}, p90 ${num(b.p90)}) · ${b.count} passes`)}/>`,
+        `<rect class="cf-hit" x="${x(i) - (W - pad.l - pad.r) / buckets.length / 2}" y="${pad.t}" width="${(W - pad.l - pad.r) / buckets.length}" height="${h - pad.t - pad.b}" ${tip(`${b.label} · ${num(b.p50)} ${unit} expected · ${b.count} passes`)}/>`,
     )
     .join('');
-  return `<svg class="cf-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="Expected ${unit} over time, p10 to p90 band with p50 line">${grid}<polygon class="cf-band" points="${band}"/><path class="cf-line" d="${line}"/>${labels}${hits}</svg>`;
+  return `<svg class="cf-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="Expected ${unit} over time">${grid}<path class="cf-line" d="${line}"/>${labels}${hits}</svg>`;
 }
 
-/** Horizontal bars with p10 to p90 whiskers, one row per key. */
+/** Horizontal bars, one row per key, each with an optional line from the bar to `to`. */
 function rangeBars(rows, { unit = 'GB', digits = 1 } = {}) {
   const rowH = 20;
   const pad = { l: 128, r: 56, t: 4 };
   const h = pad.t + rows.length * rowH;
-  const max = Math.max(...rows.map((r) => r.p90 ?? r.value), 0.001);
+  const max = Math.max(...rows.map((r) => r.to ?? r.value), 0.001);
   const x = (v) => pad.l + (v / max) * (W - pad.l - pad.r);
   const body = rows
     .map((r, i) => {
       const y = pad.t + i * rowH;
-      const value = r.p50 ?? r.value;
+      const value = r.value;
       const whisker =
-        r.p10 !== undefined
-          ? `<line class="cf-whisker" x1="${x(r.p10)}" x2="${x(r.p90)}" y1="${y + rowH / 2}" y2="${y + rowH / 2}"/>`
+        r.to !== undefined
+          ? `<line class="cf-whisker" x1="${x(value)}" x2="${x(r.to)}" y1="${y + rowH / 2}" y2="${y + rowH / 2}"/>`
           : '';
-      return `<g ${tip(r.tip ?? `${r.label}: ${num(value)} ${unit}`)}><text class="cf-label" x="${pad.l - 8}" y="${y + rowH / 2 + 4}" text-anchor="end">${esc(r.label)}</text><rect class="cf-bar${r.warn ? ' cf-bar-warn' : ''}" x="${pad.l}" y="${y + 6}" width="${Math.max(x(value) - pad.l, 2)}" height="${rowH - 12}" rx="2"/>${whisker}<text class="cf-value" x="${x(r.p90 ?? value) + 6}" y="${y + rowH / 2 + 4}">${num(value, digits)}</text></g>`;
+      return `<g ${tip(r.tip ?? `${r.label}: ${num(value)} ${unit}`)}><text class="cf-label" x="${pad.l - 8}" y="${y + rowH / 2 + 4}" text-anchor="end">${esc(r.label)}</text><rect class="cf-bar${r.warn ? ' cf-bar-warn' : ''}" x="${pad.l}" y="${y + 6}" width="${Math.max(x(value) - pad.l, 2)}" height="${rowH - 12}" rx="2"/>${whisker}<text class="cf-value" x="${x(r.to ?? value) + 6}" y="${y + rowH / 2 + 4}">${num(value, digits)}</text></g>`;
     })
     .join('');
   return `<svg class="cf-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="Values per row">${body}</svg>`;
@@ -166,7 +167,7 @@ function heatGrid(rows, cols, cell, { unit = 'GB' } = {}) {
   return `<svg class="cf-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="Grid of values per row and day">${head}${body}</svg>`;
 }
 
-/** Two points per row joined by a line: what a pass keeps at p10 against its p50. */
+/** Two points per row joined by a line, from `a` to `b`. */
 function dumbbell(rows, { unit = 'GB' } = {}) {
   const rowH = 22;
   const pad = { l: 200, r: 24, t: 4 };
@@ -221,14 +222,12 @@ function upcoming(run) {
 function hourly(items) {
   const now = Date.now();
   const start = Math.floor(now / 3600e3) * 3600e3;
-  const buckets = Array.from({ length: 24 }, (_, k) => ({ label: new Date(start + k * 3600e3).toISOString().slice(11, 16), p10: 0, p50: 0, p90: 0, count: 0 }));
+  const buckets = Array.from({ length: 24 }, (_, k) => ({ label: new Date(start + k * 3600e3).toISOString().slice(11, 16), p50: 0, count: 0 }));
   for (const item of items) {
     const g = gbOf(item);
     const k = Math.floor((Date.parse(item.target_at) - start) / 3600e3);
     if (!g || !(k >= 0 && k < 24)) continue;
-    buckets[k].p10 += g.p10;
     buckets[k].p50 += g.p50;
-    buckets[k].p90 += g.p90;
     buckets[k].count += 1;
   }
   return buckets;
@@ -240,14 +239,13 @@ function perKey(items, key, value) {
     const k = key(item);
     const g = value(item);
     if (!k || !g) continue;
-    const row = out.get(k) || { label: k, p10: 0, p50: 0, p90: 0, count: 0 };
-    row.p10 += g.p10;
-    row.p50 += g.p50;
-    row.p90 += g.p90;
+    const row = out.get(k) || { label: k, value: 0, count: 0 };
+    row.value += g.value;
+    if (g.to !== undefined) row.to = (row.to ?? 0) + g.to;
     row.count += 1;
     out.set(k, row);
   }
-  return [...out.values()].sort((a, b) => b.p50 - a.p50);
+  return [...out.values()].sort((a, b) => b.value - a.value);
 }
 
 const tile = (label, value, hint) => `<div class="cf-tile"><div class="cf-tile-value">${esc(value)}</div><div class="cf-tile-label">${esc(label)}</div>${hint ? `<div class="cf-tile-hint">${esc(hint)}</div>` : ''}</div>`;
@@ -301,33 +299,31 @@ export function loss(item) {
 
 // A probability or share column reads as a percent, as the lock-loss risk does.
 const SHARES = ['probability', 'share'];
-// rfi-watch items are links whose value is RFI in dB (p10/p50/p90) with a lock-loss risk (a
+// rfi-watch items are links whose value is RFI in dB (read as its p50) with a lock-loss risk (a
 // share), and whose action is a reroute with no deadline: never GB, never a swap.
 const pct = (v) => (typeof v === 'number' ? `${Math.round(v * 100)}%` : num(v));
 const RFI = {
   tiles(run, items) {
-    const worst = Math.max(0, ...items.map((i) => i.value?.p90 ?? 0));
+    const worst = Math.max(0, ...items.map((i) => i.value?.p50 ?? 0));
     const critical = items.filter((i) => i.severity === 'critical').length;
     const approved = items.filter((i) => actionState(i) === 'approved').length;
     const held = items.filter((i) => actionState(i) === 'pending').length;
-    return `<div class="cf-tiles">${tile('links over the RFI threshold', items.length)}${tile('worst RFI', `${num(worst)} dB`, 'p90, any link')}${tile('links losing lock to RFI', critical)}${tile('reroutes to decide', items.filter(actionable).length - approved, `${approved} approved · ${held} awaiting approval`)}${tile('workflow version', `v${run.workflow_version}`)}</div>`;
+    return `<div class="cf-tiles">${tile('links over the RFI threshold', items.length)}${tile('worst RFI', `${num(worst)} dB`, 'expected, any link')}${tile('links losing lock to RFI', critical)}${tile('reroutes to decide', items.filter(actionable).length - approved, `${approved} approved · ${held} awaiting approval`)}${tile('workflow version', `v${run.workflow_version}`)}</div>`;
   },
   chart(run, items) {
-    const rows = [...items].sort((a, b) => (b.value?.p90 ?? 0) - (a.value?.p90 ?? 0)).slice(0, 14);
+    const rows = [...items].sort((a, b) => (b.value?.p50 ?? 0) - (a.value?.p50 ?? 0)).slice(0, 14);
     return section(
       'RFI per link',
       rangeBars(
         rows.map((i) => ({
           label: linkLabel(i),
           value: i.value?.p50 ?? 0,
-          p10: i.value?.p10 ?? 0,
-          p90: i.value?.p90 ?? 0,
           warn: i.severity === 'critical',
-          tip: `${linkLabel(i)}: ${num(i.value?.p50)} dB (p10 ${num(i.value?.p10)}, p90 ${num(i.value?.p90)}), lock-loss risk ${pct(i.value?.lock_loss_risk)}`,
+          tip: `${linkLabel(i)}: ${num(i.value?.p50)} dB expected, lock-loss risk ${pct(i.value?.lock_loss_risk)}`,
         })),
         { unit: 'dB' },
       ),
-      'Bar is p50 RFI in dB; the line runs p10 to p90. Amber: RFI alone loses lock.',
+      'Bar is the RFI expected, in dB. Amber: RFI alone loses lock.',
     );
   },
   warnings(run, items) {
@@ -337,7 +333,7 @@ const RFI = {
     const held = items.filter((i) => actionState(i) === 'pending').length;
     const cards = all.slice(0, 6).map((i) => {
       const approved = actionState(i) === 'approved';
-      return `<div class="cf-card"><div class="cf-card-head"><span class="cf-status-warn" aria-hidden="true">▲</span><b>${approved ? 'Approved: carry out' : 'Reroute advised'}</b></div><div>${esc(linkLabel(i))} from ${minute(i.target_at)}: up to ${num(i.value?.p90)} dB of RFI at p90, lock-loss risk ${pct(risk(i))}.</div><div class="cf-card-action">Reroute off ${esc(shortAntenna(i.entity.antenna_id))}</div>${approved ? '<div class="cf-note">Approved in Constellation.</div>' : ''}</div>`;
+      return `<div class="cf-card"><div class="cf-card-head"><span class="cf-status-warn" aria-hidden="true">▲</span><b>${approved ? 'Approved: carry out' : 'Reroute advised'}</b></div><div>${esc(linkLabel(i))} from ${minute(i.target_at)}: ${num(i.value?.p50)} dB of RFI expected, lock-loss risk ${pct(risk(i))}.</div><div class="cf-card-action">Reroute off ${esc(shortAntenna(i.entity.antenna_id))}</div>${approved ? '<div class="cf-note">Approved in Constellation.</div>' : ''}</div>`;
     });
     const waiting = held ? ` ${held} awaiting approval in Constellation.` : '';
     if (!cards.length) return section('Reroutes', `<p class="cf-empty">No reroutes advised.${waiting}</p>`);
@@ -348,10 +344,10 @@ const RFI = {
       .slice(0, ROWS)
       .map(
         (i) =>
-          `<tr data-id="${esc(i.entity.id)}" class="${i.entity.id === selected ? 'cf-sel' : ''}"><td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(i.value?.p10)} / <b>${num(i.value?.p50)}</b> / ${num(i.value?.p90)}</td><td class="cf-num">${pct(i.value?.lock_loss_risk)}</td><td>${i.action ? '<span class="cf-status-warn" title="reroute">▲</span>' : ''}</td></tr>`,
+          `<tr data-id="${esc(i.entity.id)}" class="${i.entity.id === selected ? 'cf-sel' : ''}"><td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(i.value?.p50)}</td><td class="cf-num">${pct(i.value?.lock_loss_risk)}</td><td>${i.action ? '<span class="cf-status-warn" title="reroute">▲</span>' : ''}</td></tr>`,
       )
       .join('');
-    const head = '<th>From (UTC)</th><th>Link</th><th class="cf-num">RFI dB p10 / p50 / p90</th><th class="cf-num">Lock-loss risk</th><th></th>';
+    const head = '<th>From (UTC)</th><th>Link</th><th class="cf-num">RFI dB expected</th><th class="cf-num">Lock-loss risk</th><th></th>';
     const note = items.length > ROWS ? `The first ${ROWS} of ${items.length}.` : `${items.length} results.`;
     return section('Results', `<div class="cf-scroll"><table class="cf-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`, `${note} Select a row for its ledger.`);
   },
@@ -383,10 +379,9 @@ export const VIEWS = {
     }
     const day = items.filter((i) => Date.parse(i.target_at) < Date.now() + 86400e3);
     const p50 = day.reduce((s, i) => s + (gbOf(i)?.p50 ?? 0), 0);
-    const p10 = day.reduce((s, i) => s + (gbOf(i)?.p10 ?? 0), 0);
     const swaps = items.filter(actionable).length;
     const next = items.find((i) => Date.parse(i.target_at) > Date.now());
-    return `<div class="cf-tiles">${tile('passes, next 24 h', day.length)}${tile('GB expected', big(p50), `${big(p10)} at worst (p10)`)}${swaps ? tile('swaps advised', swaps, 'see Risk below') : tile('next pass', next ? `${hhmm(next.target_at)}Z` : '—', next ? `${next.entity.satellite_id} @ ${shortAntenna(next.entity.antenna_id)}` : '')}${tile('workflow version', `v${run.workflow_version}`)}</div>`;
+    return `<div class="cf-tiles">${tile('passes, next 24 h', day.length)}${tile('GB expected', big(p50), 'next 24 h, summed')}${swaps ? tile('swaps advised', swaps, 'see Risk below') : tile('next pass', next ? `${hhmm(next.target_at)}Z` : '—', next ? `${next.entity.satellite_id} @ ${shortAntenna(next.entity.antenna_id)}` : '')}${tile('workflow version', `v${run.workflow_version}`)}</div>`;
   },
 
   chart(run, items) {
@@ -429,10 +424,10 @@ export const VIEWS = {
       );
     }
     if (run.kind === 'audit-ledger') {
-      const rows = perKey(items, stationOf, (i) => ({ p10: ledgerOf(i).delivered_gb ?? 0, p50: ledgerOf(i).delivered_gb ?? 0, p90: ledgerOf(i).possible_gb ?? 0 }));
+      const rows = perKey(items, stationOf, (i) => ({ value: ledgerOf(i).delivered_gb ?? 0, to: ledgerOf(i).possible_gb ?? 0 }));
       return section(
         'Delivered against possible, per station',
-        rangeBars(rows.map((r) => ({ label: r.label, value: r.p50, p10: r.p50, p90: r.p90, tip: `${r.label}: ${num(r.p50)} GB delivered of ${num(r.p90)} possible, ${r.count} passes` }))),
+        rangeBars(rows.map((r) => ({ ...r, tip: `${r.label}: ${num(r.value)} GB delivered of ${num(r.to)} possible, ${r.count} passes` }))),
         'The bar is what was delivered; the line runs to what was possible.',
       );
     }
@@ -442,21 +437,20 @@ export const VIEWS = {
       const rows = [...mix.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([label, value]) => ({ label, value, tip: `${label}: chosen ${value} times across the plan` }));
       return section('MODCOD mix across the plan', rangeBars(rows, { unit: 'steps', digits: 0 }), 'How often each MODCOD is planned. Select a pass below to see its own plan.');
     }
-    return section('Expected GB over the next 24 hours', bandChart(hourly(items)), 'The line is the median (p50); the band runs from the wet tail (p10) to the best case (p90). Hover an hour for its passes.');
+    return section('Expected GB over the next 24 hours', lineChart(hourly(items)), 'Hover an hour for its passes.');
   },
 
   breakdown(run, items) {
     if (['audit-ledger', 'modcod-plan', 'rfi-watch'].includes(run.kind)) return '';
     if (run.kind === 'antenna-capacity') {
-      const rows = perKey(items, (i) => i.entity.id, gbOf).slice(0, 14);
-      return section('Antennas ranked by expected GB', rangeBars(rows.map((r) => ({ ...r, label: shortAntenna(r.label) === r.label ? r.label : `${r.label.split('__')[0].slice(-6)} ${shortAntenna(r.label)}`, tip: `${r.label}: ${num(r.p50)} GB (p10 ${num(r.p10)}, p90 ${num(r.p90)}) over ${r.count} days` }))));
+      const rows = perKey(items, (i) => i.entity.id, expected).slice(0, 14);
+      return section('Antennas ranked by expected GB', rangeBars(rows.map((r) => ({ ...r, label: shortAntenna(r.label) === r.label ? r.label : `${r.label.split('__')[0].slice(-6)} ${shortAntenna(r.label)}`, tip: `${r.label}: ${num(r.value)} GB expected over ${r.count} days` }))));
     }
     const day = items.filter((i) => Date.parse(i.target_at) < Date.now() + 86400e3);
-    const rows = perKey(day, (i) => i.entity.antenna_id, gbOf).slice(0, 14);
+    const rows = perKey(day, (i) => i.entity.antenna_id, expected).slice(0, 14);
     return section(
       'Where the GB lands: antennas, next 24 h',
-      rangeBars(rows.map((r) => ({ ...r, label: stationTag(r.label), tip: `${r.label}: ${num(r.p50)} GB expected over ${r.count} passes (p10 ${num(r.p10)}, p90 ${num(r.p90)})` }))),
-      'Bar is p50; the line runs p10 to p90.',
+      rangeBars(rows.map((r) => ({ ...r, label: stationTag(r.label), tip: `${r.label}: ${num(r.value)} GB expected over ${r.count} passes` }))),
     );
   },
 
@@ -496,16 +490,16 @@ export const VIEWS = {
     const head = audit
       ? '<th>Pass</th><th>Result</th><th class="cf-num">GB delivered / possible</th><th>Status</th>'
       : run.kind === 'antenna-capacity'
-        ? '<th>Day</th><th>Antenna</th><th class="cf-num">GB p10 / p50 / p90</th><th>Passes · minutes</th>'
-        : '<th>Time (UTC)</th><th>Pass</th><th class="cf-num">GB p10 / p50 / p90</th><th></th>';
+        ? '<th>Day</th><th>Antenna</th><th class="cf-num">GB expected</th><th>Passes · minutes</th>'
+        : '<th>Time (UTC)</th><th>Pass</th><th class="cf-num">GB expected</th><th></th>';
     const rows = shown
       .map((i) => {
         const g = gbOf(i);
         const cells = audit
           ? `<td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(ledgerOf(i).delivered_gb)} / ${num(ledgerOf(i).possible_gb)}</td><td>${ledgerOf(i).dead ? `<span class="cf-status-warn">▲</span> ${esc(ledgerOf(i).status)}` : esc(ledgerOf(i).status)}</td>`
           : run.kind === 'antenna-capacity'
-            ? `<td>${esc(i.target_at.slice(0, 10))}</td><td>${esc(i.entity.id)}</td><td class="cf-num">${num(g?.p10)} / <b>${num(g?.p50)}</b> / ${num(g?.p90)}</td><td>${esc(gbOf(i)?.passes)} · ${num(gbOf(i)?.sellable_min, 0)} min</td>`
-            : `<td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(g?.p10)} / <b>${num(g?.p50)}</b> / ${num(g?.p90)}</td><td>${i.action || i.severity ? '<span class="cf-status-warn" title="rain-fade risk">▲</span>' : ''}${i.series ? changes(i.series) : elevationOf(i) != null ? `${Math.round(elevationOf(i))}°` : ''}</td>`;
+            ? `<td>${esc(i.target_at.slice(0, 10))}</td><td>${esc(i.entity.id)}</td><td class="cf-num">${num(g?.p50)}</td><td>${esc(gbOf(i)?.passes)} · ${num(gbOf(i)?.sellable_min, 0)} min</td>`
+            : `<td>${minute(i.target_at)}</td><td>${esc(linkLabel(i))}</td><td class="cf-num">${num(g?.p50)}</td><td>${i.action || i.severity ? '<span class="cf-status-warn" title="rain-fade risk">▲</span>' : ''}${i.series ? changes(i.series) : elevationOf(i) != null ? `${Math.round(elevationOf(i))}°` : ''}</td>`;
         return `<tr data-id="${esc(i.entity.id)}" class="${i.entity.id === selected ? 'cf-sel' : ''}">${cells}</tr>`;
       })
       .join('');
@@ -524,7 +518,7 @@ export const VIEWS = {
     const g = run.kind === 'rfi-watch' ? null : gbOf(item);
     const plan = item.series?.length ? `<h4>Plan over the pass</h4>${stepChart(item.series)}` : '';
     const range = g
-      ? `<div class="cf-range" ${tip(`p10 ${num(g.p10)} · p50 ${num(g.p50)} · p90 ${num(g.p90)} GB`)}><span style="left:${(g.p10 / g.p90) * 100}%;right:0"></span><i style="left:${(g.p50 / g.p90) * 100}%"></i></div><div class="cf-range-labels"><span>p10 ${num(g.p10)}</span><b>p50 ${num(g.p50)} GB</b><span>p90 ${num(g.p90)}</span></div>`
+      ? `<div class="cf-range-labels"><b>${num(g.p50)} GB expected</b></div>`
       : '';
     return `<aside class="cf-ledger"><h3>${run.kind === 'rfi-watch' ? 'Why this link is flagged' : 'Why this pass is worth what it is'}</h3><div class="cf-ledger-title">${esc(linkLabel(item))}<span>${minute(item.target_at)}${item.until ? ` – ${hhmm(item.until)}Z` : ''}</span></div>${range}<table class="cf-table cf-compact">${laneRows}</table>${plan}<p class="cf-note">Workflow ${esc(run.workflow)} v${esc(item.workflow_version ?? run.workflow_version)} · run ${esc(run.run_id)}</p></aside>`;
   },
@@ -569,7 +563,6 @@ const STYLE = `
 .cf-axis, .cf-label, .cf-value { font-size:9.5px; fill:var(--cf-muted); }
 .cf-chart { max-width:820px; }
 .cf-label { fill:var(--cf-ink); }
-.cf-band { fill:var(--cf-band); }
 .cf-line { fill:none; stroke:var(--cf-series); stroke-width:2; stroke-linejoin:round; }
 .cf-bar { fill:var(--cf-series); }
 .cf-bar-warn { fill:var(--cf-warn); }
@@ -603,9 +596,6 @@ g[data-tip]:hover .cf-bar, g[data-tip]:hover .cf-dot { filter:brightness(1.15); 
 .cf-ledger { border:1px solid var(--cf-line); border-radius:8px; padding:12px 14px; background:var(--cf-surface); position:sticky; top:12px; }
 .cf-ledger-title { font-weight:500; display:flex; flex-direction:column; margin-bottom:10px; }
 .cf-ledger-title span { color:var(--cf-muted); font-weight:400; font-size:12px; }
-.cf-range { position:relative; height:10px; background:var(--cf-raise); border-radius:5px; margin:6px 0 2px; }
-.cf-range span { position:absolute; top:0; bottom:0; background:var(--cf-band); border-radius:5px; }
-.cf-range i { position:absolute; top:-3px; width:3px; height:16px; background:var(--cf-series); border-radius:2px; transform:translateX(-50%); }
 .cf-range-labels { display:flex; justify-content:space-between; font-size:11px; color:var(--cf-muted); margin-bottom:8px; }
 .cf-range-labels b { color:var(--cf-ink); font-weight:500; }
 .cf-tip { position:fixed; pointer-events:none; background:var(--cf-ink); color:var(--cf-surface); font-size:12px; padding:5px 8px; border-radius:6px; max-width:320px; z-index:1000; opacity:0; transition:opacity .08s; }

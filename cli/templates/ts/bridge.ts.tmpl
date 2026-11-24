@@ -10,8 +10,8 @@ export class {{.Class}} extends Bridge {
    * inside the window that `items` no longer carries.
    */
   apply(items: Result[], settings: Record<string, unknown>, run: RunInfo): Record<string, number> {
-    const min = Number(settings.min_p10_gb ?? 0);
-    const kept = items.filter((item) => (item.value.p10 ?? 0) >= min);
+    const min = Number(settings.min_gb ?? 0);
+    const kept = items.filter((item) => (item.value.p50 ?? 0) >= min);
     for (const item of kept) console.log(`${settings.label}: ${item.entity.id} at ${item.target_at}`);
     return { passes: kept.length };
   }
