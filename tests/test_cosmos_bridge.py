@@ -123,6 +123,7 @@ def test_the_next_pass_and_the_next_24_hours(bridge):
         "PASSES": 2,
         "EXPECTED_GB_P10": 22.0,
         "EXPECTED_GB_P50": 30.0,
+        "AT_RISK": 0,
     }
     assert out["SWAP"] == module.NO_SWAP
 
@@ -488,13 +489,14 @@ def test_a_kind_no_run_has_brought_is_not_injected_as_a_forecast_of_nothing(brid
     forecast = module.Forecast()
     forecast.take(_resource("rain-fade-swap"), [swap(3, 10, 60)])
     forecast.publish(NOW)
-    assert [p for p, _ in injected] == ["SWAP", "RUN"]
+    # A swap run brings HELD too: what Constellation holds for a decision.
+    assert [p for p, _ in injected] == ["SWAP", "HELD", "RUN"]
     injected.clear()
     forecast.take(_resource("pass-yield"), [])
     forecast.publish(NOW)
     sent = dict(injected)
     assert sent["NEXT_PASS"] == module.NO_PASS and sent["NEXT_24H"]["PASSES"] == 0
-    assert set(sent) == {"NEXT_PASS", "NEXT_24H", "SWAP", "RUN"}
+    assert set(sent) == {"NEXT_PASS", "NEXT_24H", "SWAP", "HELD", "RUN"}
     # Kept and restored as not arrived.
     restored = module.Forecast()
     restored.restore(json.loads(json.dumps(forecast.saved())))
@@ -514,7 +516,8 @@ def tlm_items() -> list[tuple[str, str, int, str]]:
     for line in (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text().splitlines():
         words = line.split()
         if words[:1] == ["TELEMETRY"]:
-            packet = words[2]
+            # NEXT_PASS is written once, as the template NEXT_PASS_<NAME> repeats.
+            packet = "NEXT_PASS" if words[2] == "<%=" else words[2]
         elif words[:1] == ["APPEND_ITEM"]:
             rows.append((packet, words[1], int(words[2]), words[3]))
     return rows
@@ -793,7 +796,9 @@ def test_while_a_key_or_plan_holds_the_bridge_off_the_forecast_held_keeps_refres
     """The minutes left to a swap and the next pass move with the clock: a refused key or a hold
     of an hour never freezes them."""
     module, injected = bridge
-    monkeypatch.setattr(module, "resume", lambda _, f: setattr(f, "run", {"WORKFLOW": "w"}) or "")
+    monkeypatch.setattr(
+        module, "resume", lambda _, f, d=None: setattr(f, "run", {"WORKFLOW": "w"}) or ""
+    )
     monkeypatch.setattr(module, "REFRESH_S", -1)
     secrets.key = "good"
     _, slept = polled(
@@ -1205,7 +1210,7 @@ def test_a_run_reports_the_approved_swaps_it_shows_as_acted(bridge, monkeypatch)
     monkeypatch.setattr(module, "call", call)
     monkeypatch.setattr(module, "inject", lambda packet, values: None)
     monkeypatch.setattr(module, "publish_documents", lambda *a: None)
-    monkeypatch.setattr(module, "resume", lambda consumer, forecast: "")
+    monkeypatch.setattr(module, "resume", lambda consumer, forecast, delivered=None: "")
     monkeypatch.setattr(module, "keep", lambda *a: None)
     monkeypatch.setattr(module.time, "sleep", lambda s: next(sleeps))
     with pytest.raises(StopIteration):
@@ -1237,7 +1242,7 @@ def test_a_run_reports_each_approvals_outcome_acted_or_refused_past_its_deadline
     monkeypatch.setattr(module, "call", call)
     monkeypatch.setattr(module, "inject", lambda packet, values: None)
     monkeypatch.setattr(module, "publish_documents", lambda *a: None)
-    monkeypatch.setattr(module, "resume", lambda consumer, forecast: "")
+    monkeypatch.setattr(module, "resume", lambda consumer, forecast, delivered=None: "")
     monkeypatch.setattr(module, "keep", lambda *a: None)
     monkeypatch.setattr(module.time, "sleep", lambda s: next(sleeps))
     with pytest.raises(StopIteration):
@@ -1272,8 +1277,10 @@ def test_a_standing_approval_is_reported_acted_once_across_runs_and_kept_for_a_r
     monkeypatch.setattr(module, "call", call)
     monkeypatch.setattr(module, "inject", lambda packet, values: None)
     monkeypatch.setattr(module, "publish_documents", lambda *a: None)
-    monkeypatch.setattr(module, "resume", lambda consumer, forecast: "")
-    monkeypatch.setattr(module, "keep", lambda c, cur, forecast: kept.append(forecast.saved()))
+    monkeypatch.setattr(module, "resume", lambda consumer, forecast, delivered=None: "")
+    monkeypatch.setattr(
+        module, "keep", lambda c, cur, forecast, delivered=None: kept.append(forecast.saved())
+    )
     monkeypatch.setattr(module.time, "sleep", lambda s: next(sleeps))
     with pytest.raises(StopIteration):
         module.main()
@@ -1359,7 +1366,8 @@ def test_the_screen_shows_every_packet_and_only_items_the_packets_have():
     for line in (target / "cmd_tlm/tlm.txt").read_text().splitlines():
         words = line.split()
         if words[:1] == ["TELEMETRY"]:
-            packet = words[2]
+            # NEXT_PASS is written once, as the template NEXT_PASS_<NAME> repeats.
+            packet = "NEXT_PASS" if words[2] == "<%=" else words[2]
         elif words[:1] == ["APPEND_ITEM"]:
             items.add((packet, words[1]))
     shown = {
@@ -1373,16 +1381,16 @@ def test_the_screen_shows_every_packet_and_only_items_the_packets_have():
 
 @pytest.mark.parametrize(
     "packet, empty",
-    [("NEXT_PASS", "NO_PASS"), ("CAPACITY", "NO_CAPACITY"), ("MODCOD", "NO_MODCOD")],
+    [
+        ("NEXT_PASS", "NO_PASS"),
+        ("CAPACITY", "NO_CAPACITY"),
+        ("MODCOD", "NO_MODCOD"),
+        ("HELD", "NO_HELD"),
+    ],
 )
 def test_each_empty_packet_writes_every_item_of_its_packet(bridge, packet, empty):
     module, _ = bridge
-    tlm = (ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt").read_text()
-    block = tlm.split(f"TELEMETRY CONSTELLATION {packet} ", 1)[1].split("\nTELEMETRY ", 1)[0]
-    items = [
-        line.split()[1] for line in block.splitlines() if line.strip().startswith("APPEND_ITEM")
-    ]
-    assert list(getattr(module, empty)) == items
+    assert list(getattr(module, empty)) == [name for p, name, _, _ in tlm_items() if p == packet]
 
 
 def test_an_api_outage_is_said_once_and_the_forecast_held_keeps_refreshing(
@@ -1390,7 +1398,9 @@ def test_an_api_outage_is_said_once_and_the_forecast_held_keeps_refreshing(
 ):
     module, injected = bridge
     # A forecast is held from before.
-    monkeypatch.setattr(module, "resume", lambda _, f: setattr(f, "run", {"WORKFLOW": "w"}) or "")
+    monkeypatch.setattr(
+        module, "resume", lambda _, f, d=None: setattr(f, "run", {"WORKFLOW": "w"}) or ""
+    )
     monkeypatch.setattr(module, "REFRESH_S", -1)
     down = {"n": 0}
 
@@ -1448,3 +1458,376 @@ def test_a_first_start_whose_feed_has_one_run_never_says_there_is_none(
     stored: dict[str, bytes] = {}
     _, reported, _ = ran(monkeypatch, fed((1, [item(2, 10)])), stored)
     assert reported == ["run_1"] and "no run for" not in capsys.readouterr().out
+
+
+# Per-satellite packets, the contract minimum and HELD.
+
+TLM = ROOT / "bridges/cosmos/targets/CONSTELLATION/cmd_tlm/tlm.txt"
+
+
+def packet_items(text: str, header: str) -> list[str]:
+    """The APPEND_ITEM names of the packet whose TELEMETRY line starts with `header`."""
+    block = text.split(header, 1)[1].split("\nTELEMETRY ", 1)[0].split("<%- end", 1)[0]
+    return [line.split()[1] for line in block.splitlines() if line.strip().startswith("APPEND_ITEM")]
+
+
+def render(path: Path, **variables: str) -> str:
+    """`path` as COSMOS renders a plugin file: ERB, trim mode "-", the plugin's variables."""
+    script = (
+        "b = binding; ARGV.each_slice(2) { |k, v| b.local_variable_set(k.to_sym, v) };"
+        " print ERB.new(File.read(ENV['FILE']), trim_mode: '-').result(b)"
+    )
+    args = [x for kv in variables.items() for x in kv]
+    out = subprocess.run(
+        ["ruby", "-rerb", "-e", script, *args],
+        env={**os.environ, "FILE": str(path)},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return out.stdout
+
+
+def test_every_pass_value_is_an_item_of_the_next_pass_packets(bridge):
+    module, _ = bridge
+    text = TLM.read_text()
+    items = packet_items(text, "TELEMETRY CONSTELLATION <%= packet %> ")
+    assert list(module.pass_values(item(2, 10), None)) == items
+    assert list(module.NO_PASS) == items
+    assert list(module.NO_HELD) == packet_items(text, "TELEMETRY CONSTELLATION HELD ")
+    out = module.packets([item(2, 10)], [], NOW)
+    assert list(out["NEXT_24H"]) == packet_items(text, "TELEMETRY CONSTELLATION NEXT_24H ")
+
+
+@pytest.mark.skipif(shutil.which("ruby") is None, reason="needs ruby to render the ERB")
+def test_tlm_has_a_next_pass_packet_per_mapped_satellite_named_as_the_bridge_names_it(bridge):
+    module, _ = bridge
+    rendered = render(TLM, satellites="sat-1=kestrel-1 sat-2=K2 broken")
+    names = [line.split()[2] for line in rendered.splitlines() if line.startswith("TELEMETRY ")]
+    own = [f"NEXT_PASS_{module.packet_name(n)}" for n in ("kestrel-1", "K2")]
+    assert names[:3] == ["NEXT_PASS", *own]
+    assert "<%" not in rendered
+    assert render(TLM, satellites="").count("TELEMETRY CONSTELLATION NEXT_PASS") == 1
+
+
+def test_at_risk_is_written_as_a_state_the_packet_names(bridge):
+    module, _ = bridge
+    states = [line.split()[1] for line in TLM.read_text().splitlines() if line.strip().startswith("STATE ")]
+    assert {"NO", "YES"} <= set(states)
+    assert module.pass_values(item(2, 3), None)["AT_RISK"] in states
+    assert module.NO_PASS["AT_RISK"] in states
+
+
+def test_a_pass_is_at_risk_as_the_platforms_passes_tab_says(bridge):
+    """planView isAtRisk: expected (p50) to deliver nothing or under the contract minimum, a value
+    its pricing left unfilled, or flagged by a workflow."""
+    module, _ = bridge
+    passes = [item(2, 5), item(5, 10), item(8, 4)]
+    out = module.packets(passes, [], NOW, minimum=6.0)
+    assert out["NEXT_PASS"]["AT_RISK"] == "YES" and out["NEXT_PASS"]["CONTRACT_MIN_GB"] == 6.0
+    assert out["NEXT_24H"]["AT_RISK"] == 2
+    # With no minimum set, none of these is at risk: each is expected to deliver something.
+    out = module.packets(passes, [], NOW)
+    assert out["NEXT_PASS"]["AT_RISK"] == "NO" and out["NEXT_24H"]["AT_RISK"] == 0
+    assert out["NEXT_PASS"]["CONTRACT_MIN_GB"] == 0.0
+    nothing = item(2, 0)
+    unfilled = item(2, 10)
+    unfilled["explain"] = {**unfilled["explain"], "weather": {"value": None, "source": "unavailable:x"}}
+    flagged = item(2, 10, severity="warning")
+    for risky in (nothing, unfilled, flagged):
+        assert module.at_risk(risky, None), risky
+    assert not module.at_risk(item(2, 10), 9.9)
+
+def test_each_mapped_satellite_gets_its_own_next_pass_and_none_says_so(bridge):
+    module, _ = bridge
+    sat2 = item(1, 10)
+    sat2["entity"] = {**sat2["entity"], "satellite_id": "sat-2", "id": "p_sat2"}
+    out = module.packets(
+        [item(3, 10), sat2], [], NOW, satellites={"sat-1": "kestrel-1", "sat-9": "K9"}
+    )
+    assert out["NEXT_PASS"]["SATELLITE"] == "sat-2"
+    assert out["NEXT_PASS_KESTREL_1"]["SATELLITE"] == "sat-1"
+    assert out["NEXT_PASS_KESTREL_1"]["AOS"] == "2026-11-06 15:00Z"
+    assert out["NEXT_PASS_K9"] == {**module.NO_PASS, "SATELLITE": "sat-9"}
+
+
+def test_satellites_and_outcomes_variables_read_as_pairs(bridge, capsys):
+    module, _ = bridge
+    assert module.pairs("sat-1=KESTREL1  sat-2=K2") == {"sat-1": "KESTREL1", "sat-2": "K2"}
+    assert module.pairs("sat-1 =x") == {}
+    assert "left out" in capsys.readouterr().err
+
+
+def action(minutes: int, status: str = "pending", item_id: str = "pass_1") -> dict:
+    """A held action as GET /predictions/actions lists it."""
+    deadline = (NOW + timedelta(minutes=minutes)).isoformat()
+    return {
+        "run_id": "run_rfs",
+        "item_id": item_id,
+        "entity": {"type": "pass", "id": item_id, "satellite_id": "sat-1", "antenna_id": "ant-1"},
+        "target_at": (NOW + timedelta(minutes=minutes + 15)).isoformat(),
+        "action": {
+            "verb": "swap",
+            "mode": "approve",
+            "to": "pass_b",
+            "to_antenna_id": "ant-2",
+            "gain_gb": 1.5,
+            "deadline": deadline,
+        },
+        "expires_at": deadline,
+        "status": status,
+        "workflow": "rain-fade-swap",
+    }
+
+
+def test_held_shows_the_soonest_swap_waiting_on_a_decision_with_its_ids(bridge):
+    module, _ = bridge
+    held = [
+        action(90, item_id="later"),
+        action(40, item_id="soonest"),
+        action(-5, item_id="expired"),
+        action(10, status="approved", item_id="decided"),
+    ]
+    out = module.packets([], [], NOW, waiting=held)
+    assert out["HELD"]["OPEN"] == 2
+    assert (out["HELD"]["RUN_ID"], out["HELD"]["ITEM_ID"]) == ("run_rfs", "soonest")
+    assert out["HELD"]["MINUTES_TO_DEADLINE"] == 40.0 and out["HELD"]["BACKUP_ANTENNA"] == "ant-2"
+    assert module.packets([], [], NOW, waiting=[])["HELD"] == module.NO_HELD
+    # No swap workflow delivers here: no HELD packet at all.
+    assert "HELD" not in module.packets([], [], NOW)
+
+
+def http_error(status: int, body: dict) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError(
+        "https://api.test", status, "", {}, io.BytesIO(json.dumps(body).encode())
+    )  # type: ignore[arg-type]
+
+
+def test_held_is_read_per_swap_workflow_and_a_failed_read_keeps_the_last(bridge, monkeypatch):
+    module, _ = bridge
+    forecast = module.Forecast()
+    forecast.take(_resource("rain-fade-swap"), [held(3, 10)])
+    asked, answers = [], iter([{"actions": [action(30)]}, http_error(500, {})])
+
+    def call(method, path, body=None):
+        asked.append(path)
+        answer = next(answers)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(module, "call", call)
+    said: set[str] = set()
+    module.read_waiting(forecast, said)
+    assert asked == ["/predictions/actions?workflow=w"]
+    assert [a["item_id"] for a in forecast.waiting] == ["pass_1"]
+    module.read_waiting(forecast, said)
+    assert [a["item_id"] for a in forecast.waiting] == ["pass_1"] and len(said) == 1
+
+
+def test_the_contract_minimum_is_read_and_unset_reads_as_none(bridge, monkeypatch):
+    module, _ = bridge
+    forecast = module.Forecast()
+    answers = iter([{"min_gb": 2.5}, {"min_gb": None}, http_error(403, {"error": "x"}), http_error(404, {})])
+
+    def call(method, path, body=None):
+        assert path == "/predictions/contract-minimum"
+        answer = next(answers)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(module, "call", call)
+    said: set[str] = set()
+    module.read_minimum(forecast, said)
+    assert forecast.minimum == 2.5
+    module.read_minimum(forecast, said)
+    assert forecast.minimum is None
+    forecast.minimum = 1.0
+    module.read_minimum(forecast, said)  # refused: the last one stands
+    assert forecast.minimum == 1.0 and len(said) == 1
+    module.read_minimum(forecast, said)  # not served here
+    assert forecast.minimum is None
+
+
+# Outcomes: what each pass delivered, from the interface's received bytes.
+
+
+def watched(module, *passes: dict) -> object:
+    outcomes = module.Delivered({"sat-1": "SAT1_INT"})
+    outcomes.follow(list(passes), NOW - timedelta(hours=1))
+    return outcomes
+
+
+def reading(outcomes, at: datetime, count: int) -> None:
+    outcomes.read(at.timestamp(), lambda name: count)
+
+
+def test_a_pass_that_brought_bytes_is_sent_as_a_contact_record(bridge):
+    module, _ = bridge
+    p = item(-1, 10)  # AOS an hour ago, LOS 8 minutes later
+    aos, los = NOW - timedelta(hours=1), NOW - timedelta(minutes=52)
+    outcomes = watched(module, p)
+    reading(outcomes, aos - timedelta(seconds=10), 1000)
+    reading(outcomes, los + timedelta(seconds=5), 4000)
+    records, dropped = outcomes.due(NOW)
+    assert dropped == {}
+    ((pid, record),) = records
+    assert pid == "p-1"
+    assert record == {
+        "time": p["target_at"],
+        "ground_station_id": "gs",
+        "ground_antenna_id": "ant-1",
+        "satellite_id": "sat-1",
+        "contact_id": "p-1",
+        "fields": {"bytes_delivered": 3000, "contact_status": "ok", "los_utc": p["until"]},
+    }
+    outcomes.mark_sent([pid], NOW.timestamp())
+    outcomes.follow([p], NOW)
+    assert outcomes.due(NOW) == ([], {})
+
+
+def test_a_pass_it_cannot_measure_is_never_sent(bridge):
+    module, _ = bridge
+    aos, los = NOW - timedelta(hours=1), NOW - timedelta(minutes=52)
+    quiet = watched(module, item(-1, 10))
+    reading(quiet, aos - timedelta(seconds=10), 1000)
+    reading(quiet, los + timedelta(seconds=5), 1000)
+    assert "no bytes arrived" in quiet.due(NOW)[1]["p-1"]
+
+    unseen = watched(module, item(-1, 10))
+    reading(unseen, los + timedelta(seconds=5), 9000)
+    assert "not reading" in unseen.due(NOW)[1]["p-1"]
+
+    reset = watched(module, item(-1, 10))
+    reading(reset, aos - timedelta(seconds=10), 9000)
+    reading(reset, los + timedelta(seconds=5), 10)
+    assert "went back" in reset.due(NOW)[1]["p-1"]
+
+    other = item(-0.95, 10)
+    other["entity"] = {**other["entity"], "id": "p_other", "antenna_id": "ant-2"}
+    both = watched(module, item(-1, 10), other)
+    reading(both, aos - timedelta(seconds=10), 1)
+    reading(both, NOW, 5)
+    records, dropped = both.due(NOW)
+    assert records == [] and set(dropped) == {"p-1", "p_other"}
+
+    # A pass still flying, or just ended, waits.
+    soon = watched(module, item(-0.1, 10))
+    assert soon.due(NOW) == ([], {})
+
+
+def test_a_pass_forecast_again_replaces_the_one_watched_rather_than_overlap_it(bridge):
+    """A newer run can forecast the same pass under a new id or a moved AOS; the old one gives
+    way, or the two would read as two passes at once and neither be sent."""
+    module, _ = bridge
+    first = item(-1, 10)
+    again = item(-0.98, 10)  # about a minute later, a new id
+    outcomes = module.Delivered({"sat-1": "SAT1_INT"})
+    outcomes.follow([first], NOW - timedelta(hours=2))
+    outcomes.follow([again], NOW - timedelta(hours=2))
+    assert list(outcomes.watch) == [again["entity"]["id"]]
+    aos = datetime.fromisoformat(again["target_at"])
+    los = datetime.fromisoformat(again["until"])
+    reading(outcomes, aos - timedelta(seconds=10), 100)
+    reading(outcomes, los + timedelta(seconds=5), 900)
+    ((pid, record),) = outcomes.due(NOW)[0]
+    assert pid == again["entity"]["id"] and record["fields"]["bytes_delivered"] == 800
+    # One that ended and is not in the newer run, with nothing overlapping it, is still measured.
+    other = item(-3, 10)
+    outcomes.follow([other], NOW - timedelta(hours=4))
+    outcomes.follow([item(5, 10)], NOW)
+    assert other["entity"]["id"] in outcomes.watch
+
+
+def test_outcomes_are_posted_and_wait_on_a_key_refused_telemetry_write(bridge, monkeypatch):
+    module, _ = bridge
+    aos = NOW - timedelta(hours=1)
+    forecast = module.Forecast()
+    forecast.passes = [item(-1, 10)]
+    outcomes = module.Delivered({"sat-1": "SAT1_INT"})
+    outcomes.readings["SAT1_INT"] = [[(aos - timedelta(seconds=10)).timestamp(), 0]]
+    monkeypatch.setattr(module, "datetime", type("D", (datetime,), {"now": staticmethod(lambda tz=None: NOW)}))
+    monkeypatch.setattr(module, "rxbytes", lambda name: 5_000_000)
+    posts = []
+    answers = iter([http_error(403, {"error": "insufficient_scope", "required": "telemetry:write"}), {"accepted_count": 1}])
+
+    def call(method, path, body=None):
+        posts.append((method, path, body))
+        answer = next(answers)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(module, "call", call)
+    said: set[str] = set()
+    module.measure_delivered(outcomes, forecast, "read-only", said)
+    assert outcomes.refused == "read-only" and any("telemetry:write" in s for s in said)
+    module.measure_delivered(outcomes, forecast, "read-only", said)
+    assert len(posts) == 1  # the refused key is not asked again
+    module.measure_delivered(outcomes, forecast, "with-telemetry-write", said)
+    assert len(posts) == 2 and posts[1][:2] == ("POST", "/telemetry")
+    assert posts[1][2][0]["fields"]["bytes_delivered"] == 5_000_000
+    assert "p-1" in outcomes.sent and outcomes.watch == {}
+
+
+# Timeline: reserve activities for the forecast passes.
+
+
+def calendar(monkeypatch, have: list[dict], enterprise: bool = True) -> list[tuple]:
+    """openc3.script's calendar functions over `have`, recording each write, on a COSMOS that is
+    Enterprise or Core as its /openc3-api/info says."""
+    calls: list[tuple] = []
+    script = types.ModuleType("openc3.script")
+    info = types.SimpleNamespace(status_code=200, json=lambda: {"enterprise": enterprise})
+    script.API_SERVER = types.SimpleNamespace(  # type: ignore[attr-defined]
+        request=lambda method, path: calls.append(("info",)) or info
+    )
+    script.list_timelines = lambda: [{"name": "OTHER"}]  # type: ignore[attr-defined]
+    script.create_timeline = lambda name, color=None: calls.append(("timeline", name))  # type: ignore[attr-defined]
+    script.get_timeline_activities = lambda name, start=None, stop=None: have  # type: ignore[attr-defined]
+    script.delete_timeline_activity = lambda name, start, uuid: calls.append(("delete", uuid))  # type: ignore[attr-defined]
+    script.create_timeline_activity = lambda name, kind, start, stop, data: calls.append(  # type: ignore[attr-defined]
+        ("create", kind, data["pass_id"], int(start.timestamp()))
+    )
+    package = types.ModuleType("openc3")
+    package.script = script  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "openc3", package)
+    monkeypatch.setitem(sys.modules, "openc3.script", script)
+    return calls
+
+
+def test_the_timeline_holds_the_forecast_passes_and_moves_only_its_own(bridge, monkeypatch):
+    module, _ = bridge
+    kept, moved, new = item(2, 10), item(5, 10), item(9, 10)
+    at = lambda p: int(datetime.fromisoformat(p["target_at"]).timestamp())  # noqa: E731
+    until = lambda p: int(datetime.fromisoformat(p["until"]).timestamp())  # noqa: E731
+    ours = lambda p, uuid, start=None: {  # noqa: E731
+        "start": start or at(p),
+        "stop": until(p),
+        "uuid": uuid,
+        "data": {"source": "constellation", "pass_id": p["entity"]["id"]},
+    }
+    have = [
+        ours(kept, "u-kept"),
+        ours(moved, "u-moved", start=at(moved) - 600),
+        {"start": at(kept), "stop": until(kept), "uuid": "u-theirs", "data": {"note": "ops"}},
+        {**ours(item(4, 10), "u-gone"), "data": {"source": "constellation", "pass_id": "p_gone"}},
+    ]
+    calls = calendar(monkeypatch, have)
+    added, removed = module.Timeline().sync([kept, moved, new, item(60, 10)], NOW)
+    assert ("timeline", "CONSTELLATION") in calls
+    assert sorted(c[1] for c in calls if c[0] == "delete") == ["u-gone", "u-moved"]
+    assert sorted(c[2] for c in calls if c[0] == "create") == ["p5", "p9"]
+    assert all(c[1] == "reserve" for c in calls if c[0] == "create")
+    assert (added, removed) == (2, 2)
+
+
+def test_on_cosmos_core_the_timeline_is_left_alone(bridge, monkeypatch):
+    """Core makes a timeline through its API but runs no timeline worker: COSMOS would start the
+    Enterprise worker every few seconds. The bridge asks first and makes nothing."""
+    module, _ = bridge
+    calls = calendar(monkeypatch, [], enterprise=False)
+    with pytest.raises(module.CoreHasNoTimelines):
+        module.Timeline().sync([item(2, 10)], NOW)
+    assert calls == [("info",)]

@@ -1,6 +1,7 @@
 """The Constellation API and Lattice, over HTTP, for the install tests (install.yml): one
 pass-yield run in the feed for each of the yamcs-bridge, openmct, lattice-bridge and cosmos-bridge
-connections, the topology config, and the Lattice routes the bridge calls. CORS is the API's: any
+connections, the topology config, the workspace's contract minimum (12 GB, over the run's
+expected 10, so its pass is at risk), and the Lattice routes the bridge calls. CORS is the API's: any
 origin may GET /predictions/feed without credentials, as the Open MCT plugin does from a browser,
 and every other route answers only the platform's origin. A feed query the API's OpenAPI refuses
 is a 422. GET /_calls lists every call made, for the checks.
@@ -24,6 +25,7 @@ CONNECTIONS = {
     "lattice-bridge": {"system": "lattice"},
     "cosmos-bridge": {"system": "cosmos"},
 }
+CONTRACT_MINIMUM = {"min_gb": 12.0, "by": "stub", "at": "2026-11-01T00:00:00+00:00"}
 DOCUMENT = {
     "ground_stations": {
         "gs-1": {
@@ -150,6 +152,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, ResultsApi(mine).call("GET", self.path))
             except Unprocessable as exc:
                 return self.send(422, {"detail": [{"msg": str(exc)}]})
+        if url.path == "/predictions/contract-minimum":
+            return self.send(200, CONTRACT_MINIMUM)
         if url.path == "/topology/config":
             return self.send(200, {"document": DOCUMENT})
         if url.path.startswith("/api/v1/objects"):
