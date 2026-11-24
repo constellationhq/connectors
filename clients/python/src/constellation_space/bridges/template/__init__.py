@@ -21,7 +21,7 @@ here: https://platform.constellation.space/docs/connectors/custom
 Approved actions already carried out are kept beside the cursor (CURSOR_FILE plus ".acted"), so
 an approval Constellation sends again, in a later run or after a restart, is never carried out
 twice (constellation_space.results.Acted); each is kept a week past its action and past acting on it. An
-action past its cancel deadline is never carried out. A bridge with no cursor starts at the newest
+action past its decide-by time is never carried out. A bridge with no cursor starts at the newest
 run with something for it, never the older history and the decisions in it; BACKFILL=1 applies the
 whole history the feed still holds instead. When CONSTELLATION_CONFORMANCE_LOG names a file, each
 item applied is appended to it as one JSON line, {"item_id", "state", "acted", "verb"}, for
@@ -82,8 +82,8 @@ class Bridge:
 
         An item may carry an action (a rain-fade swap) in one of four states, read with
         constellation_space.results.action_state(item). "advice": a suggestion, never an instruction.
-        "approved": a person approved it in Constellation, an instruction for your system to
-        carry out, which act() receives. "pending": held for approval; the action is not sent
+        "approved": a person approved it in Constellation, advice for your system or team to
+        act on, which act() receives. "pending": held for approval; the action is not sent
         yet. "rejected": the original pass stands. An item in any state is never a plain
         forecast pass.
 
@@ -98,13 +98,14 @@ class Bridge:
         raise NotImplementedError("write the items into your system here")
 
     def act(self, item: Item, settings: dict[str, Any], run: Run) -> bool:
-        """Carry out an approved action (cancel the pass, book the backup); return True once
-        done. Called after apply(), once per approval, never for any other state, and never again
-        for the same approval (its decision_id; without one, its verb, entity and target) in a
-        later run or after a restart. A new approval of the same action is a new decision.
-        Raise when your system is failing: the run is retried, without acting again on what was
-        done.
-        The default carries out nothing."""
+        """Handle an approved action; return True once done. A swap is advice: add a backup pass
+        and keep this one, or move to the backup; your own system books and releases passes,
+        Constellation books and cancels nothing. Called after apply(), once per approval, never
+        for any other state, and never again for the same approval (its decision_id; without
+        one, its verb, entity and target) in a later run or after a restart. A new approval of
+        the same action is a new decision. Raise when your system is failing: the run is
+        retried, without acting again on what was done.
+        The default does nothing."""
         return False
 
     def load_cursor(self) -> str:
@@ -204,10 +205,10 @@ class Bridge:
             self._keep(lambda: self.save_cursor(self.cursor))
 
     def _act(self, item: Item, settings: dict[str, Any], run: Run) -> bool:
-        """Carries out an approved action unless it was carried out before or its cancel deadline
+        """Carries out an approved action unless it was carried out before or its decide-by time
         has passed; says whether it did."""
         if results.past_deadline(item):
-            self.log(f"not acting on {item['entity']['id']}: its cancel deadline has passed")
+            self.log(f"not acting on {item['entity']['id']}: its decide-by time has passed")
             return False
         if item in self._acted or not self.act(item, settings, run):
             return False

@@ -800,7 +800,7 @@ def test_a_standing_approval_is_announced_once_and_a_new_approval_of_it_again(br
     assert event["message"].startswith("Approved in Constellation: ")
 
 
-def test_an_approved_swap_past_its_cancel_deadline_is_never_announced(bridge, monkeypatch):
+def test_an_approved_swap_past_its_decide_by_time_is_never_announced(bridge, monkeypatch):
     module, yamcs = bridge
     monkeypatch.setattr(results, "now", lambda: datetime(2026, 11, 6, tzinfo=UTC))
     module.deliver(swap_run([APPROVED]), {})

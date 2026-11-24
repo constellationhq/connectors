@@ -9,7 +9,7 @@ export type ActionState = "advice" | "approved" | "pending" | "rejected" | null;
 
 /**
  * What an item's action is to a bridge. "advice": suggested, never an instruction. "approved": a
- * person approved it, an instruction to carry out. "pending": held for approval. "rejected": the
+ * person approved it, advice to act on. "pending": held for approval. "rejected": the
  * original stands. null: no action. Any status other than approved or rejected counts as held,
  * so an item a bridge cannot read is never taken for a plain forecast.
  */

@@ -1733,7 +1733,7 @@ def test_held_swaps_survive_a_restart_and_an_older_state_restores_with_none(brid
     assert older.held == {}
 
 
-def test_an_approved_swap_past_its_cancel_deadline_no_longer_decides_the_task(bridge):
+def test_an_approved_swap_past_its_decide_by_time_no_longer_decides_the_task(bridge):
     module, _ = bridge
     forecast = module.Forecast()
     healthy = item(12.4)

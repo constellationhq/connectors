@@ -99,7 +99,7 @@ func TestAnApprovalIsForgottenAWeekAfterItsActionIsOverAndALiveOneKept(t *testin
 	}
 }
 
-func TestTheLatestOfThePassEndAndTheCancelDeadlineSetsWhenAKeyIsForgotten(t *testing.T) {
+func TestTheLatestOfThePassEndAndTheDecideByTimeSetsWhenAKeyIsForgotten(t *testing.T) {
 	late := approval("d1", "2099")
 	late["action"].(map[string]any)["deadline"] = "2099-02-01T00:00:00Z"
 	if got := actedUntil(late); got != "2099-02-08T00:00:00Z" {
@@ -110,7 +110,7 @@ func TestTheLatestOfThePassEndAndTheCancelDeadlineSetsWhenAKeyIsForgotten(t *tes
 	}
 }
 
-func TestAnApprovalPastItsCancelDeadlineIsNeverActedOn(t *testing.T) {
+func TestAnApprovalPastItsDecideByTimeIsNeverActedOn(t *testing.T) {
 	b, acted := actsOn(t.TempDir())
 	if done, err := b.act(approval("d1", "2020"), nil, Run{}); done || err != nil || len(*acted) != 0 {
 		t.Fatalf("acted on a closed action: %v %v %d", done, err, len(*acted))
