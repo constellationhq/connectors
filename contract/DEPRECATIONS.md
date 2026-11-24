@@ -57,5 +57,6 @@ An item is named as the check names it:
 | `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/radio_id` | 2.0.0 | the same in MCP tool `send_telemetry` |
 | `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/satellite_id` | 2.0.0 | the same in MCP tool `send_telemetry` |
 | `field mcp-tools.json/send_telemetry_v2/inputSchema/properties/records/items/properties/time` | 2.0.0 | the same in MCP tool `send_telemetry` |
+| `field workflow-result.schema.json/properties/action/properties/gain_gb_p10` | 3.0.0 | `gain_gb`, the swap's gain over doing nothing at the p50; until then `gain_gb_p10` is that gain at the p10 |
 
 The check sees tool inputs, not responses, so this change is noted here: MCP tool `get_topology` now returns GET /topology's `{config, state, declined}` object where it returned /v2/topology's bare list.

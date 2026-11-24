@@ -1,6 +1,6 @@
 {
   "approve_action": {
-    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as an instruction to carry out (a swap can cancel a booked pass) and cannot be rejected afterwards. The approval stands for the same action on the workflow's later runs. Needs the Operator + Act plan (403 plan_required below it), the act:approve scope and a live key.",
+    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as approved advice, and cannot be rejected afterwards. A swap advises adding a backup pass or moving to it (action add or move); Constellation books and cancels nothing, the operator's systems decide what to do with it. An action on the demo fleet is recorded but sent nowhere: feed_cursor is null and held_as_demo true. The approval stands for the same action on the workflow's later runs. Needs the Operator + Act plan (403 plan_required below it), the act:approve scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -21,6 +21,42 @@
   "create_scenario": {
     "description": "Create a scenario overlay: antennas taken down, and extra attenuation in dB per antenna. Returns a scenario_id for run_workflow. Requires the config:write scope.",
     "inputSchema": {
+      "$defs": {
+        "TimedFade": {
+          "additionalProperties": false,
+          "description": "Rain over one antenna from from_utc to to_utc, as lanes.Fade prices it.",
+          "properties": {
+            "from_utc": {
+              "format": "date-time",
+              "title": "From Utc",
+              "type": "string"
+            },
+            "ramp_s": {
+              "default": 0.0,
+              "minimum": 0,
+              "title": "Ramp S",
+              "type": "number"
+            },
+            "to_utc": {
+              "format": "date-time",
+              "title": "To Utc",
+              "type": "string"
+            },
+            "zenith_db_12ghz": {
+              "minimum": 0,
+              "title": "Zenith Db 12Ghz",
+              "type": "number"
+            }
+          },
+          "required": [
+            "from_utc",
+            "to_utc",
+            "zenith_db_12ghz"
+          ],
+          "title": "TimedFade",
+          "type": "object"
+        }
+      },
       "additionalProperties": false,
       "properties": {
         "add_antennas": {
@@ -52,12 +88,28 @@
           "title": "Antennas Down",
           "type": "array"
         },
+        "demo": {
+          "default": false,
+          "title": "Demo",
+          "type": "boolean"
+        },
         "extra_attenuation_db": {
           "additionalProperties": {
             "type": "number"
           },
           "maxProperties": 1000,
           "title": "Extra Attenuation Db",
+          "type": "object"
+        },
+        "fades": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/TimedFade"
+            },
+            "type": "array"
+          },
+          "maxProperties": 1000,
+          "title": "Fades",
           "type": "object"
         },
         "name": {
@@ -408,7 +460,7 @@
     }
   },
   "list_actions": {
-    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected or expired, with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
+    "description": "The actions a workflow's current run holds for approval (swap advice, a reroute), each pending, approved, rejected, expired or unavailable (its offer's ground network link was deleted), with the deadline to decide by, its action_id and, once decided, its decision_id; once a bridge reports on the decision, delivered_at, outcome (acted or refused), outcome_at and reason. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -435,7 +487,7 @@
     }
   },
   "load_demo_fleet": {
-    "description": "Load a ready-made demo fleet into the caller's account, so the other tools have data: 5 ground stations with 7 antennas, 5 sun-synchronous Earth observation satellites on X and Ka band and 1 geostationary one (GOES 19) on L band (ids norad-<NORAD id>) in the network config, and the simulated link telemetry of every pass in the last two hours at a 5 second cadence (es_n0_db, elevation_deg, range_m, frequency_ghz and the rfi noise channel: system_noise_temp_k, noise_diode_on and a contact_id per pass), from the live orbit catalog. The call merges the demo stations, antennas and satellites, with their RF terms, into the caller's network config with PATCH /topology/config, or only the ones it lacks when it already holds the demo (as on a reload), so no tenant entity is overwritten. A network config of the caller's own, holding any station, antenna or satellite and none of the demo, is refused (status 409, network_config_exists) and nothing is written: the demo is simulated and never mixes with a real fleet. Only the demo's own links get telemetry. A key without config:write fails the call, and the error says so. Mission names are real; the telemetry is simulated and implies no access to those missions. The SNR is synthetic: a planted offset per link (a known answer for calibration, not a measured loss), plus a slow wander, noise and a planted evening rain cell over the Singapore antenna. It has gaps a real feed has: none before a pass's modem locks, none while Troll is in its daily 06:00 to 09:00 UTC maintenance, and a modem dropout on about one pass in five. Each link's es_n0_db also drops by the rain attenuation its ground station stored for the last 30 minutes, scaled to the link's elevation, where that is more than the planted rain. Older records are not faded, nor is a link with no stored terms; rain_note counts those links, or says the stored terms could not be read. The data ends at the present and does not advance; calling again rewrites the same points, so it is safe to repeat. The low-orbit demo satellites' links are up only during their passes: ask snr with get_predictions and at, at a time in a pass (get_passes lists them). link_ids answers only while a pass is under way, right after this call. Requires the telemetry:write scope.",
+    "description": "Load a ready-made demo fleet into the caller's account, so the other tools have data: 5 ground stations with 7 antennas, 5 sun-synchronous Earth observation satellites on X and Ka band and 1 geostationary one (GOES 19) on L band (ids norad-<NORAD id>) in the network config, and the simulated link telemetry of every pass in the last two hours at a 5 second cadence (es_n0_db, elevation_deg, range_m, frequency_ghz and the rfi noise channel: system_noise_temp_k, noise_diode_on and a contact_id per pass), from the live orbit catalog. The call merges the demo stations, antennas and satellites, with their RF terms, into the caller's network config with PATCH /topology/config, or only the ones it lacks when it already holds the demo (as on a reload), so no tenant entity is overwritten. A network config of the caller's own takes the demo beside it, marked demo: it never counts toward the plan, and a demo antenna never pairs with a satellite of the caller's own or the other way round. One that uses a demo id for an entity of its own is refused (status 409, demo_ids_taken, with the ids) and nothing is written. Only the demo's own links get telemetry. A key without config:write fails the call, and the error says so. Mission names are real; the telemetry is simulated and implies no access to those missions. The SNR is synthetic: a planted offset per link (a known answer for calibration, not a measured loss), plus a slow wander and noise. It has gaps a real feed has: none before a pass's modem locks, none while Troll is in its daily 06:00 to 09:00 UTC maintenance, and a modem dropout on about one pass in five. Each link's es_n0_db also drops by the rain attenuation its ground station stored for the last 30 minutes, scaled to the link's elevation. Older records are not faded, nor is a link with no stored terms; rain_note counts those links, or says the stored terms could not be read. The data ends at the present and does not advance; calling again rewrites the same points, so it is safe to repeat. The low-orbit demo satellites' links are up only during their passes: ask snr with get_predictions and at, at a time in a pass (get_passes lists them). link_ids answers only while a pass is under way, right after this call. The call also saves the demo workflows pass-yield and rain-fade-swap, marked demo, under any of those slugs the account has not used, and starts a run of each over the next 48 hours, as it does again on a later call once the newest run ends within 24 hours. It saves the scenario \"Storm over Singapore tonight\" (scenario_id scn_demo-storm-singapore, demo: true) again on every call: a rain cell over the Singapore Ka antenna for the next 17:00 to 20:00 UTC window. The demo's forecasts carry real weather only; run a workflow with that scenario_id to see the storm. POST /topology/demo-fleet does exactly the same. The telemetry needs the telemetry:write scope: without it the network config, the workflows and the scenario are still written and the call is an error that says the telemetry was refused.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {},
@@ -458,7 +510,7 @@
     }
   },
   "put_workflow": {
-    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. Requires the workflows:write or config:write scope and a live key.",
+    "description": "Save a workflow under a slug as a new version: a name and a graph of nodes ({id, kind, ref, params, position}) and edges ({id, from: {node, port}, to: {node, port}}). Kinds: input (passes or links: step_s, satellite_ids, antenna_ids), lane (snr, weather; demand, rfi and ssa run only once a model serves them), transform (sinr, capacity, success, expected_gb, sum_by, modcod_schedule, swap, ledger, lock_loss), condition (threshold: column, quantile, op, value; ports true and false), output (predictions, exactly one; feed; destination). Start from a template's graph (list_workflows with templates true). A graph with issues is refused with each one. A slug whose workflow was deleted is refused (404 unknown_workflow) unless create is true, which starts a new workflow under it with none of the deleted one's runs or decisions. Requires the workflows:write or config:write scope and a live key.",
     "inputSchema": {
       "$defs": {
         "Edge": {
@@ -595,6 +647,10 @@
       },
       "additionalProperties": false,
       "properties": {
+        "create": {
+          "description": "Start a new workflow under a slug whose workflow was deleted; not needed for a slug never used.",
+          "type": "boolean"
+        },
         "demo": {
           "default": false,
           "title": "Demo",
@@ -645,6 +701,164 @@
   "run_workflow": {
     "description": "Start a run of a saved workflow over a UTC window (from and to) or at one time (at), optionally against a scenario_id. Returns a run_id for get_run; the run queues and runs in the background. Every time carries a UTC offset. deliver false is a test run: it prices and stores its items and sends nothing, and a run against a scenario is always one. A run that delivers needs the Operator plan or above; a plan without it is refused with 403 plan_required. A run computes at most 4,000,000 link steps (links times steps): more is refused with 422 too_many_link_steps and a suggested_step_s that fits. Requires the workflows:write scope and a live key.",
     "inputSchema": {
+      "$defs": {
+        "Edge": {
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/Port"
+            },
+            "id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Id",
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/$defs/Port"
+            }
+          },
+          "required": [
+            "id",
+            "from",
+            "to"
+          ],
+          "title": "Edge",
+          "type": "object"
+        },
+        "Graph": {
+          "additionalProperties": false,
+          "properties": {
+            "edges": {
+              "items": {
+                "$ref": "#/$defs/Edge"
+              },
+              "maxItems": 400,
+              "title": "Edges",
+              "type": "array"
+            },
+            "nodes": {
+              "items": {
+                "$ref": "#/$defs/Node"
+              },
+              "maxItems": 200,
+              "title": "Nodes",
+              "type": "array"
+            }
+          },
+          "required": [
+            "nodes"
+          ],
+          "title": "Graph",
+          "type": "object"
+        },
+        "Node": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "input",
+                "lane",
+                "transform",
+                "condition",
+                "output"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": true,
+              "title": "Params",
+              "type": "object"
+            },
+            "position": {
+              "$ref": "#/$defs/Position"
+            },
+            "ref": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "ref"
+          ],
+          "title": "Node",
+          "type": "object"
+        },
+        "Port": {
+          "additionalProperties": false,
+          "properties": {
+            "node": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Node",
+              "type": "string"
+            },
+            "port": {
+              "default": "rows",
+              "title": "Port",
+              "type": "string"
+            }
+          },
+          "required": [
+            "node"
+          ],
+          "title": "Port",
+          "type": "object"
+        },
+        "Position": {
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "default": 0.0,
+              "title": "X",
+              "type": "number"
+            },
+            "y": {
+              "default": 0.0,
+              "title": "Y",
+              "type": "number"
+            }
+          },
+          "title": "Position",
+          "type": "object"
+        },
+        "WorkflowDefinition": {
+          "additionalProperties": false,
+          "properties": {
+            "demo": {
+              "default": false,
+              "title": "Demo",
+              "type": "boolean"
+            },
+            "graph": {
+              "$ref": "#/$defs/Graph"
+            },
+            "name": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "graph"
+          ],
+          "title": "WorkflowDefinition",
+          "type": "object"
+        }
+      },
       "additionalProperties": false,
       "properties": {
         "at": {
@@ -671,6 +885,17 @@
           ],
           "default": null,
           "title": "Dataset"
+        },
+        "definition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkflowDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "deliver": {
           "default": true,

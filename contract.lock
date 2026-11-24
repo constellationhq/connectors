@@ -1,13 +1,13 @@
 {
-  "version": "2.1.0",
-  "tarball_sha256": "9d1c9fbc7fb842a341cc5ce145aac1d177f84d3bac0f2f83cf496d9a41a6a66d",
+  "version": "2.8.1",
+  "tarball_sha256": "bdad00ef452974c34cccd1b8950982e4b9f83b70396507f8ad5380075a6be835",
   "files": {
-    "CHANGELOG.md": "e5c8da93f5628fdb9cdc26d0fa637446d41352a1d44da1409ac7865f11952622",
-    "DEPRECATIONS.md": "83337e487f75e3671247fe426f6bf6b0327a9567e678de6bb178c055f0287d08",
-    "VERSION": "c89b87c262e9d5ffd20e73aac74a1772adcc9f5a21682cc33adcf5086e5fef5c",
-    "mcp-tools.json": "c19c9f25718a84d1c0011cb13f0e593250dc81b0ff2a46f7dd2f4180c82c4661",
-    "openapi.json": "2850bd751cad3439016bee2ca7bd4a5a3636b70fbc25c4a3f21e69ecf003f726",
+    "CHANGELOG.md": "02e8faae624e297a879700c70b2980f67ea98571030235a55b1b06c28661b2a4",
+    "DEPRECATIONS.md": "b6bc2d6bb7c2b48129fe9190fdc1b6e9ea914145164ca56469730aa7de172f95",
+    "VERSION": "c94b6101b82efbf24da807958404613ad9bd7ecfd875f596f8286fa9638e4aa5",
+    "mcp-tools.json": "2603acb03b0adb95e56911b8f3ddfa7be9f2f5859d440b6047df77ed6266e38e",
+    "openapi.json": "667105db8ff7e520eb4a595337a135e43040e0794e0b1b2cb00d88b8bc94c12b",
     "telemetry.proto": "bc0f4b0fd3b252d558c40eae4dddb80d0cac7df4e20d6555e18f0071500b416d",
-    "workflow-result.schema.json": "84db895480f073bfc2d5b092baff514c64ece20b9c68fec3dd39bc7549b79915"
+    "workflow-result.schema.json": "d0e16458bf534c66dd6e25ccb9ef7bd1140e5322f67b436289795740ceb20eae"
   }
 }

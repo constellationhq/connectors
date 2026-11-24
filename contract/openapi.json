@@ -108,6 +108,45 @@
         "title": "AccountStateDescriptor",
         "type": "object"
       },
+      "ActionOutcome": {
+        "additionalProperties": false,
+        "description": "What mission control did with one approved action the bridge delivered.",
+        "properties": {
+          "action_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Action Id",
+            "type": "string"
+          },
+          "decision_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Decision Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "acted",
+              "refused"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_id",
+          "decision_id",
+          "outcome"
+        ],
+        "title": "ActionOutcome",
+        "type": "object"
+      },
       "Approval": {
         "additionalProperties": false,
         "properties": {
@@ -305,8 +344,16 @@
       },
       "Delivery": {
         "additionalProperties": false,
-        "description": "What a plugin wrote into mission control for one run, e.g. {\"timeline_items\": 540}.",
+        "description": "What a plugin wrote into mission control for one run, e.g. {\"timeline_items\": 540}, and\nwhat it did with each approved action it delivered (`actions`).",
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionOutcome"
+            },
+            "maxItems": 200,
+            "title": "Actions",
+            "type": "array"
+          },
           "applied": {
             "additionalProperties": {
               "type": "integer"
@@ -752,6 +799,16 @@
             ],
             "title": "Dataset"
           },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowDefinition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "deliver": {
             "default": true,
             "title": "Deliver",
@@ -860,12 +917,28 @@
             "title": "Antennas Down",
             "type": "array"
           },
+          "demo": {
+            "default": false,
+            "title": "Demo",
+            "type": "boolean"
+          },
           "extra_attenuation_db": {
             "additionalProperties": {
               "type": "number"
             },
             "maxProperties": 1000,
             "title": "Extra Attenuation Db",
+            "type": "object"
+          },
+          "fades": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/TimedFade"
+              },
+              "type": "array"
+            },
+            "maxProperties": 1000,
+            "title": "Fades",
             "type": "object"
           },
           "name": {
@@ -1193,6 +1266,40 @@
         "title": "TelemetryWriteAck",
         "type": "object"
       },
+      "TimedFade": {
+        "additionalProperties": false,
+        "description": "Rain over one antenna from from_utc to to_utc, as lanes.Fade prices it.",
+        "properties": {
+          "from_utc": {
+            "format": "date-time",
+            "title": "From Utc",
+            "type": "string"
+          },
+          "ramp_s": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Ramp S",
+            "type": "number"
+          },
+          "to_utc": {
+            "format": "date-time",
+            "title": "To Utc",
+            "type": "string"
+          },
+          "zenith_db_12ghz": {
+            "minimum": 0.0,
+            "title": "Zenith Db 12Ghz",
+            "type": "number"
+          }
+        },
+        "required": [
+          "from_utc",
+          "to_utc",
+          "zenith_db_12ghz"
+        ],
+        "title": "TimedFade",
+        "type": "object"
+      },
       "UploadResult": {
         "properties": {
           "key": {
@@ -1487,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.1.0"
+    "version": "2.8.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1978,7 +2085,7 @@
             }
           },
           {
-            "description": "A workflow run's id: answers the run (status, stage or items, deliveries); satellite_id, antenna_id, station_id and pass_id narrow its items.",
+            "description": "A workflow run's id: answers the run (status, stage or items, deliveries; a scenario run's baseline_items too, the fleet as it is priced in the same run); satellite_id, antenna_id, station_id and pass_id narrow its items.",
             "in": "query",
             "name": "run_id",
             "required": false,
@@ -1991,12 +2098,12 @@
                   "type": "null"
                 }
               ],
-              "description": "A workflow run's id: answers the run (status, stage or items, deliveries); satellite_id, antenna_id, station_id and pass_id narrow its items.",
+              "description": "A workflow run's id: answers the run (status, stage or items, deliveries; a scenario run's baseline_items too, the fleet as it is priced in the same run); satellite_id, antenna_id, station_id and pass_id narrow its items.",
               "title": "Run Id"
             }
           },
           {
-            "description": "A workflow's name: answers its newest finished run (409 when it has none; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
+            "description": "A workflow's name: answers its newest finished run (409 no_finished_run when it has none, a normal state; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
             "in": "query",
             "name": "workflow",
             "required": false,
@@ -2009,7 +2116,7 @@
                   "type": "null"
                 }
               ],
-              "description": "A workflow's name: answers its newest finished run (409 when it has none; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
+              "description": "A workflow's name: answers its newest finished run (409 no_finished_run when it has none, a normal state; POST /predictions starts one), or with as_of_utc the newest finished by then. A read never starts a run; workflow_version pins a version, scenario_id a scenario, and satellite_id, antenna_id, station_id and pass_id narrow.",
               "title": "Workflow"
             }
           },
@@ -2221,7 +2328,10 @@
             "description": "Credential scopes do not permit predictions:read."
           },
           "404": {
-            "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available)."
+            "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available), or with workflow a scenario_id that names no scenario and no run (unknown_scenario)."
+          },
+          "409": {
+            "description": "With workflow: the workflow version has no finished run yet, or none of the scenario_id or dataset the read names (no_finished_run, with its workflow_version and a detail naming the filter). A normal state, not a failure: a workflow just saved, a scenario not yet run, or a workflow only test-run as an unsaved draft (a draft run has no version, so it never answers a saved one) answers it until such a run finishes. Start one with POST /predictions."
           },
           "422": {
             "content": {
@@ -2326,7 +2436,7 @@
     },
     "/predictions/actions": {
       "get": {
-        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected or expired. A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
+        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected, expired, or unavailable (it books a slot on a ground network link since deleted,\nso it cannot be approved). A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
         "operationId": "list_actions_predictions_actions_get",
         "parameters": [
           {
@@ -2448,7 +2558,7 @@
     },
     "/predictions/actions/{run_id}/{item_id}/approve": {
       "post": {
-        "description": "Approve an action a run holds: it is published to the workflow's feed outputs as an\ninstruction for the connected mission control to carry out, and it cannot be rejected\nafterwards. The approval stands for the same action on the workflow's later runs. Asking\nagain is safe: it answers the same feed cursor, or publishes if the first try did not.\nRefused on a plan without Act, even for an action held while the account had it.",
+        "description": "Approve an action a run holds: it is published to the workflow's feed outputs as\napproved advice for the connected mission control, and it cannot be rejected afterwards. A\nswap advises adding a backup pass or moving to it; Constellation books and cancels nothing.\nAn action on the demo fleet is recorded but never sent: feed_cursor is null and\nheld_as_demo true. The approval stands for the same action on the workflow's later runs.\nAsking again is safe: it answers the same feed cursor, or publishes if the first try did\nnot. Refused on a plan without Act, even for an action held while the account had it.",
         "operationId": "approve_action_predictions_actions__run_id___item_id__approve_post",
         "parameters": [
           {
@@ -2493,7 +2603,7 @@
             "description": "Workflows are off here, or no such run or held action."
           },
           "409": {
-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), or the action books a slot on a ground network link since deleted (offer_unavailable; it can still be rejected)."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."
@@ -2564,7 +2674,7 @@
             "description": "Workflows are off here, or no such run or held action."
           },
           "409": {
-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), or the run published to no mission control connection (no_feed_output)."
+            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), or the action books a slot on a ground network link since deleted (offer_unavailable; it can still be rejected)."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."
@@ -3049,7 +3159,7 @@
     },
     "/predictions/feed/deliveries": {
       "post": {
-        "description": "What a plugin wrote into mission control for one of the tenant's runs.",
+        "description": "What a plugin wrote into mission control for one of the tenant's runs, and what mission\ncontrol did with each approved action it delivered: acted or refused, with why. The latest\noutcome of a decision stands, and the actions lists read it back.",
         "operationId": "deliver_predictions_feed_deliveries_post",
         "requestBody": {
           "content": {
@@ -3075,7 +3185,7 @@
             "description": "An unknown workflow, run, cursor or connector, or workflows are off."
           },
           "409": {
-            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+            "description": "An action's decision_id is not the decision that stands on it (unknown_decision): nothing of the report is stored."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."
@@ -3136,9 +3246,61 @@
         "summary": "Readers"
       }
     },
+    "/predictions/feed/readers/{consumer}": {
+      "delete": {
+        "description": "Forgets a bridge: its last pull and check-in. A registered connector stays (DELETE\n/predictions/connectors/{name}), and a bridge that pulls or checks in again is listed again.",
+        "operationId": "forget_reader_predictions_feed_readers__consumer__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "consumer",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Consumer",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "The body is not UTF-8 text."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "The caller's feed has no reader or check-in by the name."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Forget Reader"
+      }
+    },
     "/predictions/runs": {
       "get": {
-        "description": "The workflow's runs of every status and version, newest first (to the second): a failed or cancelled run,\nor one of a version since edited, shows here though GET /predictions?workflow= answers only\nthe newest finished run. next_before pages on while older runs may be left.",
+        "description": "The workflow's runs of every status and version, newest first (to the second): a failed or cancelled run,\nor one of a version since edited, shows here though GET /predictions?workflow= answers only\nthe newest finished run. A workflow created under a deleted one's slug lists none of the\ndeleted one's. next_before pages on while older runs may be left.",
         "operationId": "list_runs_predictions_runs_get",
         "parameters": [
           {
@@ -3560,6 +3722,56 @@
       }
     },
     "/predictions/workflows/{slug}": {
+      "delete": {
+        "description": "Deletes a saved workflow, every version of it: a run naming it is 404 from then on, and so\nis a save under its slug without create=true. Its queued and running runs are cancelled\nfirst, as POST /predictions/runs/{run_id}/cancel cancels them, so none of them publishes or\nsends. The actions its current run holds for approval are withdrawn: none can be decided from\nthen on, and no decision on the workflow stands for a later one under the slug. Its past runs\nstay readable by run id. A template is never saved, so it is never deleted.",
+        "operationId": "delete_workflow_predictions_workflows__slug__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "The body is not UTF-8 text."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "No saved workflow of the caller's has the slug."
+          },
+          "409": {
+            "description": "A run of the workflow is already publishing or sending, so it cannot be stopped (run_delivering, with its run_ids). Its other runs are still cancelled, but nothing is deleted: delete again once it finishes."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Delete Workflow"
+      },
       "get": {
         "operationId": "get_workflow_predictions_workflows__slug__get",
         "parameters": [
@@ -3635,7 +3847,7 @@
         "summary": "Get Workflow"
       },
       "put": {
-        "description": "Save a workflow's name and graph as the slug's next version. A graph the validator finds\nissues with is refused whole, with every issue.",
+        "description": "Save a workflow's name and graph as the slug's next version. A graph the validator finds\nissues with is refused whole, with every issue. A slug never used before needs no create; a\nworkflow created under a deleted slug starts with none of the deleted one's runs or\ndecisions, and its version numbers carry on from the deleted one's.",
         "operationId": "put_workflow_predictions_workflows__slug__put",
         "parameters": [
           {
@@ -3646,6 +3858,18 @@
               "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
               "title": "Slug",
               "type": "string"
+            }
+          },
+          {
+            "description": "Start a new workflow under a slug whose workflow was deleted. Without it, a save to a deleted slug is 404, so a page still open on the deleted workflow cannot bring it back.",
+            "in": "query",
+            "name": "create",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Start a new workflow under a slug whose workflow was deleted. Without it, a save to a deleted slug is 404, so a page still open on the deleted workflow cannot bring it back.",
+              "title": "Create",
+              "type": "boolean"
             }
           }
         ],
@@ -3677,7 +3901,7 @@
             "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
           },
           "404": {
-            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+            "description": "The slug's workflow was deleted and the save does not ask to create a new one (unknown_workflow): send create=true to start one under the slug."
           },
           "409": {
             "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
@@ -3768,7 +3992,7 @@
     },
     "/telemetry": {
       "post": {
-        "description": "Telemetry records, each checked against the latest network config.",
+        "description": "Telemetry records, each checked against the latest network config. A contact record\n(los_utc, bytes_delivered, contact_status) is stamped at its AOS: its time is when the pass\nbegan and los_utc when it ended. An audit matches the record to the pass that window\noverlaps, so a record stamped at LOS matches no pass.",
         "operationId": "post_telemetry_v2_telemetry_post",
         "requestBody": {
           "content": {
@@ -4193,6 +4417,18 @@
               ],
               "title": "Version"
             }
+          },
+          {
+            "description": "An account with no network config answers 200 with version null and an empty document instead of 404 no_network_config. A version that does not exist is still 404.",
+            "in": "query",
+            "name": "missing_ok",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "An account with no network config answers 200 with version null and an empty document instead of 404 no_network_config. A version that does not exist is still 404.",
+              "title": "Missing Ok",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -4209,7 +4445,7 @@
             "description": "Successful Response"
           },
           "404": {
-            "description": "No network config was uploaded, or no such version."
+            "description": "No network config was uploaded (no_network_config, unless missing_ok=true), or the account has one but not the version asked for (config_version_not_found)."
           },
           "422": {
             "content": {
@@ -4299,7 +4535,7 @@
     },
     "/topology/demo-fleet": {
       "delete": {
-        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's. The account's own\nstations, antennas, satellites and workflows stay. Safe to repeat.",
+        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's (their queued and\nrunning runs cancelled and their decisions forgotten, as deleting one does), and its storm. The\naccount's own stations, antennas, satellites, workflows and scenarios stay. Safe to repeat.",
         "operationId": "remove_demo_fleet_topology_demo_fleet_delete",
         "responses": {
           "204": {
@@ -4341,7 +4577,7 @@
             "description": "The key lacks config:write."
           },
           "409": {
-            "description": "The account has a network config of its own, holding a station, antenna or satellite (network_config_exists)."
+            "description": "The account's network config uses a demo station, antenna or satellite id for an entity of its own (demo_ids_taken; `ids` names them). Nothing is written."
           },
           "422": {
             "content": {
@@ -4357,9 +4593,30 @@
         "summary": "Load Demo Fleet"
       }
     },
+    "/topology/orbits": {
+      "get": {
+        "description": "Each satellite of the caller's latest network config with the element set a run would\npropagate now, as an OMM record: the satellite's own TLE (source \"config\"), else the orbit\ncatalog's set for its NORAD id (source \"catalog\"). A satellite a run would decline has a null\nomm and the run's code: norad_not_in_catalog, or orbit_propagation_failed for a catalog set\nfurther than the age limit from now. as_of is the catalog snapshot read, null when none was:\na catalog file, no snapshot, or every satellite carries its own TLE.",
+        "operationId": "get_orbits_topology_orbits_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Orbits Topology Orbits Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Orbits"
+      }
+    },
     "/topology/passes": {
       "get": {
-        "description": "Every pass between from and to in the latest network config, computed from the fleet's\nelement sets and antenna masks and sampled every step_s from `from`, as a run samples it. Each\npass carries the pass_id a run's item for it carries. Below the satellites feature it covers\nat most FREE_SATELLITES of the tenant's own, as a test run does; the demo fleet's are free.",
+        "description": "Every pass between from and to in the latest network config, computed from the fleet's\nelement sets and antenna masks and sampled on the step_s grid a run samples (grid_start). Each\npass carries the pass_id a run's item for it carries; one inside its station's maintenance\ncarries `maintenance: true`, and a run declines it as `maintenance`. Below the satellites feature it covers\nat most FREE_SATELLITES of the tenant's own, as a test run does; the demo fleet's are free.",
         "operationId": "list_topology_passes_topology_passes_get",
         "parameters": [
           {
@@ -4559,6 +4816,57 @@
           }
         },
         "summary": "Create Scenario"
+      }
+    },
+    "/topology/scenarios/{scenario_id}": {
+      "delete": {
+        "description": "Deletes a scenario; the runs made against it stay readable by run id.",
+        "operationId": "delete_scenario_topology_scenarios__scenario_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "The body is not UTF-8 text."
+          },
+          "403": {
+            "description": "The key lacks the scope, is a test key (live_key_required), or the plan does not include the feature (plan_required names the plan that does)."
+          },
+          "404": {
+            "description": "An unknown workflow, run, cursor or connector, or workflows are off."
+          },
+          "409": {
+            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+          },
+          "410": {
+            "description": "The run's stored data has expired (run_data_expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many feed consumers for this account (too_many_consumers)."
+          }
+        },
+        "summary": "Delete Scenario"
       }
     },
     "/topology/series": {
