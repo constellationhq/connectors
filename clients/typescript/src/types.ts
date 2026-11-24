@@ -62,7 +62,20 @@ export interface ResultAction {
   to?: string | null;
   to_antenna_id?: string | null;
   to_at?: string | null;
+  /** A swap is advice. Known values: add (book the backup, keep the original), move (book the backup, release the original); read any other as add. */
+  action?: "add" | "move" | (string & {});
+  /** Why: adds_capacity, overlap, paid_booking or original_empty. */
+  reason?: "adds_capacity" | "overlap" | "paid_booking" | "original_empty" | (string & {});
+  /** The backup pass's LOS. */
+  to_until?: string;
+  /** The backup pass's length in seconds. */
+  to_duration_s?: number;
+  /** The backup pass's expected GB (p50). */
+  to_gb?: number;
   deadline?: string;
+  /** The GB the advice adds over doing nothing, at the p50. */
+  gain_gb?: number;
+  /** @deprecated Use gain_gb. The same gain at the p10. */
   gain_gb_p10?: number;
   /** The ground network's offer for the backup: link, network, slot_id, price, cancel_deadline_utc. */
   to_offer?: Record<string, unknown>;
