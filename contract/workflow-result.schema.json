@@ -3,7 +3,24 @@
     "Action": {
       "description": "What a workflow suggests doing. Under an approve policy it is held until a person approves it: a held result carries action_status, and loses action until it is approved.",
       "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "enum": [
+                "add",
+                "move"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "A swap is advice on the customer's own contact plan. Known values: add (book the backup and keep the original), move (book the backup and release the original). Read any other value as add.",
+          "title": "Action"
+        },
         "deadline": {
+          "description": "Decide by: the cancel lead before the original's AOS, or for a move off a held booking the earlier of that and its cancel deadline.",
           "format": "date-time",
           "title": "Deadline",
           "type": "string"
@@ -14,11 +31,18 @@
         },
         "from_held": {
           "additionalProperties": true,
-          "description": "The operator's booking of the original to cancel: link, network, booking_id, price, cancel_deadline_utc, state.",
+          "description": "On a move, the operator's booking of the original to release: link, network, booking_id, price, cancel_deadline_utc, state.",
           "title": "From Held",
           "type": "object"
         },
+        "gain_gb": {
+          "description": "The GB the advice adds over doing nothing, at the p50: the backup's for add, the backup's less what the original still carries for move.",
+          "title": "Gain Gb",
+          "type": "number"
+        },
         "gain_gb_p10": {
+          "deprecated": true,
+          "description": "Deprecated: use gain_gb. The same gain at the p10.",
           "title": "Gain Gb P10",
           "type": "number"
         },
@@ -37,6 +61,24 @@
           ],
           "description": "Known values: suggest, approve.",
           "title": "Mode"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "adds_capacity",
+                "overlap",
+                "paid_booking",
+                "original_empty"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Why a swap advises its action. Known values: adds_capacity (add), overlap (the two passes use one radio at once), paid_booking (the original is a held booking still worth releasing), original_empty (the original delivers about nothing).",
+          "title": "Reason"
         },
         "to": {
           "anyOf": [
@@ -73,13 +115,30 @@
             }
           ],
           "default": null,
+          "description": "The backup pass's AOS.",
           "title": "To At"
+        },
+        "to_duration_s": {
+          "description": "The backup pass's length.",
+          "title": "To Duration S",
+          "type": "number"
+        },
+        "to_gb": {
+          "description": "The backup pass's expected GB (p50).",
+          "title": "To Gb",
+          "type": "number"
         },
         "to_offer": {
           "additionalProperties": true,
           "description": "The ground network's offer for the backup: link, network, slot_id, price, cancel_deadline_utc. Booking it stays in the network's own system.",
           "title": "To Offer",
           "type": "object"
+        },
+        "to_until": {
+          "description": "The backup pass's LOS.",
+          "format": "date-time",
+          "title": "To Until",
+          "type": "string"
         },
         "verb": {
           "anyOf": [
@@ -276,7 +335,7 @@
       "type": "string"
     },
     "note": {
-      "description": "What the item's action comes to, as a sentence for a person: the swap to make, or why there is none to act on (no backup pass, waiting for approval, rejected, shown for review).",
+      "description": "What the item's action comes to, as a sentence for a person: the swap advised (add a backup pass or move to it, and why), or why there is none to act on (no backup pass, waiting for approval, rejected, shown for review).",
       "title": "Note",
       "type": "string"
     },

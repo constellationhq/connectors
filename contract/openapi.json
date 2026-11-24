@@ -108,6 +108,45 @@
         "title": "AccountStateDescriptor",
         "type": "object"
       },
+      "ActionOutcome": {
+        "additionalProperties": false,
+        "description": "What mission control did with one approved action the bridge delivered.",
+        "properties": {
+          "action_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Action Id",
+            "type": "string"
+          },
+          "decision_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Decision Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "acted",
+              "refused"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_id",
+          "decision_id",
+          "outcome"
+        ],
+        "title": "ActionOutcome",
+        "type": "object"
+      },
       "Approval": {
         "additionalProperties": false,
         "properties": {
@@ -305,8 +344,16 @@
       },
       "Delivery": {
         "additionalProperties": false,
-        "description": "What a plugin wrote into mission control for one run, e.g. {\"timeline_items\": 540}.",
+        "description": "What a plugin wrote into mission control for one run, e.g. {\"timeline_items\": 540}, and\nwhat it did with each approved action it delivered (`actions`).",
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionOutcome"
+            },
+            "maxItems": 200,
+            "title": "Actions",
+            "type": "array"
+          },
           "applied": {
             "additionalProperties": {
               "type": "integer"
@@ -1547,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.7.1"
+    "version": "2.8.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2511,7 +2558,7 @@
     },
     "/predictions/actions/{run_id}/{item_id}/approve": {
       "post": {
-        "description": "Approve an action a run holds: it is published to the workflow's feed outputs as an\ninstruction for the connected mission control to carry out, and it cannot be rejected\nafterwards. The approval stands for the same action on the workflow's later runs. Asking\nagain is safe: it answers the same feed cursor, or publishes if the first try did not.\nRefused on a plan without Act, even for an action held while the account had it.",
+        "description": "Approve an action a run holds: it is published to the workflow's feed outputs as\napproved advice for the connected mission control, and it cannot be rejected afterwards. A\nswap advises adding a backup pass or moving to it; Constellation books and cancels nothing.\nAn action on the demo fleet is recorded but never sent: feed_cursor is null and\nheld_as_demo true. The approval stands for the same action on the workflow's later runs.\nAsking again is safe: it answers the same feed cursor, or publishes if the first try did\nnot. Refused on a plan without Act, even for an action held while the account had it.",
         "operationId": "approve_action_predictions_actions__run_id___item_id__approve_post",
         "parameters": [
           {
@@ -3112,7 +3159,7 @@
     },
     "/predictions/feed/deliveries": {
       "post": {
-        "description": "What a plugin wrote into mission control for one of the tenant's runs.",
+        "description": "What a plugin wrote into mission control for one of the tenant's runs, and what mission\ncontrol did with each approved action it delivered: acted or refused, with why. The latest\noutcome of a decision stands, and the actions lists read it back.",
         "operationId": "deliver_predictions_feed_deliveries_post",
         "requestBody": {
           "content": {
@@ -3138,7 +3185,7 @@
             "description": "An unknown workflow, run, cursor or connector, or workflows are off."
           },
           "409": {
-            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+            "description": "An action's decision_id is not the decision that stands on it (unknown_decision): nothing of the report is stored."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."

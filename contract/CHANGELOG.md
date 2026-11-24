@@ -6,6 +6,36 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.8.0
+
+- added `enum openapi.json/components/schemas/ActionOutcome/properties/outcome "acted"`
+- added `enum openapi.json/components/schemas/ActionOutcome/properties/outcome "refused"`
+- added `enum workflow-result.schema.json/properties/action/properties/action/anyOf/0 "add"`
+- added `enum workflow-result.schema.json/properties/action/properties/action/anyOf/0 "move"`
+- added `enum workflow-result.schema.json/properties/action/properties/reason/anyOf/0 "adds_capacity"`
+- added `enum workflow-result.schema.json/properties/action/properties/reason/anyOf/0 "original_empty"`
+- added `enum workflow-result.schema.json/properties/action/properties/reason/anyOf/0 "overlap"`
+- added `enum workflow-result.schema.json/properties/action/properties/reason/anyOf/0 "paid_booking"`
+- added `field openapi.json/components/schemas/ActionOutcome/properties/action_id`
+- added `field openapi.json/components/schemas/ActionOutcome/properties/decision_id`
+- added `field openapi.json/components/schemas/ActionOutcome/properties/outcome`
+- added `field openapi.json/components/schemas/ActionOutcome/properties/reason`
+- added `field openapi.json/components/schemas/Delivery/properties/actions`
+- added `field workflow-result.schema.json/properties/action/properties/action`
+- added `field workflow-result.schema.json/properties/action/properties/gain_gb`
+- added `field workflow-result.schema.json/properties/action/properties/reason`
+- added `field workflow-result.schema.json/properties/action/properties/to_duration_s`
+- added `field workflow-result.schema.json/properties/action/properties/to_gb`
+- added `field workflow-result.schema.json/properties/action/properties/to_until`
+-        "description": "What a plugin wrote into mission control for one run, e.g. {\"timeline_items\": 540}.",
+-        "description": "Approve an action a run holds: it is published to the workflow's feed outputs as an\ninstruction for the connected mission control to carry out, and it cannot be rejected\nafterwards. The approval stands for the same action on the workflow's later runs. Asking\nagain is safe: it answers the same feed cursor, or publishes if the first try did not.\nRefused on a plan without Act, even for an action held while the account had it.",
+-        "description": "What a plugin wrote into mission control for one of the tenant's runs.",
+-            "description": "A conflict: no finished run yet, a changed manifest, or a run that finished or is already delivering when asked to cancel."
+-          "description": "The operator's booking of the original to cancel: link, network, booking_id, price, cancel_deadline_utc, state.",
+-      "description": "What the item's action comes to, as a sentence for a person: the swap to make, or why there is none to act on (no backup pass, waiting for approval, rejected, shown for review).",
+-    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as an instruction to carry out (a swap can cancel a booked pass) and cannot be rejected afterwards. The approval stands for the same action on the workflow's later runs. Needs the Operator + Act plan (403 plan_required below it), the act:approve scope and a live key.",
+-    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected, expired or unavailable (its offer's ground network link was deleted), with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
+
 ## 2.7.1
 
 -            "description": "Prediction serving is not enabled in this deployment, or the model family is not served to this tenant (model_family_not_available)."

@@ -1,6 +1,6 @@
 {
   "approve_action": {
-    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as an instruction to carry out (a swap can cancel a booked pass) and cannot be rejected afterwards. The approval stands for the same action on the workflow's later runs. Needs the Operator + Act plan (403 plan_required below it), the act:approve scope and a live key.",
+    "description": "Approve an action a run holds (run_id and item_id from list_actions): it is published to the workflow's mission control connections as approved advice, and cannot be rejected afterwards. A swap advises adding a backup pass or moving to it (action add or move); Constellation books and cancels nothing, the operator's systems decide what to do with it. An action on the demo fleet is recorded but sent nowhere: feed_cursor is null and held_as_demo true. The approval stands for the same action on the workflow's later runs. Needs the Operator + Act plan (403 plan_required below it), the act:approve scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -460,7 +460,7 @@
     }
   },
   "list_actions": {
-    "description": "The actions a workflow's current run holds for approval (a swap to book, a reroute), each pending, approved, rejected, expired or unavailable (its offer's ground network link was deleted), with the deadline to decide by, its action_id and, once decided, its decision_id. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
+    "description": "The actions a workflow's current run holds for approval (swap advice, a reroute), each pending, approved, rejected, expired or unavailable (its offer's ground network link was deleted), with the deadline to decide by, its action_id and, once decided, its decision_id; once a bridge reports on the decision, delivered_at, outcome (acted or refused), outcome_at and reason. A run holds an action when its workflow has a policy step in approve mode. Requires the predictions:read scope and a live key.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
