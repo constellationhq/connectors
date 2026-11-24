@@ -58,7 +58,19 @@ _ActionFacets = TypedDict(
         "to": str | None,
         "to_antenna_id": str | None,
         "to_at": str | None,
+        # A swap is advice. Known values: add (book the backup, keep the original), move (book the
+        # backup, release the original); read any other as add.
+        "action": str,
+        # Why: adds_capacity, overlap, paid_booking or original_empty.
+        "reason": str,
+        # The backup pass's LOS, length and expected GB (p50).
+        "to_until": str,
+        "to_duration_s": float,
+        "to_gb": float,
         "deadline": str,
+        # The GB the advice adds over doing nothing, at the p50.
+        "gain_gb": float,
+        # Deprecated: use gain_gb. The same gain at the p10.
         "gain_gb_p10": float,
         # The ground network's offer for the backup: link, network, slot_id, price, cancel_deadline_utc.
         "to_offer": dict[str, Any],
