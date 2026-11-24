@@ -49,7 +49,7 @@ from typing import Any
 
 from constellation_space import results
 
-VERSION = "0.8.3"
+VERSION = "0.8.4"
 API = (os.environ.get("CONSTELLATION_API_URL") or "https://api.constellation.space").rstrip("/")
 API_KEY = os.environ.get("CONSTELLATION_API_KEY", "").strip()
 YAMCS = os.environ.get("YAMCS_URL", "http://yamcs:8090").rstrip("/")
