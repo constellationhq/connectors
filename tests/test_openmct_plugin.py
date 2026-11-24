@@ -149,8 +149,75 @@ def test_the_view_puts_approved_swaps_first_and_counts_held_ones(tmp_path):
         "console.log(JSON.stringify([VIEWS.warnings(run, items), VIEWS.tiles(run, items)]))"
     )
     warnings, tiles = _node(tmp_path, script)
-    assert warnings.index("Approved: carry out") < warnings.index("Rain-fade risk")
+    assert warnings.index("Approved advice") < warnings.index("Rain-fade risk")
     assert "1 approved" in tiles and "1 awaiting approval" in tiles
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+def test_the_view_words_a_swap_as_advice_with_the_real_loss_and_gain_never_a_cancel(tmp_path):
+    run = {"kind": "rain-fade-swap", "workflow_version": 2}
+    action = {
+        **ACTION,
+        "to_until": "2099-11-06T11:06:00+00:00",
+        "to_gb": 4.0,
+        "gain_gb": 1.5,
+        "action": "move",
+        "reason": "overlap",
+    }
+    noted = {**ADVICE, "action": action, "note": "Rain costs 50% of its dry 20.0 GB. Advice: ..."}
+    script = (
+        "import { VIEWS, advice } from './forecast-view.js';"
+        f"const run = {json.dumps(run)}, items = {json.dumps([noted, ADVICE])};"
+        "console.log(JSON.stringify([VIEWS.warnings(run, items), VIEWS.tiles(run, items), advice(items[0])]))"
+    )
+    warnings, tiles, words = _node(tmp_path, script)
+    # The same words as the Python bridges' results.advice().
+    assert words == (
+        "Move to the backup on ant-2 at 2099-11-06 11:00Z to 11:06Z (4.0 GB) instead of this one,"
+        " +1.5 GB: both passes use one radio at once"
+    )
+    assert "Rain costs 50% of its dry 20.0 GB." in warnings
+    # Without the note's sentence, the p50 expected in the rain, never p10 against p50.
+    assert "10.0 GB expected in the rain" in warnings and "keeps" not in warnings
+    assert "Add a backup pass on ant-2" in warnings and "Decide by" in warnings
+    assert "GB the advice adds" in tiles and "1.5" in tiles and "p50 minus p10" not in tiles
+    assert "cancel" not in (warnings + tiles).lower()
+
+
+def fake_openmct(plugins: list[str], installed_types: list[str]) -> str:
+    """JavaScript for an Open MCT with these plugins and types: enough for install() to run, and
+    `installed`, the plugins it installed."""
+    return (
+        "const installed = [];"
+        f"const plugins = Object.fromEntries({json.dumps(plugins)}.map((n) => [n, () => n]));"
+        "const openmct = { plugins, install: (p) => installed.push(p),"
+        f" types: {{ listKeys: () => {json.dumps(installed_types)}, addType() {{}} }},"
+        " objects: { addRoot() {}, addProvider() {} }, objectViews: { addProvider() {} },"
+        " priority: { HIGH: 1 } };"
+    )
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")
+@pytest.mark.parametrize(
+    "plugins, types, expected",
+    [
+        # Open MCT 4.3.1 names its Plan plugin PlanLayout.
+        (["PlanLayout", "Timeline"], [], ["PlanLayout", "Timeline"]),
+        # Other versions name it Plan.
+        (["Plan", "Timeline"], [], ["Plan", "Timeline"]),
+        (["Plan", "PlanLayout", "Timeline"], [], ["PlanLayout", "Timeline"]),
+        # A page that installed them already gets them once.
+        (["PlanLayout", "Timeline"], ["plan", "time-strip"], []),
+    ],
+)
+def test_the_plugin_installs_open_mcts_plan_by_whichever_name_it_has(tmp_path, plugins, types, expected):
+    script = (
+        "import ConstellationForecast from './plugin.mjs';"
+        + fake_openmct(plugins, types)
+        + "ConstellationForecast({ source: 'api', token: 'ro' })(openmct);"
+        "console.log(JSON.stringify(installed))"
+    )
+    assert _node(tmp_path, script) == expected
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="needs Node")

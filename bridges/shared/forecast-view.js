@@ -267,6 +267,38 @@ export function actionState(item) {
 /** A swap to show: advice, or approved in Constellation; never one held or rejected. */
 const actionable = (i) => actionState(i) === 'advice' || actionState(i) === 'approved';
 
+// Why a swap advises its action (the action's reason), as constellation_space.results.REASONS.
+const REASONS = {
+  adds_capacity: 'it adds capacity',
+  overlap: 'both passes use one radio at once',
+  paid_booking: 'releasing the paid booking in time is worth it',
+  original_empty: 'this pass delivers about nothing in the rain',
+};
+
+/** A swap as the advice it is, as constellation_space.results.advice words it: add a backup
+ * pass (keep this one) or move to the backup, its time and GB, the gain (gain_gb), and why.
+ * Never a cancel: Constellation books and cancels nothing. */
+export function advice(item) {
+  const a = item.action || {};
+  if (!a.to_antenna_id) return 'No backup pass in the window';
+  const move = a.action === 'move';
+  let text = `${move ? 'Move to the backup' : 'Add a backup pass'} on ${shortAntenna(a.to_antenna_id)}`;
+  if (a.to_at) text += ` at ${a.to_at.slice(0, 16).replace('T', ' ')}Z${a.to_until ? ` to ${a.to_until.slice(11, 16)}Z` : ''}`;
+  if (typeof a.to_gb === 'number') text += ` (${a.to_gb.toFixed(1)} GB)`;
+  text += move ? ' instead of this one' : ' and keep this one';
+  if (typeof a.gain_gb === 'number') text += `, +${a.gain_gb.toFixed(1)} GB`;
+  if (REASONS[a.reason]) text += `: ${REASONS[a.reason]}`;
+  return text;
+}
+
+/** What rain costs a pass, as constellation_space.results.loss says it: the note's own sentence,
+ * else the GB expected in the rain (p50), never a p10 that equals it. */
+export function loss(item) {
+  const note = item.note || '';
+  if (note.startsWith('Rain costs')) return note.split('. ')[0];
+  return `${num(gbOf(item)?.p50)} GB expected in the rain`;
+}
+
 // A probability or share column reads as a percent, as the lock-loss risk does.
 const SHARES = ['probability', 'share'];
 // rfi-watch items are links whose value is RFI in dB (p10/p50/p90) with a lock-loss risk (a
@@ -343,11 +375,11 @@ export const VIEWS = {
       const swaps = items.filter(actionable).sort((a, b) => a.action.deadline.localeCompare(b.action.deadline));
       const approved = swaps.filter((i) => actionState(i) === 'approved').length;
       const held = items.filter((i) => actionState(i) === 'pending').length;
-      const atRisk = swaps.reduce((s, i) => s + (gbOf(i).p50 - gbOf(i).p10), 0);
+      const gain = swaps.reduce((s, i) => s + (typeof i.action.gain_gb === 'number' ? i.action.gain_gb : 0), 0);
       const soonest = swaps.find((i) => Date.parse(i.action.deadline) > Date.now());
       const booked = swaps.filter((i) => i.action.to).length;
       const hint = approved || held ? `${approved} approved · ${held} awaiting approval` : `${booked} with a better backup`;
-      return `<div class="cf-tiles">${tile('swaps to decide', swaps.length - approved, hint)}${tile('GB at risk if it rains', big(atRisk), 'p50 minus p10, summed')}${tile('soonest decision', soonest ? until(soonest.action.deadline) : '—', soonest ? `cancel by ${minute(soonest.action.deadline)}` : '')}${tile('workflow version', `v${run.workflow_version}`)}</div>`;
+      return `<div class="cf-tiles">${tile('swaps to decide', swaps.length - approved, hint)}${tile('GB the advice adds', big(gain), 'over doing nothing (p50), summed')}${tile('soonest decision', soonest ? until(soonest.action.deadline) : '—', soonest ? `decide by ${minute(soonest.action.deadline)}` : '')}${tile('workflow version', `v${run.workflow_version}`)}</div>`;
     }
     const day = items.filter((i) => Date.parse(i.target_at) < Date.now() + 86400e3);
     const p50 = day.reduce((s, i) => s + (gbOf(i)?.p50 ?? 0), 0);
@@ -436,22 +468,20 @@ export const VIEWS = {
       .slice(0, 6)
       .map((i) => {
         const a = i.action;
-        const g = gbOf(i);
         const approved = actionState(i) === 'approved';
-        const backup = a.to ? `Book ${esc(i.entity.satellite_id)} on ${esc(shortAntenna(a.to_antenna_id))} at ${minute(a.to_at)}, +${num(a.gain_gb_p10)} GB at p10` : 'No better pass within 6 h';
-        const head = approved ? 'Approved: carry out' : 'Rain-fade risk';
-        const note = approved ? `Approved in Constellation. Cancel the original by ${minute(a.deadline)}` : `Cancel by ${minute(a.deadline)}`;
-        return `<div class="cf-card" ${tip(`Decide by ${minute(a.deadline)}`)}><div class="cf-card-head"><span class="cf-status-warn" aria-hidden="true">▲</span><b>${head}</b><span class="cf-chip">${until(a.deadline)}</span></div><div>${esc(linkLabel(i))} at ${minute(i.target_at)} keeps ${num(g.p10)} of ${num(g.p50)} GB if it rains.</div><div class="cf-card-action">${backup}</div><div class="cf-note">${note}</div></div>`;
+        const head = approved ? 'Approved advice' : 'Rain-fade risk';
+        const note = approved ? `Approved in Constellation. Decide by ${minute(a.deadline)}` : `Decide by ${minute(a.deadline)}`;
+        return `<div class="cf-card" ${tip(`Decide by ${minute(a.deadline)}`)}><div class="cf-card-head"><span class="cf-status-warn" aria-hidden="true">▲</span><b>${head}</b><span class="cf-chip">${until(a.deadline)}</span></div><div>${esc(linkLabel(i))} at ${minute(i.target_at)}: ${esc(loss(i))}.</div><div class="cf-card-action">${esc(advice(i))}</div><div class="cf-note">${note}</div></div>`;
       });
     // A pass at risk with no backup comes as advice alone (a warning and its note): nothing to decide.
     const advisories = items
       .filter((i) => actionState(i) === null && i.severity)
       .slice(0, Math.max(0, 6 - cards.length))
-      .map((i) => `<div class="cf-card"><div class="cf-card-head"><span class="cf-status-warn" aria-hidden="true">▲</span><b>Rain-fade risk</b></div><div>${esc(linkLabel(i))} at ${minute(i.target_at)} keeps ${num(gbOf(i).p10)} of ${num(gbOf(i).p50)} GB if it rains.</div><div class="cf-card-action">${esc(i.note || 'No backup pass in the window')}</div></div>`);
+      .map((i) => `<div class="cf-card"><div class="cf-card-head"><span class="cf-status-warn" aria-hidden="true">▲</span><b>Rain-fade risk</b></div><div>${esc(linkLabel(i))} at ${minute(i.target_at)}: ${esc(loss(i))}.</div><div class="cf-card-action">${esc(i.note || 'No backup pass in the window')}</div></div>`);
     cards.push(...advisories);
     const waiting = held ? ` ${held} awaiting approval in Constellation.` : '';
     const more = (all.length > 6 ? `The ${6} soonest of ${all.length}. Every swap is in Results below.` : 'Approved first, then the soonest decision.') + waiting;
-    const title = all.some((i) => actionState(i) === 'approved') ? 'Swaps to carry out and to decide' : 'Swaps to decide';
+    const title = all.some((i) => actionState(i) === 'approved') ? 'Approved advice and swaps to decide' : 'Swaps to decide';
     if (!cards.length) return section(title, `<p class="cf-empty">No swaps to decide.${waiting}</p>`);
     return section(title, `<div class="cf-cards">${cards.join('')}</div>`, more);
   },
