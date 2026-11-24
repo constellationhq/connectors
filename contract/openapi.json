@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.8.0"
+    "version": "2.8.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4577,7 +4577,7 @@
             "description": "The key lacks config:write."
           },
           "409": {
-            "description": "The account has a network config of its own, holding a station, antenna or satellite (network_config_exists)."
+            "description": "The account's network config uses a demo station, antenna or satellite id for an entity of its own (demo_ids_taken; `ids` names them). Nothing is written."
           },
           "422": {
             "content": {
@@ -4616,7 +4616,7 @@
     },
     "/topology/passes": {
       "get": {
-        "description": "Every pass between from and to in the latest network config, computed from the fleet's\nelement sets and antenna masks and sampled on the step_s grid a run samples (grid_start). Each\npass carries the pass_id a run's item for it carries. Below the satellites feature it covers\nat most FREE_SATELLITES of the tenant's own, as a test run does; the demo fleet's are free.",
+        "description": "Every pass between from and to in the latest network config, computed from the fleet's\nelement sets and antenna masks and sampled on the step_s grid a run samples (grid_start). Each\npass carries the pass_id a run's item for it carries; one inside its station's maintenance\ncarries `maintenance: true`, and a run declines it as `maintenance`. Below the satellites feature it covers\nat most FREE_SATELLITES of the tenant's own, as a test run does; the demo fleet's are free.",
         "operationId": "list_topology_passes_topology_passes_get",
         "parameters": [
           {
