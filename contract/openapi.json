@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.8.2"
+    "version": "2.9.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1926,13 +1926,10 @@
             "description": "Body is not valid JSON."
           },
           "401": {
-            "description": "Missing, stale, or invalid signature."
-          },
-          "404": {
-            "description": "No webhook dataset with this id."
+            "description": "Missing, stale, or invalid signature, or no webhook dataset with this id (or none with a signing secret): each reads the same either way."
           },
           "409": {
-            "description": "The dataset is paused."
+            "description": "The dataset is paused (dataset_paused) or was never activated (dataset_not_active)."
           },
           "422": {
             "content": {
@@ -3185,7 +3182,7 @@
             "description": "An unknown workflow, run, cursor or connector, or workflows are off."
           },
           "409": {
-            "description": "An action's decision_id is not the decision that stands on it (unknown_decision): nothing of the report is stored."
+            "description": "An action's decision_id is not the decision that stands on it (unknown_decision), or the action was never sent (action_not_sent: the decision is a rejection or a demo approval): nothing of the report is stored."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."
@@ -4462,6 +4459,22 @@
       },
       "patch": {
         "operationId": "patch_network_config_topology_config_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            },
+            "application/merge-patch+json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "A JSON Merge Patch (RFC 7396) of the network config document: a value sets or merges, null deletes, an absent key is kept.",
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -4488,7 +4501,7 @@
             "description": "The body is over 358400 bytes."
           },
           "422": {
-            "description": "The body is not a valid network config document."
+            "description": "The body is not a valid network config document, or the document a PUT or PATCH would store has no ground_stations and no satellites (empty_document)."
           },
           "503": {
             "description": "The plan a growing fleet is checked against could not be read."
@@ -4498,6 +4511,691 @@
       },
       "put": {
         "operationId": "put_network_config_topology_config_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "One tenant's static link facts: ground stations with their antennas, and satellites with their radios. Every collection is an object keyed by id, so a JSON Merge Patch (RFC 7396) can add, change or delete one entry. Only the fields a prediction cannot be made without are required: a station's position and a satellite's NORAD number. Every other field is optional; README.md lists what each one enables and the issue code returned when it is missing. RF values (frequency, bandwidth, EIRP, G/T) are nominal: a value on a telemetry row overrides the document's for that row, and names and units match the telemetry fields (`frequency_ghz`, `bandwidth_mhz`, `eirp_dbw`, `g_t_db_k`). Unknown fields are not rejected by the API: it drops them before storing and returns an `unknown_field` issue, so this schema leaves additionalProperties open and the API validates against a closed copy to find them.",
+                "properties": {
+                  "catalog_version": {
+                    "description": "The asset catalog version the document's catalog picks were last filled from. Set by the API on every write that carries a pick; a body's value is replaced.",
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "ground_stations": {
+                    "additionalProperties": {
+                      "properties": {
+                        "altitude_m": {
+                          "description": "Height above mean sea level.",
+                          "maximum": 9000,
+                          "minimum": -500,
+                          "type": "number"
+                        },
+                        "antennas": {
+                          "additionalProperties": {
+                            "description": "The antenna's id (its key) equals the `ground_antenna_id` of its telemetry_v2 rows, so it must be unique across every station in the document.",
+                            "properties": {
+                              "acquisition_s": {
+                                "description": "Seconds from AOS until the modem locks: nothing is received before it, so a pass's usable duration starts that long after it rises. Read as 0 when absent.",
+                                "maximum": 600,
+                                "minimum": 0,
+                                "type": "number"
+                              },
+                              "antenna_diameter_m": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 100,
+                                "type": "number"
+                              },
+                              "antenna_efficiency": {
+                                "description": "Aperture efficiency. On an optical antenna it sets the receive gain with antenna_diameter_m, so it also carries the receive optics and fibre-coupling losses (typically 0.05 to 0.3).",
+                                "exclusiveMinimum": 0,
+                                "maximum": 1,
+                                "type": "number"
+                              },
+                              "band": {
+                                "description": "An IEEE Std 521 band letter, or `optical` for a link at 3000 GHz or more.",
+                                "enum": [
+                                  "HF",
+                                  "VHF",
+                                  "UHF",
+                                  "L",
+                                  "S",
+                                  "C",
+                                  "X",
+                                  "Ku",
+                                  "K",
+                                  "Ka",
+                                  "V",
+                                  "W",
+                                  "optical"
+                                ]
+                              },
+                              "demo": {
+                                "description": "Set by the API: true on a satellite or antenna the demo fleet put here (POST /topology/demo-fleet), however edited since while it keeps its id; false on one of yours under a demo id. A demo one never counts toward the plan's satellites or the bill. A value sent here is replaced.",
+                                "type": "boolean"
+                              },
+                              "frequency_ranges": {
+                                "additionalProperties": {
+                                  "allOf": [
+                                    {
+                                      "if": {
+                                        "properties": {
+                                          "direction": {
+                                            "const": "downlink"
+                                          }
+                                        },
+                                        "required": [
+                                          "direction"
+                                        ]
+                                      },
+                                      "then": {
+                                        "properties": {
+                                          "eirp_dbw": false
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "if": {
+                                        "properties": {
+                                          "direction": {
+                                            "const": "uplink"
+                                          }
+                                        },
+                                        "required": [
+                                          "direction"
+                                        ]
+                                      },
+                                      "then": {
+                                        "properties": {
+                                          "g_t_db_k": false,
+                                          "g_t_elevation_deg": false
+                                        }
+                                      }
+                                    }
+                                  ],
+                                  "description": "A band the antenna can receive (downlink) or transmit (uplink). A downlink range may carry the ground G/T; an uplink range the ground EIRP. The other term is a contradiction.",
+                                  "properties": {
+                                    "direction": {
+                                      "enum": [
+                                        "downlink",
+                                        "uplink"
+                                      ]
+                                    },
+                                    "eirp_dbw": {
+                                      "description": "Nominal EIRP in dBW: the peak, at beam center, for a satellite downlink; the maximum for a ground uplink. Where a station sits in the beam and uplink power control are learned or read from telemetry.",
+                                      "maximum": 130,
+                                      "minimum": -30,
+                                      "type": "number"
+                                    },
+                                    "g_t_db_k": {
+                                      "description": "Nominal G/T in dB/K as the datasheet states it. For a ground antenna: clear sky, at g_t_elevation_deg when given; T includes sky noise and any radome; G excludes atmospheric loss, which the models apply separately. The change with elevation and in rain is modelled or learned.",
+                                      "maximum": 60,
+                                      "minimum": -50,
+                                      "type": "number"
+                                    },
+                                    "g_t_elevation_deg": {
+                                      "description": "The elevation the datasheet states G/T at. Omit it when the datasheet states none.",
+                                      "maximum": 90,
+                                      "minimum": 0,
+                                      "type": "number"
+                                    },
+                                    "half_power_beamwidth_deg": {
+                                      "description": "The measured half-power beamwidth over this range, in degrees, from a beam scan or the datasheet. The SSA model uses it in place of 70 * wavelength / diameter.",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 90,
+                                      "type": "number"
+                                    },
+                                    "max_ghz": {
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 1000000,
+                                      "type": "number"
+                                    },
+                                    "min_ghz": {
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 1000000,
+                                      "type": "number"
+                                    }
+                                  },
+                                  "type": "object"
+                                },
+                                "maxProperties": 20,
+                                "propertyNames": {
+                                  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                                  "type": "string"
+                                },
+                                "type": "object"
+                              },
+                              "min_elevation_deg": {
+                                "exclusiveMaximum": 90,
+                                "minimum": -5,
+                                "type": "number"
+                              },
+                              "mount_type": {
+                                "description": "The antenna's axes: az_el, x_y, or az_el_xel for azimuth, elevation and cross-elevation.",
+                                "enum": [
+                                  "az_el",
+                                  "x_y",
+                                  "az_el_xel"
+                                ]
+                              },
+                              "slew_rate_deg_s": {
+                                "description": "How fast the antenna turns about each axis, in degrees per second.",
+                                "properties": {
+                                  "az": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 360,
+                                    "type": "number"
+                                  },
+                                  "el": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 360,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "az",
+                                  "el"
+                                ],
+                                "type": "object"
+                              },
+                              "sun_coupling": {
+                                "description": "Antenna temperature over the brightness temperature of a disk (the Sun or the Moon) with the whole main beam on it, in [0, 1], measured from a Sun or Moon transit. The rfi model uses it for the Sun and Moon noise terms.",
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "maxProperties": 100,
+                          "propertyNames": {
+                            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                            "type": "string"
+                          },
+                          "type": "object"
+                        },
+                        "catalog": {
+                          "description": "A pick from the public asset catalog (GET /assets/stations). The write fills name, latitude_deg, longitude_deg and receive_ranges where the station leaves them out, and lists them in filled. Sending the pick again in a PATCH refills them from the current catalog.",
+                          "properties": {
+                            "filled": {
+                              "description": "Set by the API: the fields the catalog filled. A value sent here is replaced.",
+                              "items": {
+                                "enum": [
+                                  "name",
+                                  "latitude_deg",
+                                  "longitude_deg",
+                                  "receive_ranges"
+                                ]
+                              },
+                              "type": "array",
+                              "uniqueItems": true
+                            },
+                            "station_id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "station_id"
+                          ],
+                          "type": "object"
+                        },
+                        "latitude_deg": {
+                          "maximum": 90,
+                          "minimum": -90,
+                          "type": "number"
+                        },
+                        "longitude_deg": {
+                          "maximum": 180,
+                          "minimum": -180,
+                          "type": "number"
+                        },
+                        "maintenance": {
+                          "description": "Planned maintenance at the same UTC time every day: every antenna of the station is down for its minutes, so a run drops each pass that overlaps it and never offers one as a swap's backup.",
+                          "items": {
+                            "properties": {
+                              "daily_utc": {
+                                "description": "When it starts, HH:MM UTC.",
+                                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                                "type": "string"
+                              },
+                              "minutes": {
+                                "maximum": 1440,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "reason": {
+                                "maxLength": 200,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "daily_utc",
+                              "minutes"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 24,
+                          "type": "array"
+                        },
+                        "name": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "receive_ranges": {
+                          "description": "Frequency ranges the public asset catalog publishes, filled at write from a catalog pick. Informational: links pair radios with antenna frequency_ranges, never with these.",
+                          "items": {
+                            "properties": {
+                              "band": {
+                                "description": "An IEEE Std 521 band letter, or `optical` for a link at 3000 GHz or more.",
+                                "enum": [
+                                  "HF",
+                                  "VHF",
+                                  "UHF",
+                                  "L",
+                                  "S",
+                                  "C",
+                                  "X",
+                                  "Ku",
+                                  "K",
+                                  "Ka",
+                                  "V",
+                                  "W",
+                                  "optical"
+                                ]
+                              },
+                              "max_ghz": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 1000000,
+                                "type": "number"
+                              },
+                              "min_ghz": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 1000000,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "min_ghz",
+                              "max_ghz"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 50,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "latitude_deg",
+                        "longitude_deg"
+                      ],
+                      "type": "object"
+                    },
+                    "maxProperties": 1000,
+                    "propertyNames": {
+                      "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "satellites": {
+                    "additionalProperties": {
+                      "description": "The satellite's id (its key) equals the telemetry `satellite_id` tag of its rows.",
+                      "oneOf": [
+                        {
+                          "required": [
+                            "norad_id"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "tle"
+                          ]
+                        }
+                      ],
+                      "properties": {
+                        "catalog": {
+                          "description": "A pick from the public asset catalog (GET /assets/satellites). The write fills norad_id, name, operator, fleet and downlink_ranges where the satellite leaves them out, and lists them in filled; never an RF value. Sending the pick again in a PATCH refills them from the current catalog.",
+                          "properties": {
+                            "filled": {
+                              "description": "Set by the API: the fields the catalog filled. A value sent here is replaced.",
+                              "items": {
+                                "enum": [
+                                  "norad_id",
+                                  "name",
+                                  "operator",
+                                  "fleet",
+                                  "downlink_ranges"
+                                ]
+                              },
+                              "type": "array",
+                              "uniqueItems": true
+                            },
+                            "norad_id": {
+                              "maximum": 999999999,
+                              "minimum": 1,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "norad_id"
+                          ],
+                          "type": "object"
+                        },
+                        "demo": {
+                          "description": "Set by the API: true on a satellite or antenna the demo fleet put here (POST /topology/demo-fleet), however edited since while it keeps its id; false on one of yours under a demo id. A demo one never counts toward the plan's satellites or the bill. A value sent here is replaced.",
+                          "type": "boolean"
+                        },
+                        "downlink_ranges": {
+                          "description": "Frequency ranges the public asset catalog publishes, filled at write from a catalog pick. Informational: links pair radios with antenna frequency_ranges, never with these.",
+                          "items": {
+                            "properties": {
+                              "band": {
+                                "description": "An IEEE Std 521 band letter, or `optical` for a link at 3000 GHz or more.",
+                                "enum": [
+                                  "HF",
+                                  "VHF",
+                                  "UHF",
+                                  "L",
+                                  "S",
+                                  "C",
+                                  "X",
+                                  "Ku",
+                                  "K",
+                                  "Ka",
+                                  "V",
+                                  "W",
+                                  "optical"
+                                ]
+                              },
+                              "max_ghz": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 1000000,
+                                "type": "number"
+                              },
+                              "min_ghz": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 1000000,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "min_ghz",
+                              "max_ghz"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 50,
+                          "type": "array"
+                        },
+                        "fleet": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "name": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "norad_id": {
+                          "description": "The OMM NORAD_CAT_ID: the key into the CelesTrak catalog for this satellite's orbit.",
+                          "maximum": 999999999,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "operator": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "radios": {
+                          "additionalProperties": {
+                            "allOf": [
+                              {
+                                "if": {
+                                  "properties": {
+                                    "direction": {
+                                      "const": "downlink"
+                                    }
+                                  },
+                                  "required": [
+                                    "direction"
+                                  ]
+                                },
+                                "then": {
+                                  "properties": {
+                                    "g_t_db_k": false
+                                  }
+                                }
+                              },
+                              {
+                                "if": {
+                                  "properties": {
+                                    "direction": {
+                                      "const": "uplink"
+                                    }
+                                  },
+                                  "required": [
+                                    "direction"
+                                  ]
+                                },
+                                "then": {
+                                  "properties": {
+                                    "eirp_dbw": false
+                                  }
+                                }
+                              }
+                            ],
+                            "description": "One carrier the satellite transmits (downlink) or receives (uplink). A downlink radio may carry the satellite EIRP, an uplink radio the satellite G/T; the other term is a contradiction. Dual polarization is two radios.",
+                            "properties": {
+                              "band": {
+                                "description": "An IEEE Std 521 band letter, or `optical` for a link at 3000 GHz or more.",
+                                "enum": [
+                                  "HF",
+                                  "VHF",
+                                  "UHF",
+                                  "L",
+                                  "S",
+                                  "C",
+                                  "X",
+                                  "Ku",
+                                  "K",
+                                  "Ka",
+                                  "V",
+                                  "W",
+                                  "optical"
+                                ]
+                              },
+                              "bandwidth_mhz": {
+                                "description": "The carrier's occupied bandwidth (MHz), roll-off included.",
+                                "exclusiveMinimum": 0,
+                                "maximum": 1000000,
+                                "type": "number"
+                              },
+                              "direction": {
+                                "enum": [
+                                  "downlink",
+                                  "uplink"
+                                ]
+                              },
+                              "eirp_dbw": {
+                                "description": "Nominal EIRP in dBW: the peak, at beam center, for a satellite downlink; the maximum for a ground uplink. Where a station sits in the beam and uplink power control are learned or read from telemetry.",
+                                "maximum": 130,
+                                "minimum": -30,
+                                "type": "number"
+                              },
+                              "frequency_ghz": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 1000000,
+                                "type": "number"
+                              },
+                              "g_t_db_k": {
+                                "description": "Nominal G/T in dB/K as the datasheet states it. For a ground antenna: clear sky, at g_t_elevation_deg when given; T includes sky noise and any radome; G excludes atmospheric loss, which the models apply separately. The change with elevation and in rain is modelled or learned.",
+                                "maximum": 60,
+                                "minimum": -50,
+                                "type": "number"
+                              },
+                              "modcod": {
+                                "additionalProperties": false,
+                                "allOf": [
+                                  {
+                                    "if": {
+                                      "properties": {
+                                        "adaptive": {
+                                          "const": false
+                                        }
+                                      },
+                                      "required": [
+                                        "adaptive"
+                                      ]
+                                    },
+                                    "then": {
+                                      "required": [
+                                        "required_es_n0_db"
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "if": {
+                                      "properties": {
+                                        "standard": {
+                                          "const": "other"
+                                        }
+                                      },
+                                      "required": [
+                                        "standard"
+                                      ]
+                                    },
+                                    "then": {
+                                      "required": [
+                                        "required_es_n0_db"
+                                      ]
+                                    }
+                                  }
+                                ],
+                                "description": "How the radio's modem chooses modulation and coding. Absent means DVB-S2X (ETSI EN 302 307-2) with adaptive coding and modulation. One fixed MODCOD, or a standard not listed, needs required_es_n0_db: the Es/N0 the modem needs at its target frame error rate. It names no efficiency: a fixed MODCOD also needs modcods with exactly one entry whose min_es_n0_db equals required_es_n0_db, which prices the pass.",
+                                "properties": {
+                                  "adaptive": {
+                                    "type": "boolean"
+                                  },
+                                  "required_es_n0_db": {
+                                    "maximum": 40,
+                                    "minimum": -15,
+                                    "type": "number"
+                                  },
+                                  "standard": {
+                                    "enum": [
+                                      "dvb-s2x",
+                                      "dvb-s2",
+                                      "other"
+                                    ]
+                                  }
+                                },
+                                "type": "object"
+                              },
+                              "modcods": {
+                                "description": "The carrier's MODCOD table, as its modem needs it: each entry's min_es_n0_db is the Es/N0 the modem needs for that MODCOD, with its own margin already in, and efficiency_bps_hz is the information bits per second per hertz it delivers. Capacity uses the most efficient entry the link's Es/N0 reaches; a radio without a table is priced on a generic DVB-S2 table.",
+                                "items": {
+                                  "properties": {
+                                    "efficiency_bps_hz": {
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 20,
+                                      "type": "number"
+                                    },
+                                    "min_es_n0_db": {
+                                      "maximum": 60,
+                                      "minimum": -30,
+                                      "type": "number"
+                                    },
+                                    "name": {
+                                      "maxLength": 64,
+                                      "minLength": 1,
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "min_es_n0_db",
+                                    "efficiency_bps_hz"
+                                  ],
+                                  "type": "object"
+                                },
+                                "minItems": 1,
+                                "type": "array"
+                              },
+                              "polarization": {
+                                "enum": [
+                                  "rhcp",
+                                  "lhcp",
+                                  "linear_horizontal",
+                                  "linear_vertical"
+                                ]
+                              },
+                              "rolloff": {
+                                "description": "The carrier's roll-off factor: its symbol rate is bandwidth_mhz / (1 + rolloff), the rate Es/N0 is over and capacity is counted at. DVB-S2 allows 0.35, 0.25 and 0.20, DVB-S2X also 0.15, 0.10 and 0.05. Absent means 0.20.",
+                                "enum": [
+                                  0.35,
+                                  0.25,
+                                  0.2,
+                                  0.15,
+                                  0.1,
+                                  0.05
+                                ]
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "maxProperties": 50,
+                          "propertyNames": {
+                            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                            "type": "string"
+                          },
+                          "type": "object"
+                        },
+                        "tle": {
+                          "description": "The satellite's own two-line element set, in place of a `norad_id`: its orbit is propagated from it however old its epoch, and its NORAD id is the one line 1 carries.",
+                          "properties": {
+                            "line1": {
+                              "maxLength": 69,
+                              "minLength": 69,
+                              "pattern": "^1 ",
+                              "type": "string"
+                            },
+                            "line2": {
+                              "maxLength": 69,
+                              "minLength": 69,
+                              "pattern": "^2 ",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "line1",
+                            "line2"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "maxProperties": 5000,
+                    "propertyNames": {
+                      "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "title": "Network config v1",
+                "type": "object"
+              }
+            }
+          },
+          "description": "The whole network config document. A document with no ground_stations and no satellites is refused (empty_document); the demo is removed with DELETE /topology/demo-fleet.",
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -4524,7 +5222,7 @@
             "description": "The body is over 358400 bytes."
           },
           "422": {
-            "description": "The body is not a valid network config document."
+            "description": "The body is not a valid network config document, or the document a PUT or PATCH would store has no ground_stations and no satellites (empty_document)."
           },
           "503": {
             "description": "The plan a growing fleet is checked against could not be read."
@@ -4535,7 +5233,7 @@
     },
     "/topology/demo-fleet": {
       "delete": {
-        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one PATCH /topology/config with the caller's key, so it is a new version like any\nwrite; then the workflows the demo load saved that are still the demo's (their queued and\nrunning runs cancelled and their decisions forgotten, as deleting one does), and its storm. The\naccount's own stations, antennas, satellites, workflows and scenarios stay. Safe to repeat.",
+        "description": "Take the demo fleet out of the caller's account: every satellite and antenna its network\nconfig holds as the demo's (demo_network.demo_entities), and a station once all its antennas\ngo, in one merge patch written as PATCH /topology/config writes one, so it is a new version\nlike any write, and the only write that may leave the fleet empty; then the workflows the demo load saved that are still the demo's (their queued and\nrunning runs cancelled and their decisions forgotten, as deleting one does), and its storm. The\naccount's own stations, antennas, satellites, workflows and scenarios stay. Safe to repeat.",
         "operationId": "remove_demo_fleet_topology_demo_fleet_delete",
         "responses": {
           "204": {
@@ -4778,9 +5476,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Scenario Topology Scenarios Post",
-                  "type": "object"
+                  "title": "Response Create Scenario Topology Scenarios Post"
                 }
               }
             },
@@ -4802,14 +5498,7 @@
             "description": "The run's stored data has expired (run_data_expired)."
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "A bad body, or a weather_quantile other than p50 while the weather model has no spread (weather_quantile_unavailable)."
           },
           "429": {
             "description": "Too many feed consumers for this account (too_many_consumers)."
