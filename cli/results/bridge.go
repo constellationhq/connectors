@@ -30,8 +30,10 @@ type Bridge struct {
 	// Apply writes one run's items into your system and returns what it wrote, e.g.
 	// {"passes": 12}. An error retries the run.
 	Apply func(items []Item, settings map[string]any, run Run) (map[string]int, error)
-	// Act carries out an approved action (cancel the pass, book the backup) and returns true
-	// once done. Called after Apply, never for any state but approved. Nil carries out nothing.
+	// Act handles an approved action and returns true once done. A swap is advice: add a backup
+	// pass and keep this one, or move to the backup; your own system books and releases passes,
+	// Constellation books and cancels nothing. Called after Apply, never for any state but
+	// approved. Nil does nothing.
 	Act func(item Item, settings map[string]any, run Run) (bool, error)
 
 	Client     *Client
@@ -141,7 +143,7 @@ func (b *Bridge) load() error {
 const KeepActed = 7 * 24 * time.Hour
 
 // actedUntil is when an acted key may be forgotten: the latest of the item's time, its end (a
-// pass's end), its action's cancel deadline and now, plus KeepActed, so a key is never dropped as
+// pass's end), its action's decide-by time and now, plus KeepActed, so a key is never dropped as
 // soon as it is written; "" (kept for good) when none of the item's is a time.
 func actedUntil(item Item) string {
 	action, _ := item["action"].(map[string]any)
@@ -161,7 +163,7 @@ func actedUntil(item Item) string {
 	return latest.Add(KeepActed).UTC().Format(time.RFC3339)
 }
 
-// PastDeadline says whether the item's action is past its cancel deadline: closed, never to be
+// PastDeadline says whether the item's action is past its decide-by time: closed, never to be
 // carried out.
 func PastDeadline(item Item) bool {
 	action, _ := item["action"].(map[string]any)
@@ -241,7 +243,7 @@ func appendLines(path string, lines []string) error {
 // act carries out an approval unless it was carried out before, and says whether it did now.
 func (b *Bridge) act(item Item, settings map[string]any, run Run) (bool, error) {
 	if PastDeadline(item) {
-		b.Log(fmt.Sprintf("not acting on %v: its cancel deadline has passed", item["entity"]))
+		b.Log(fmt.Sprintf("not acting on %v: its decide-by time has passed", item["entity"]))
 		return false, nil
 	}
 	key := actionKey(item)

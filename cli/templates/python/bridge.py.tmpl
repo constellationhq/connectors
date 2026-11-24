@@ -18,9 +18,17 @@ class {{.Class}}(Bridge):
         return {"passes": len(kept)}
 
     def act(self, item, settings, run):
-        """Carry out an approved action (book the backup pass, cancel the original) and return
-        True once done. Only approved actions arrive here; raise to retry the run."""
+        """Handle an approved action and return True once done. A swap is advice: "add" a backup
+        pass and keep this one, or "move" to the backup. gain_gb is what it adds over doing
+        nothing, deadline the time to decide by. Constellation books and cancels nothing; your
+        system or team does. Only approved actions arrive here; raise to retry the run."""
         action = item["action"]
+        if action["verb"] == "swap" and action.get("action") == "move":
+            # TODO: your booking calls go here: book the backup, then release this pass.
+            pass
+        elif action["verb"] == "swap":
+            # TODO: your booking calls go here: book the backup and keep this pass.
+            pass
         print(f"approved: {action['verb']} {action.get('from')} -> {action.get('to')}", flush=True)
         return True
 

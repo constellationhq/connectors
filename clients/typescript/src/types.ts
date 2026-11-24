@@ -79,7 +79,7 @@ export interface ResultAction {
   gain_gb_p10?: number;
   /** The ground network's offer for the backup: link, network, slot_id, price, cancel_deadline_utc. */
   to_offer?: Record<string, unknown>;
-  /** The operator's booking of the original to cancel: link, network, booking_id, price, cancel_deadline_utc, state. */
+  /** On a move, the operator's booking of the original to release: link, network, booking_id, price, cancel_deadline_utc, state. */
   from_held?: Record<string, unknown>;
   [key: string]: unknown;
 }

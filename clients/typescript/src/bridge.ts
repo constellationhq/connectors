@@ -107,7 +107,7 @@ export const CHECKIN_MS = 5 * 60 * 1000;
 
 /**
  * When an acted key may be forgotten: the latest of the item's time, its end (a pass's end), its
- * action's cancel deadline and now, plus KEEP_ACTED_MS, so a key is never dropped as soon as it is
+ * action's decide-by time and now, plus KEEP_ACTED_MS, so a key is never dropped as soon as it is
  * written; "" (kept for good) when none of the item's is a time.
  */
 export function actedUntil(item: Result): string {
@@ -130,7 +130,7 @@ function malformed(item: unknown): string {
   return "";
 }
 
-/** Whether the item's action is past its cancel deadline: closed, never to be carried out. */
+/** Whether the item's action is past its decide-by time: closed, never to be carried out. */
 function pastDeadline(item: Result): boolean {
   const deadline = Date.parse(item.action?.deadline ?? "");
   return !Number.isNaN(deadline) && deadline <= Date.now();
@@ -214,10 +214,12 @@ export abstract class Bridge {
   ): Promise<Record<string, number>> | Record<string, number>;
 
   /**
-   * Carry out an approved action (cancel the pass, book the backup); return true once done.
-   * Called after apply(), once per approval, never for any other state, and never again for the
-   * same approval (actionKey) in a later run or after a restart. Throw when your system is
-   * failing: the run is retried, without acting again on what was done. The default does nothing.
+   * Handle an approved action; return true once done. A swap is advice: add a backup pass and
+   * keep this one, or move to the backup; your own system books and releases passes,
+   * Constellation books and cancels nothing. Called after apply(), once per approval, never for
+   * any other state, and never again for the same approval (actionKey) in a later run or after a
+   * restart. Throw when your system is failing: the run is retried, without acting again on what
+   * was done. The default does nothing.
    */
   act(
     _item: Result,
@@ -310,10 +312,10 @@ export abstract class Bridge {
     }
   }
 
-  /** Carries out an approved action unless it was carried out before or is past its cancel deadline; says whether it did. */
+  /** Carries out an approved action unless it was carried out before or is past its decide-by time; says whether it did. */
   private async carryOut(item: Result, settings: Record<string, unknown>, run: RunInfo): Promise<boolean> {
     if (pastDeadline(item)) {
-      this.log(`not acting on ${item.entity.id}: its cancel deadline has passed`);
+      this.log(`not acting on ${item.entity.id}: its decide-by time has passed`);
       return false;
     }
     if (!this.actedKeys) {

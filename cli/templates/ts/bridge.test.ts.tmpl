@@ -12,8 +12,10 @@ test("apply writes the passes above the threshold", () => {
   assert.deepEqual(bridge.apply([pass(1), pass(9)], { min_p10_gb: 5, label: "x" }, run), { passes: 1 });
 });
 
-test("act carries out an approved swap", () => {
+test("act handles an approved swap to add or move", () => {
   const bridge = new {{.Class}}({ manifest, store: new MemoryCursorStore() });
-  const swap = { verb: "swap", from: "pass_9", to: "pass_backup", mode: "approve" };
-  assert.equal(bridge.act(pass(9, { action: swap, action_status: "approved" }), {}, run), true);
+  for (const action of ["add", "move"]) {
+    const swap = { verb: "swap", action, from: "pass_9", to: "pass_backup", mode: "approve" };
+    assert.equal(bridge.act(pass(9, { action: swap, action_status: "approved" }), {}, run), true);
+  }
 });

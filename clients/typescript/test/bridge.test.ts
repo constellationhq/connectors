@@ -149,7 +149,7 @@ describe("Bridge", () => {
     expect([...store.actedKeys.keys()]).toEqual(["live", "kept", "s1|swap|b1"]);
   });
 
-  it("keeps an approval until the latest of its pass end and cancel deadline, plus a week", () => {
+  it("keeps an approval until the latest of its pass end and decide-by time, plus a week", () => {
     const late = item("s1", { ...approved, until: "2030-01-01T02:00:00Z", action: { ...approved.action, deadline: "2030-01-02T00:00:00Z" } });
     expect(actedUntil(late)).toBe("2030-01-09T00:00:00.000Z");
     expect(actedUntil(item("s1", { target_at: "soon" }))).toBe("");
@@ -264,7 +264,7 @@ describe("Bridge", () => {
     expect(store.cursor).toBe("");
   });
 
-  it("never acts on an action past its cancel deadline, even replaying the history", async () => {
+  it("never acts on an action past its decide-by time, even replaying the history", async () => {
     const b = bridge(fakeApi([entry("20300101T000001#run_1", "my-bridge", [item("closed", expired)])]));
     await b.poll();
     expect(b.acted).toEqual([]);

@@ -36,7 +36,7 @@ var NamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 type Item = map[string]any
 
 // ActionState is what an item's action is to a bridge. "advice": suggested, never an
-// instruction. "approved": a person approved it in Constellation, an instruction to carry out.
+// instruction. "approved": a person approved it in Constellation, advice to act on.
 // "pending": held for approval (the action itself is not sent). "rejected": decided against.
 // "": no action. Any status other than approved or rejected counts as pending, so an item a
 // bridge cannot read is never taken for a plain forecast.

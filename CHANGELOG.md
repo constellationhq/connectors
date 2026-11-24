@@ -1,9 +1,18 @@
 # Changelog
 
-## v0.8.4 (2026-11-23)
+## v0.8.5 (2026-11-24)
+
+v0.8.4 was never published to PyPI, npm, RubyGems or Maven (only its ghcr images were pushed); its
+changes ship here, with the wording fixes below.
 
 ### For operators
 
+- Bridges and `constellation conformance` say an approved action is past its decide-by time, not
+  its "cancel deadline". A ground network's own cancel-by time on an offer or a held booking keeps
+  its name.
+- Forecast view (Yamcs, COSMOS, Open MCT): the rain-fade swap chart shows what the advice adds to
+  each at-risk pass (the GB expected in the rain, and that plus `gain_gb`), not the pass's p10
+  against its p50, which are equal on a forward forecast.
 - Rain-fade swaps read as advice everywhere: "Add a backup pass" (keep this one) or "Move to the
   backup", with the gain over doing nothing (`gain_gb`) and why, and a decide-by time. Never
   "cancel": Constellation books and cancels nothing. The loss is the note's "Rain costs N% of its
@@ -27,6 +36,10 @@
 
 ### For developers
 
+- The `act` scaffolds (`constellation new python|go|ts`) and the SDK docs no longer say "book the
+  backup pass, cancel the original". A swap is advice: `add` a backup pass and keep this one, or
+  `move` to the backup; the scaffolds show where your own booking calls go for each.
+- An approved action is "advice to act on", not "an instruction to carry out".
 - Built against contract 2.8.1 (was 2.1.0), which adds the advisory swap fields and per-action outcomes.
 - Python (`constellation_space.models`) and TypeScript (`types.ts`) declare the advisory swap
   fields on an action, all optional: `action` (`add` or `move`; read any other value as `add`),

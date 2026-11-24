@@ -154,7 +154,7 @@ func TestABridgeThatExitsFails(t *testing.T) {
 	for _, name := range []string{"keeps running until it is stopped", "writes the conformance log", "checks in as a custom connector with a valid manifest",
 		// Nothing it must never do passes by its doing nothing at all.
 		"never reports a run in an item shape it was not built for",
-		"never acts on an action past its cancel deadline",
+		"never acts on an action past its decide-by time",
 		"does not act again after a restart on what it acted on before"} {
 		if checks[name].OK {
 			t.Errorf("%q passed", name)
