@@ -6,6 +6,13 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.8.2
+
+-            "description": "Payload accepted for ingest."
+-        "description": "Reject an action a run holds: nothing is published, it cannot be decided again, and the\nworkflow's later runs hold the same action back as rejected.",
+-        "description": "Forgets a custom connector; it registers pending again the next time its bridge checks in.",
+-        "description": "Records what a bridge found on its side. A custom bridge's manifest registers it with the\naccount, pending until someone who may edit workflows approves it; a changed manifest waits\nfor approval again, so a bridge's key can propose a connector but never enable one. A Lattice\nor COSMOS bridge checks in only on the plan its output needs.",
+
 ## 2.8.1
 
 -            "description": "The account has a network config of its own, holding a station, antenna or satellite (network_config_exists)."
