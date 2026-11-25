@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.9.1"
+    "version": "2.10.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4594,6 +4594,32 @@
                                 "maximum": 600,
                                 "minimum": 0,
                                 "type": "number"
+                              },
+                              "agent": {
+                                "description": "Set by `constellation-agent register`: the Fleet Agent install that registered the antenna. Its install_id is how a later register run knows the antenna is its own.",
+                                "properties": {
+                                  "hostname": {
+                                    "maxLength": 253,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  },
+                                  "install_id": {
+                                    "description": "A UUID made once per install and kept in /etc/constellation/install_id.",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "version": {
+                                    "maxLength": 128,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "install_id",
+                                  "hostname",
+                                  "version"
+                                ],
+                                "type": "object"
                               },
                               "antenna_diameter_m": {
                                 "exclusiveMinimum": 0,

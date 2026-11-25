@@ -6,6 +6,13 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.10.0
+
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/agent`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/agent/properties/hostname`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/agent/properties/install_id`
+- added `field openapi.json/paths//topology/config/put/requestBody/content/application/json/schema/properties/ground_stations/additionalProperties/properties/antennas/additionalProperties/properties/agent/properties/version`
+
 ## 2.9.1
 
 - Descriptions only.
