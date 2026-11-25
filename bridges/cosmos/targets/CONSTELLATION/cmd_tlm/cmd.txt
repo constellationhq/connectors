@@ -1,0 +1,16 @@
+# Deciding, from COSMOS, the rain-fade swaps Constellation holds for a person to approve or
+# decline: the Platform's Send to mission control and Decline. Only when the plugin is installed with
+# approvals on, which also adds CONSTELLATION_INT (lib/constellation_interface.py) to carry them
+# out; the key in Admin > Secrets then needs act:approve, and approving needs Operator + Act.
+# The run and item ids are the ones CONSTELLATION HELD shows.
+<%- if approvals.to_s.strip.downcase == "on" -%>
+COMMAND CONSTELLATION APPROVE_SWAP BIG_ENDIAN "Approve the swap Constellation holds on a pass: it comes back as approved advice, in SWAP"
+  HAZARDOUS "Approving cannot be undone. Constellation sends the swap back to this COSMOS as approved advice; booking the backup, before the decide-by time, is yours."
+  APPEND_PARAMETER RUN_ID 512 STRING "" "Run that holds the swap: CONSTELLATION HELD RUN_ID"
+  APPEND_PARAMETER ITEM_ID 512 STRING "" "Pass it is held on: CONSTELLATION HELD ITEM_ID"
+
+COMMAND CONSTELLATION DECLINE_SWAP BIG_ENDIAN "Decline the swap Constellation holds on a pass: nothing changes"
+  HAZARDOUS "Declining cannot be undone: nothing is sent, and later runs hold the same swap back as declined."
+  APPEND_PARAMETER RUN_ID 512 STRING "" "Run that holds the swap: CONSTELLATION HELD RUN_ID"
+  APPEND_PARAMETER ITEM_ID 512 STRING "" "Pass it is held on: CONSTELLATION HELD ITEM_ID"
+<%- end -%>

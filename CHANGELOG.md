@@ -20,6 +20,38 @@ expected GB (`expected_gb.p50`), and never a p10 or p90.
   `EXPECTED_GB_P90` and `GB_P10` stay in their packets, deprecated: read the matching `_P50`.
 - Yamcs: timeline items no longer carry `expected_gb_p10` or `expected_gb_p90`.
   `next_pass_expected_gb_p10` and `_p90` stay in the MDB, deprecated.
+- COSMOS: the bridge signs in again when COSMOS ends its session, as setting or changing the
+  COSMOS password does. Before, every inject failed with "Token is invalid" until the plugin
+  restarted, and the forecast went stale with no word in Constellation.
+- COSMOS: `NEXT_PASS` gains `AT_RISK`, `YES` when the pass is at risk as on the Platform's Passes
+  tab (expected to deliver nothing or under the workspace's contract minimum, a value its pricing
+  left unfilled, or flagged by a workflow), yellow in Limits Monitor, and `CONTRACT_MIN_GB`;
+  `NEXT_24H` gains `AT_RISK`, the passes at risk in the next 24 hours. Appended, so earlier items
+  keep their place.
+- COSMOS: the `satellites` variable (`sat-1=KESTREL1 ...`) gives each satellite a
+  `NEXT_PASS_<NAME>` packet of its own, so a spacecraft's screen and scripts can wait on its own
+  next pass rather than the fleet's.
+- COSMOS: `HELD`, the soonest swap Constellation holds for a decision, as advice, with its run
+  and item ids. With the `approvals` variable on, the `APPROVE_SWAP` and `DECLINE_SWAP` commands
+  (hazardous, so COSMOS asks first) decide it through Constellation, and the screen has Approve
+  and Decline buttons. The key then needs `act:approve`.
+- COSMOS: the `outcomes` variable (`sat-1=SAT1_INT ...`) sends what each forecast pass of a
+  mapped satellite delivered, the bytes COSMOS received on its interface between AOS and LOS, to
+  Constellation as a contact record (`POST /telemetry`), so the audit and calibration need no pass
+  log. A pass that brought nothing is not sent. The key then needs `telemetry:write`.
+- COSMOS Enterprise: with the `timeline` variable on, the next 48 hours of forecast passes are
+  reserve activities on a `CONSTELLATION` timeline, which Enterprise's Calendar shows. COSMOS Core
+  runs no timelines (a timeline made there has COSMOS restart Enterprise's timeline worker every
+  few seconds), so on Core the bridge says so in its log and makes none.
+- COSMOS: `CONSTELLATION/lib/constellation_forecast.py` for Script Runner: `forecast_passes`,
+  `next_forecast_pass`, `modcod_plan`, `held_swap`, `approve_held_swap` and `decline_held_swap`,
+  read from what the bridge writes into COSMOS, with the script's own sign-in.
+- COSMOS: the `FORECAST` screen leads with the swap waiting on your decision (its advice in
+  full, minutes left, Approve and Decline), beside the next pass, the next 24 hours and when the
+  latest run arrived. Each satellite's next pass is a table with headers, times are no longer cut
+  off, and the rain-fade swaps, capacity and MODCOD plan sit in tabs below. `RUN` gains
+  `RECEIVED`, when the run arrived, as COSMOS's own received time of `RUN` moves with every
+  minute's refresh.
 
 ### For developers
 
