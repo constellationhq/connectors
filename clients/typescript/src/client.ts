@@ -1,5 +1,5 @@
 import { PAGE_RECORDS, unpack, whole } from "./results.js";
-import type { CheckIn, Delivery, ResultsEntry, ResultsPage, Manifest, RawResultsEntry } from "./types.js";
+import type { ActionOutcome, CheckIn, Delivery, ResultsEntry, ResultsPage, Manifest, RawResultsEntry } from "./types.js";
 
 export const DEFAULT_API_URL = "https://api.constellation.space";
 
@@ -60,6 +60,9 @@ export interface ClientOptions {
 
 const env = (name: string): string | undefined =>
   (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env[name];
+
+/** The most action outcomes the API takes in one delivery report. */
+export const MAX_OUTCOMES = 200;
 
 /** The longest Retry-After honored: a longer one is waited this long, then asked again. */
 export const MAX_RETRY_AFTER_S = 60;
@@ -227,10 +230,40 @@ export class Client {
     return this.request("POST", "/predictions/feed/checkin", { body });
   }
 
-  /** Tells Constellation what the run at `cursor` became in the system, shown in Constellation. */
-  report(consumer: string, cursor: string, applied: Record<string, number>, target: string): Promise<void> {
+  /**
+   * Tells Constellation what the run at `cursor` became in the system, shown in Constellation, and
+   * what became of each approved action in it (`actions`). When Constellation refuses the outcomes
+   * (409: a decision changed, or one was declined or approved on the demo fleet and never sent;
+   * 422: an API from before outcomes), they are logged and dropped, and the delivery is sent
+   * without them.
+   */
+  async report(
+    consumer: string,
+    cursor: string,
+    applied: Record<string, number>,
+    target: string,
+    actions: ActionOutcome[] = [],
+  ): Promise<void> {
     const body: Delivery = { consumer, run_id: cursor.slice(cursor.indexOf("#") + 1), cursor, applied, target };
-    return this.request("POST", "/predictions/feed/deliveries", { body });
+    if (!actions.length) return this.request("POST", "/predictions/feed/deliveries", { body });
+    try {
+      await this.request("POST", "/predictions/feed/deliveries", { body: { ...body, actions: actions.slice(0, MAX_OUTCOMES) } });
+    } catch (error) {
+      const { status, code } = error as Partial<ConstellationError>;
+      if (status !== 409 && status !== 422) throw error;
+      const why =
+        code === "action_not_sent"
+          ? "one was declined or approved on the demo fleet, so never sent"
+          : code === "unknown_decision"
+            ? "a decision on one changed after this run"
+            : status === 422
+              ? "this API does not take outcomes"
+              : "it refused them";
+      this.log(
+        `Constellation did not take the outcomes of ${actions.length} approved action(s) of ${cursor}: ${why} (HTTP ${status}${code ? ` ${code}` : ""}). Reported the delivery without them; they are not sent again`,
+      );
+      await this.request("POST", "/predictions/feed/deliveries", { body });
+    }
   }
 }
 

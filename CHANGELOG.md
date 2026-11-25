@@ -23,6 +23,25 @@ expected GB (`expected_gb.p50`), and never a p10 or p90.
 
 ### For developers
 
+- The Python, Go and TypeScript `Bridge` base classes, and so every `constellation bridge new`
+  scaffold, report what `act()` did with each approval in the run's delivery report
+  (`actions: [{action_id, decision_id, outcome, reason}]`), so the Platform shows "Sent to your MCS
+  at ..." or "Not sent to your MCS: <reason>". They reported only an `acted` count before.
+  - `act()` returns true when done, or false or a reason (a string; in Go an error) when your
+    system will not do it. An exception (Go: an error) is now a refusal with its message, no
+    longer a retried run. An approval past its decide-by time is reported refused.
+  - Each decision is handed to `act()` and reported once, whatever it returned, across runs and
+    restarts. A bridge without `act()` (Python and TypeScript: one returning None or undefined)
+    reports nothing.
+  - Declined and pending actions are never reported. When Constellation refuses the outcomes (409
+    `action_not_sent` for a declined or demo decision, `unknown_decision`, or 422 from an older
+    API), the bridge logs it once, sends the delivery without them and never retries them. The
+    Python template now catches these from its own client too: it read only urllib's error code.
+  - The Go client retries a 429, a 5xx or a failed connection three times with backoff, as the
+    Python and TypeScript clients do.
+- `constellation conformance` checks that a bridge reports one outcome for each approval it was
+  sent (22 checks), and the mock takes `actions` in delivery reports, refusing an unknown decision
+  (409) as the API does.
 - The bridge scaffolds (`constellation bridge new`) and the custom bridge examples ask for
   `min_gb`, "Only passes expected to deliver at least (GB)", and filter on `value.p50`. They
   asked for `min_p10_gb` "(GB, p10)" and filtered on the p10.

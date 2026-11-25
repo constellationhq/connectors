@@ -6,6 +6,7 @@ import type { components } from "./generated/api.js";
 export type Schemas = components["schemas"];
 export type CheckIn = Schemas["CheckIn"];
 export type Delivery = Schemas["Delivery"];
+export type ActionOutcome = Schemas["ActionOutcome"];
 
 /**
  * One result of a run for a connection, item shape constellation.item/v2

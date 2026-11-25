@@ -497,6 +497,25 @@ func judge(scenario mock.Scenario, reqs []mock.Request, restartAt int, log actio
 	never(counts[expiredItem+" swap"] == 0, "never acts on an action past its decide-by time",
 		fmt.Sprintf("acted %d time(s) on %s, whose deadline passed in 2020", counts[expiredItem+" swap"], expiredItem))
 
+	// Each decision on an approval the feed sent gets one outcome, acted or refused, in a delivery
+	// report, so the Platform can say whether it reached mission control.
+	outcomes := map[string]int{}
+	for _, d := range deliveries {
+		list, _ := d["actions"].([]any)
+		for _, a := range list {
+			o, _ := a.(map[string]any)
+			outcomes[str(o, "action_id")+" "+str(o, "decision_id")]++
+		}
+	}
+	var unreported []string
+	for _, k := range sortedKeys(sentDecisions(scenario)) {
+		if outcomes[k] != 1 {
+			unreported = append(unreported, fmt.Sprintf("%s reported %d time(s)", k, outcomes[k]))
+		}
+	}
+	never(len(unreported) == 0, "reports an outcome, acted or refused, once for each approval it was sent",
+		strings.Join(unreported, "; ")+`: add actions [{action_id, decision_id, outcome, reason}] to the run's POST /predictions/feed/deliveries`)
+
 	var resumed *mock.Request
 	for i := restartAt; i < len(reqs); i++ {
 		if isPull(reqs[i]) {
@@ -528,6 +547,22 @@ func judge(scenario mock.Scenario, reqs []mock.Request, restartAt int, log actio
 	}
 	never(len(again) == 0, "does not act again after a restart on what it acted on before", "acted again on "+strings.Join(again, ", "))
 	return checks
+}
+
+// sentDecisions are "action_id decision_id" of every approval the bridge is sent and must report
+// on: past the history, and still open.
+func sentDecisions(s mock.Scenario) map[string]bool {
+	out := map[string]bool{}
+	for _, e := range s.Entries {
+		for _, item := range e.Items {
+			id, _ := item["action_id"].(string)
+			decision, _ := item["decision_id"].(string)
+			if e.Phase > 0 && id != "" && decision != "" && results.ActionState(item) == "approved" && !results.PastDeadline(item) {
+				out[id+" "+decision] = true
+			}
+		}
+	}
+	return out
 }
 
 // approval is what the scenario sends of one approved action: its decisions (decision_id; ""

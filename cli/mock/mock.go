@@ -271,6 +271,47 @@ func (m *Mock) visible() []Entry {
 	return out
 }
 
+// badOutcomes is why a delivery's actions are not [{action_id, decision_id, outcome: acted or
+// refused, reason}] (up to 200, reason at most 500 characters), or "".
+func (m *Mock) badOutcomes(actions any) string {
+	if actions == nil {
+		return ""
+	}
+	list, ok := actions.([]any)
+	if !ok || len(list) > 200 {
+		return "a list of at most 200 outcomes"
+	}
+	for _, a := range list {
+		o, _ := a.(map[string]any)
+		id, _ := o["action_id"].(string)
+		decision, _ := o["decision_id"].(string)
+		reason, _ := o["reason"].(string)
+		if id == "" || decision == "" || (o["outcome"] != "acted" && o["outcome"] != "refused") || len(reason) > 500 || len(o) > 4 {
+			return "each is {action_id, decision_id, outcome: acted or refused, reason (at most 500 characters)}"
+		}
+	}
+	return ""
+}
+
+// unknownDecision is the action_id of an outcome whose decision is no approval the feed sent, as
+// the API refuses it (409), or "".
+func (m *Mock) unknownDecision(actions any) string {
+	list, _ := actions.([]any)
+	for _, a := range list {
+		o := a.(map[string]any)
+		sent := false
+		for _, e := range m.visible() {
+			for _, item := range e.Items {
+				sent = sent || (item["action_status"] == "approved" && item["action_id"] == o["action_id"] && item["decision_id"] == o["decision_id"])
+			}
+		}
+		if !sent {
+			return o["action_id"].(string)
+		}
+	}
+	return ""
+}
+
 var checkInFields = map[string]bool{"consumer": true, "system": true, "manifest": true, "target": true,
 	"system_version": true, "bridge_version": true, "mapping_versions": true, "can": true, "widget": true}
 
@@ -304,7 +345,7 @@ func (m *Mock) checkIn(w http.ResponseWriter, body map[string]any) {
 	}
 }
 
-var deliveryFields = map[string]bool{"consumer": true, "run_id": true, "cursor": true, "applied": true, "target": true}
+var deliveryFields = map[string]bool{"consumer": true, "run_id": true, "cursor": true, "applied": true, "target": true, "actions": true}
 
 func (m *Mock) deliver(w http.ResponseWriter, body map[string]any) {
 	for k := range body {
@@ -338,6 +379,10 @@ func (m *Mock) deliver(w http.ResponseWriter, body map[string]any) {
 		invalid(w, "body", "applied", "at most 20 whole-number counts")
 	case len(target) > 200:
 		invalid(w, "body", "target", "at most 200 characters")
+	case m.badOutcomes(body["actions"]) != "":
+		invalid(w, "body", "actions", m.badOutcomes(body["actions"]))
+	case m.unknownDecision(body["actions"]) != "":
+		reply(w, 409, map[string]any{"detail": map[string]any{"error": "unknown_decision", "action_id": m.unknownDecision(body["actions"])}})
 	default:
 		for _, e := range m.visible() {
 			if e.RunID == run {

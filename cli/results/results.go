@@ -5,6 +5,7 @@ package results
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -342,42 +343,64 @@ func Loopback(raw string) bool {
 	return strings.EqualFold(u.Hostname(), "localhost") || (ip != nil && ip.IsLoopback())
 }
 
-// Call sends `body` as JSON (none when nil) and decodes the answer into `out` (when non-nil).
-// It never sends the key over plain http to another machine.
+// RetryDelay is the wait before the first retry of a call answered 429 or 5xx, or whose
+// connection failed; each of the Retries retries waits twice as long as the one before.
+var RetryDelay = 500 * time.Millisecond
+
+const Retries = 3
+
+// Call sends `body` as JSON (none when nil) and decodes the answer into `out` (when non-nil),
+// retrying with backoff (RetryDelay). It never sends the key over plain http to another machine.
 func (c *Client) Call(method, path string, body, out any) error {
 	if c.Key != "" && !KeySafe(c.URL) {
 		return fmt.Errorf("not sending the API key to %s: it is not https (plain http only to localhost)", c.URL)
 	}
-	var reader io.Reader
+	var payload []byte
 	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
+		var err error
+		if payload, err = json.Marshal(body); err != nil {
 			return err
 		}
-		reader = bytes.NewReader(b)
+	}
+	for attempt := 0; ; attempt++ {
+		raw, err := c.send(method, path, payload)
+		var apiErr *Error
+		retry := err != nil && (!errors.As(err, &apiErr) || apiErr.Status == 429 || apiErr.Status >= 500)
+		if retry && attempt < Retries {
+			time.Sleep(RetryDelay << attempt)
+			continue
+		}
+		if err != nil || out == nil || len(raw) == 0 {
+			return err
+		}
+		return json.Unmarshal(raw, out)
+	}
+}
+
+func (c *Client) send(method, path string, payload []byte) ([]byte, error) {
+	var reader io.Reader
+	if payload != nil {
+		reader = bytes.NewReader(payload)
 	}
 	req, err := http.NewRequest(method, c.URL+path, reader)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("x-api-key", c.Key)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if resp.StatusCode/100 != 2 {
-		return &Error{resp.StatusCode, raw, c.URL}
+		return nil, &Error{resp.StatusCode, raw, c.URL}
 	}
-	if out == nil || len(raw) == 0 {
-		return nil
-	}
-	return json.Unmarshal(raw, out)
+	return raw, nil
 }
 
 // Results is the page of entries after cursor `after`. `consumer` names the connection reading

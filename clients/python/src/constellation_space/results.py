@@ -569,11 +569,19 @@ def report(
     try:
         call("POST", "/predictions/feed/deliveries", {**body, "actions": actions[:MAX_OUTCOMES]})
     except Exception as exc:
-        if getattr(exc, "code", None) not in (409, 422):
+        # ApiError (the Client) names it status, urllib's HTTPError code.
+        status = getattr(exc, "status", None) or getattr(exc, "code", None)
+        if status not in (409, 422):
             raise
+        error = _detail(getattr(exc, "body", b"") or b"").get("error")
+        why = {
+            "action_not_sent": "one was declined or approved on the demo fleet, so never sent",
+            "unknown_decision": "a decision on one changed after this run",
+        }.get(error, "this API does not take outcomes" if status == 422 else "it refused them")
         log(
             f"Constellation did not take the outcomes of {len(actions)} approved action(s) of"
-            f" {cursor} (HTTP {exc.code}); reported the delivery without them"
+            f" {cursor}: {why} (HTTP {status}{' ' + error if error else ''}). Reported the"
+            " delivery without them; they are not sent again"
         )
         call("POST", "/predictions/feed/deliveries", body)
 

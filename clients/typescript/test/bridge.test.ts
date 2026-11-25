@@ -32,7 +32,7 @@ class Recorder extends Bridge {
     this.acted.push(item.entity.id);
     if (this.failOnce) {
       this.failOnce = false;
-      throw new Error("the system went down after acting");
+      throw new Error("the system went down");
     }
     return true;
   }
@@ -180,14 +180,13 @@ describe("Bridge", () => {
     expect(actedUntil(item("s1", { target_at: "soon" }))).toBe("");
   });
 
-  it("retries an action whose act() threw, and the run with it", async () => {
+  it("reports an act() that threw as refused with its message, and moves on", async () => {
     const store = new MemoryCursorStore();
-    const b = bridge(fakeApi(entries), { store });
+    const api = fakeApi(entries);
+    const b = bridge(api, { store });
     b.failOnce = true;
-    await expect(b.poll()).rejects.toThrow("went down");
-    expect(store.cursor).toBe(entries[0]!.cursor);
     await b.poll();
-    expect(b.acted).toEqual(["s1", "s1"]);
+    expect(b.acted).toEqual(["s1"]);
     expect(store.cursor).toBe(entries[1]!.cursor);
   });
 
@@ -366,5 +365,134 @@ describe("Bridge", () => {
       { item_id: "s4", state: "pending", acted: false, verb: null },
       { item_id: "s1", state: "approved", acted: false, verb: "swap" },
     ]);
+  });
+});
+
+describe("Bridge outcomes", () => {
+  const decided = (id: string, decision: string, status = "approved") =>
+    item(id, { action: { ...swap, mode: "approve" }, action_status: status, action_id: `a-${id}`, decision_id: decision });
+  const outcome = (id: string, decision: string, result: string, reason = "") => ({
+    action_id: `a-${id}`,
+    decision_id: decision,
+    outcome: result,
+    reason,
+  });
+
+  class Answers extends Bridge {
+    asked: string[] = [];
+    constructor(
+      readonly answers: Record<string, boolean | string | Error | undefined>,
+      options: ConstructorParameters<typeof Bridge>[0],
+    ) {
+      super(options);
+    }
+    apply(items: Result[]) {
+      return { items: items.length };
+    }
+    act(item: Result) {
+      this.asked.push(item.entity.id);
+      const answer = this.answers[item.entity.id];
+      if (answer instanceof Error) throw answer;
+      return answer;
+    }
+    log() {}
+  }
+
+  const logged: string[] = [];
+  const answers = (
+    a: Record<string, boolean | string | Error | undefined>,
+    fetch: typeof globalThis.fetch,
+    store = new MemoryCursorStore(),
+  ) =>
+    new Answers(a, {
+      manifest,
+      store,
+      conformanceLog: "",
+      backfill: true,
+      client: new Client({ apiKey: "k", baseUrl: "https://api.test", fetch, retryDelayMs: 0, retries: 2, log: (m) => logged.push(m) }),
+    });
+  const reports = (api: ReturnType<typeof fakeApi>) => api.calls.filter((c) => c.url.pathname.endsWith("/deliveries")).map((c) => c.body);
+
+  it("reports what act() did with each approval in one delivery for its run", async () => {
+    const api = fakeApi([
+      entry("20300101T000001#run_1", "my-bridge", [decided("ok", "d1"), decided("no", "d2"), decided("why", "d3"), decided("boom", "d4")]),
+    ]);
+    const b = answers({ ok: true, no: false, why: "backup antenna is down", boom: new Error("MCS unreachable") }, api.fetch);
+    await b.poll();
+    const [report, ...more] = reports(api);
+    expect(more).toEqual([]);
+    expect(report.applied).toEqual({ items: 4, acted: 1 });
+    expect(report.actions).toEqual([
+      outcome("ok", "d1", "acted"),
+      outcome("no", "d2", "refused", "the bridge did not carry it out"),
+      outcome("why", "d3", "refused", "backup antenna is down"),
+      outcome("boom", "d4", "refused", "MCS unreachable"),
+    ]);
+  });
+
+  it("reports nothing for declined, pending or advice actions, nor when act() is not defined", async () => {
+    const api = fakeApi([
+      entry("20300101T000001#run_1", "my-bridge", [decided("declined", "d1", "rejected"), decided("held", "d2", "pending"), item("advice", { action: swap })]),
+      entry("20300101T000002#run_2", "my-bridge", [decided("ok", "d3")]),
+    ]);
+    const b = answers({}, api.fetch);
+    await b.poll();
+    expect(b.asked).toEqual(["ok"]);
+    expect(reports(api).map((r) => "actions" in r)).toEqual([false, false]);
+  });
+
+  it("acts on and reports each decision once, across runs and restarts", async () => {
+    const store = new MemoryCursorStore();
+    const run = (n: number) => entry(`2030010${n}T000000#run_${n}`, "my-bridge", [decided("ok", "d1"), decided("no", "d2")]);
+    const api = fakeApi([run(1), run(2)]);
+    const b = answers({ ok: true, no: "not today" }, api.fetch, store);
+    await b.poll();
+    const later = fakeApi([run(1), run(2), run(3)]);
+    const restarted = answers({}, later.fetch, store);
+    await restarted.poll();
+    expect(b.asked).toEqual(["ok", "no"]);
+    expect(restarted.asked).toEqual([]);
+    expect([...reports(api), ...reports(later)].map((r) => r.actions?.length ?? 0)).toEqual([2, 0, 0]);
+  });
+
+  it("sends a failed report again with the same outcomes, without acting again", async () => {
+    const api = fakeApi([entry("20300101T000001#run_1", "my-bridge", [decided("ok", "d1")])], { fail: [0, 0, 503, 503, 503] });
+    const b = answers({ ok: true }, api.fetch);
+    await expect(b.poll()).rejects.toMatchObject({ status: 503 });
+    await b.poll();
+    expect(b.asked).toEqual(["ok"]);
+    const sent = reports(api);
+    expect(sent).toHaveLength(4);
+    expect(sent.every((r) => r.actions?.[0]?.outcome === "acted")).toBe(true);
+  });
+
+  it("drops outcomes on a declined or demo decision once (409 action_not_sent), never retrying them", async () => {
+    logged.length = 0;
+    const first = entry("20300101T000001#run_1", "my-bridge", [decided("ok", "d1")]);
+    const api = fakeApi([first, { ...first, cursor: "20300101T000002#run_1" }]);
+    let refused = false;
+    const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!refused && String(init?.body ?? "").includes('"actions"')) {
+        refused = true;
+        await api.fetch(input, init);
+        return new Response(JSON.stringify({ detail: { error: "action_not_sent", action_id: "a-ok" } }), { status: 409 });
+      }
+      return api.fetch(input, init);
+    }) as typeof globalThis.fetch;
+    await answers({ ok: true }, fetch).poll();
+    expect(reports(api).map((r) => "actions" in r)).toEqual([true, false, false]);
+    expect(logged.filter((m) => m.includes("outcomes"))).toEqual([
+      "Constellation did not take the outcomes of 1 approved action(s) of 20300101T000001#run_1: one was declined or approved on the demo fleet, so never sent (HTTP 409 action_not_sent). Reported the delivery without them; they are not sent again",
+    ]);
+  });
+
+  it("reports an approval past its decide-by time as refused without asking act()", async () => {
+    const late = { ...decided("late", "d1") };
+    late.action = { ...late.action!, deadline: "2020-01-01T00:00:00Z" };
+    const api = fakeApi([entry("20300101T000001#run_1", "my-bridge", [late])]);
+    const b = answers({}, api.fetch);
+    await b.poll();
+    expect(b.asked).toEqual([]);
+    expect(reports(api)[0].actions).toEqual([outcome("late", "d1", "refused", "it arrived after its decide-by time, 2020-01-01T00:00:00Z")]);
   });
 });
