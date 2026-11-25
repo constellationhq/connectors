@@ -6,6 +6,22 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.10.3
+
+-                  "$ref": "#/components/schemas/HTTPValidationError"
+-                }
+-              }
+-            },
+-            "description": "Validation Error"
+-        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected, expired, or unavailable (it books a slot on a ground network link since deleted,\nso it cannot be approved). A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
+-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), or the action books a slot on a ground network link since deleted (offer_unavailable; it can still be rejected)."
+-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), or the action books a slot on a ground network link since deleted (offer_unavailable; it can still be rejected)."
+-            "description": "A concurrent write took the version number twice."
+-            "description": "A concurrent write took the version number twice."
+-            "description": "The account's network config uses a demo station, antenna or satellite id for an entity of its own (demo_ids_taken; `ids` names them). Nothing is written."
+-        "description": "Each satellite of the caller's latest network config with the element set a run would\npropagate now, as an OMM record: the satellite's own TLE (source \"config\"), else the orbit\ncatalog's set for its NORAD id (source \"catalog\"). A satellite a run would decline has a null\nomm and the run's code: norad_not_in_catalog, or orbit_propagation_failed for a catalog set\nfurther than the age limit from now. as_of is the catalog snapshot read, null when none was:\na catalog file, no snapshot, or every satellite carries its own TLE.",
+-    "description": "Load the demo fleet into the caller's account: 5 ground stations with 7 antennas and 6 satellites (5 sun-synchronous Earth observation satellites on X and Ka band and GOES 19 on L band; ids norad-<NORAD id>), marked demo so they never count toward the plan, and two hours of simulated link telemetry ending now. It also saves the demo workflows pass-yield and rain-fade-swap and the scenario \"Storm over Singapore tonight\" (scn_demo-storm-singapore). Safe to repeat: it adds only what is missing and rewrites the same points. A config that uses a demo id for its own entity is refused (409 demo_ids_taken). The low-orbit links are up only during passes: ask get_predictions with at, at a time in a pass get_passes lists. Mission names are real; the telemetry is simulated. Needs config:write and telemetry:write; without telemetry:write the rest is written and the call says the telemetry was refused.",
+
 ## 2.10.2
 
 -        "description": "What a plugin wrote into mission control for one of the tenant's runs, and what mission\ncontrol did with each approved action it delivered: acted or refused, with why. The latest\noutcome of a decision stands, and the actions lists read it back.",
