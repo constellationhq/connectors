@@ -8,7 +8,9 @@ import `constellation_space`:
 - `constellation_space.results`: the workflow results protocol every bridge shares, including `action_state(item)`.
 - `constellation_space.models`: typed shapes of results, actions and runs.
 - `constellation_space.bridges.template.Bridge`: subclass it, write `apply(items, settings, run)`, and
-  `act(item, settings, run)` for approved actions (each carried out once, across restarts).
+  `act(item, settings, run)` for approved actions (each carried out once, across restarts). `act()`
+  returns True, or False or a reason; the Bridge reports it, and Constellation shows "Sent to your MCS"
+  or "Not sent to your MCS: <reason>".
 - `constellation_space.bridges.yamcs` and `constellation_space.bridges.lattice`: the Yamcs and Lattice bridges,
   run with `python -m constellation_space.bridges.yamcs` or
   `python -m constellation_space.bridges.lattice` (extra `[lattice]`).

@@ -63,14 +63,14 @@ class Recorder(Bridge):
         self.fail_once = False
 
     def apply(self, items, settings, run):
+        if self.fail_once:
+            self.fail_once = False
+            raise RuntimeError("the system went down")
         self.applied.append(([i["entity"]["id"] for i in items], settings, run))
         return {"passes": len(items)}
 
     def act(self, item, settings, run):
         self.acted.append(item["entity"]["id"])
-        if self.fail_once:
-            self.fail_once = False
-            raise RuntimeError("the system went down after acting")
         return True
 
 
@@ -429,3 +429,173 @@ def test_a_manifests_deprecated_min_p10_gb_is_read_as_min_gb_and_said_once(env, 
         "my-bridge: setting min_p10_gb is deprecated: it is read as min_gb, the expected GB a pass"
         " must reach. Rename it in connector.json"
     ]
+
+
+# Outcomes: what act() did with each approval goes back in the run's delivery report, so the
+# Platform can say "Sent to your MCS" or "Not sent to your MCS: <reason>".
+
+
+def decided(name: str, decision: str, status: str = "approved") -> tuple[str, dict]:
+    return name, {
+        "action": {**SWAP, "mode": "approve"},
+        "action_status": status,
+        "action_id": f"a-{name}",
+        "decision_id": decision,
+    }
+
+
+class Answers(Bridge):
+    """act() answers with answers[entity id]: a value to return, or an exception to raise."""
+
+    def __init__(self, answers: dict, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.answers = answers
+        self.asked: list[str] = []
+
+    def apply(self, items, settings, run):
+        return {"passes": len(items)}
+
+    def act(self, item, settings, run):
+        self.asked.append(item["entity"]["id"])
+        answer = self.answers[item["entity"]["id"]]
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+
+class Refusing(ResultsApi):
+    """Raises `errors`, in order, for the deliveries posted with outcomes."""
+
+    def __init__(self, entries, errors) -> None:
+        super().__init__(entries)
+        self.errors = list(errors)
+
+    def call(self, method, path, body=None):
+        out = super().call(method, path, body)
+        if path == "/predictions/feed/deliveries" and "actions" in body and self.errors:
+            raise self.errors.pop(0)
+        return out
+
+
+def reports(api) -> list[dict]:
+    return [b for m, p, b in api.calls if p == "/predictions/feed/deliveries"]
+
+
+def outcome(name: str, decision: str, result: str, reason: str = "") -> dict:
+    return {"action_id": f"a-{name}", "decision_id": decision, "outcome": result, "reason": reason}
+
+
+def test_each_approval_act_returns_on_is_reported_in_one_delivery_for_its_run(env):
+    cursor_file, _ = env
+    four = passes(decided("ok", "d1"), decided("no", "d2"), decided("why", "d3"), decided("boom", "d4"))
+    api = ResultsApi([run("1#run_1", *four)])
+    answers = {
+        "ok": True,
+        "no": False,
+        "why": "backup antenna is down",
+        "boom": OSError("MCS unreachable"),
+    }
+    bridge = Answers(answers, MANIFEST, client=api, cursor_file=cursor_file)
+    bridge.poll()
+    [report] = reports(api)
+    assert report["applied"] == {"passes": 4, "acted": 1}
+    assert report["actions"] == [
+        outcome("ok", "d1", "acted"),
+        outcome("no", "d2", "refused", "the bridge did not carry it out"),
+        outcome("why", "d3", "refused", "backup antenna is down"),
+        # An error is a refusal with its message, never a retried run.
+        outcome("boom", "d4", "refused", "MCS unreachable"),
+    ]
+    assert cursor_file.read_text() == "1#run_1"
+
+
+def test_declined_pending_and_advice_actions_report_no_outcome(env):
+    cursor_file, _ = env
+    api = ResultsApi(
+        [
+            run(
+                "1#run_1",
+                *passes(
+                    decided("declined", "d1", "rejected"),
+                    decided("held", "d2", "pending"),
+                    ("advice", {"action": {**SWAP, "mode": "suggest"}}),
+                    ("plain", {}),
+                ),
+            )
+        ]
+    )
+    bridge = Answers({}, MANIFEST, client=api, cursor_file=cursor_file)
+    bridge.poll()
+    assert bridge.asked == [] and ["actions" in r for r in reports(api)] == [False]
+
+
+def test_an_approval_seen_again_is_neither_acted_on_nor_reported_again(env):
+    cursor_file, _ = env
+    entries = [run(f"{n}#run_{n}", *passes(decided("ok", "d1"), decided("no", "d2"))) for n in (1, 2)]
+    api = ResultsApi(entries)
+    bridge = Answers({"ok": True, "no": "not today"}, MANIFEST, client=api, cursor_file=cursor_file)
+    bridge.poll()
+    again = ResultsApi(entries + [entries[0] | {"cursor": "3#run_3"}])
+    restarted = Answers({}, MANIFEST, client=again, cursor_file=cursor_file)
+    restarted.poll()
+    assert bridge.asked == ["ok", "no"] and restarted.asked == []
+    assert [len(r.get("actions", [])) for r in reports(api) + reports(restarted.client)] == [2, 0, 0]
+
+
+def test_a_report_that_fails_is_sent_again_with_the_same_outcomes_without_acting_again(env):
+    cursor_file, _ = env
+    api = Refusing([run("1#run_1", *passes(decided("ok", "d1")))], [ConnectionResetError("dropped")])
+    bridge = Answers({"ok": True}, MANIFEST, client=api, cursor_file=cursor_file)
+    with pytest.raises(ConnectionResetError):
+        bridge.poll()
+    assert not cursor_file.exists()
+    bridge.poll()
+    assert bridge.asked == ["ok"]
+    assert [r["actions"] for r in reports(api)] == [[outcome("ok", "d1", "acted")]] * 2
+    assert cursor_file.read_text() == "1#run_1"
+
+
+def test_outcomes_on_a_declined_or_demo_decision_are_dropped_once_and_never_sent_again(env, capsys):
+    from constellation_space.client import ApiError
+
+    cursor_file, _ = env
+    not_sent = ApiError(409, b'{"detail": {"error": "action_not_sent", "action_id": "a-ok"}}')
+    entries = [run("1#run_1", *passes(decided("ok", "d1")))]
+    api = Refusing(entries, [not_sent])
+    bridge = Answers({"ok": True}, MANIFEST, client=api, cursor_file=cursor_file)
+    bridge.poll()
+    bridge.client.entries = entries + [entries[0] | {"cursor": "2#run_2"}]
+    bridge.poll()
+    assert ["actions" in r for r in reports(api)] == [True, False, False]
+    said = [line for line in capsys.readouterr().out.splitlines() if "outcomes" in line]
+    assert said == [
+        "my-bridge: Constellation did not take the outcomes of 1 approved action(s) of 1#run_1:"
+        " one was declined or approved on the demo fleet, so never sent (HTTP 409"
+        " action_not_sent). Reported the delivery without them; they are not sent again"
+    ]
+
+
+def test_an_approval_past_its_decide_by_time_is_reported_refused_without_asking_act(env):
+    cursor_file, _ = env
+    name, facets = decided("late", "d1")
+    facets["action"] = {**facets["action"], "deadline": "2020-01-01T00:00:00+00:00"}
+    api = ResultsApi([run("1#run_1", *passes((name, facets)))])
+    bridge = Answers({}, MANIFEST, client=api, cursor_file=cursor_file)
+    bridge.poll()
+    assert bridge.asked == []
+    [report] = reports(api)
+    assert report["actions"][0]["outcome"] == "refused"
+    assert report["actions"][0]["reason"].startswith("it arrived after its decide-by time")
+
+
+def test_a_bridge_that_does_not_define_act_reports_no_outcome(env):
+    cursor_file, _ = env
+
+    class Applies(Bridge):
+        def apply(self, items, settings, run):
+            return {"passes": len(items)}
+
+    api = ResultsApi([run("1#run_1", *passes(decided("ok", "d1")))])
+    Applies(MANIFEST, client=api, cursor_file=cursor_file).poll()
+    [report] = reports(api)
+    assert "actions" not in report and report["applied"] == {"passes": 1}

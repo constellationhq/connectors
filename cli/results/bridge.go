@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"sort"
 	"strconv"
@@ -23,17 +24,20 @@ type Run struct {
 // Bridge runs a custom connector: it checks in with its manifest, pulls its results from the
 // cursor it last applied, hands each run's items to Apply, each approval to Act exactly once
 // (also across restarts and when a later entry sends it again; a new approval of the same
-// action is acted on again), reports what it applied, and keeps the cursor. Fill in Apply (and Act) and call RunForever.
+// action is acted on again), reports what it applied and what Act did with each approval, and
+// keeps the cursor. Fill in Apply (and Act) and call RunForever.
 type Bridge struct {
 	// Manifest is connector.json: name (the consumer), title, description, version, settings.
 	Manifest map[string]any
 	// Apply writes one run's items into your system and returns what it wrote, e.g.
 	// {"passes": 12}. An error retries the run.
 	Apply func(items []Item, settings map[string]any, run Run) (map[string]int, error)
-	// Act handles an approved action and returns true once done. A swap is advice: add a backup
-	// pass and keep this one, or move to the backup; your own system books and releases passes,
-	// Constellation books and cancels nothing. Called after Apply, never for any state but
-	// approved. Nil does nothing.
+	// Act handles an approved action. Return true once done, or false or an error (its text is
+	// the reason) when your system will not do it; Constellation then shows "Sent to your MCS"
+	// or "Not sent to your MCS: <reason>". A swap is advice: add a backup pass and keep this one,
+	// or move to the backup; your own system books and releases passes, Constellation books and
+	// cancels nothing. Called after Apply, never for any state but approved, and once per
+	// decision whatever it returned. Nil does nothing and reports nothing.
 	Act func(item Item, settings map[string]any, run Run) (bool, error)
 
 	Client     *Client
@@ -241,26 +245,50 @@ func appendLines(path string, lines []string) error {
 	return f.Close()
 }
 
-// act carries out an approval unless it was carried out before, and says whether it did now.
-func (b *Bridge) act(item Item, settings map[string]any, run Run) (bool, error) {
-	if PastDeadline(item) {
-		b.Log(fmt.Sprintf("not acting on %v: its decide-by time has passed", item["entity"]))
-		return false, nil
-	}
+// Outcome is what mission control did with one approved action, for the delivery report:
+// "acted", or "refused" and why.
+type Outcome struct {
+	ActionID   string `json:"action_id"`
+	DecisionID string `json:"decision_id"`
+	Outcome    string `json:"outcome"`
+	Reason     string `json:"reason"`
+}
+
+// act hands an approval to Act once per decision and says what became of it: acted, or refused
+// with why (past its decide-by time, false, or Act's error). Its Outcome is "" when there is
+// nothing to report: seen before, or no Act. The error is only ErrState.
+func (b *Bridge) act(item Item, settings map[string]any, run Run) (Outcome, error) {
 	key := actionKey(item)
-	if _, done := b.acted[key]; b.Act == nil || done {
-		return false, nil
+	if _, seen := b.acted[key]; b.Act == nil || seen {
+		return Outcome{}, nil
 	}
-	done, err := b.Act(item, settings, run)
-	if err != nil || !done {
-		return false, err
+	actionID, _ := item["action_id"].(string)
+	decisionID, _ := item["decision_id"].(string)
+	entity, _ := item["entity"].(map[string]any)
+	out := Outcome{ActionID: actionID, DecisionID: decisionID, Outcome: "refused"}
+	if PastDeadline(item) {
+		b.Log(fmt.Sprintf("not acting on %v: its decide-by time has passed", entity["id"]))
+		action, _ := item["action"].(map[string]any)
+		out.Reason = fmt.Sprintf("it arrived after its decide-by time, %v", action["deadline"])
+	} else if done, err := b.Act(item, settings, run); err != nil {
+		out.Reason = err.Error()
+	} else if done {
+		out.Outcome = "acted"
+	} else {
+		out.Reason = "the bridge did not carry it out"
+	}
+	if out.Outcome == "refused" {
+		b.Log(fmt.Sprintf("refused %v: %s", entity["id"], out.Reason))
+	}
+	if len(out.Reason) > 500 {
+		out.Reason = out.Reason[:500]
 	}
 	b.acted[key] = actedUntil(item)
 	b.prune()
 	if err := b.saveActed(); err != nil {
-		return true, fmt.Errorf("%w: %v", ErrState, err)
+		return out, fmt.Errorf("%w: %v", ErrState, err)
 	}
-	return true, nil
+	return out, nil
 }
 
 // ErrState is a failure to save the cursor or the approvals carried out: RunForever stops on it,
@@ -356,9 +384,10 @@ func (b *Bridge) Poll() error {
 }
 
 type written struct {
-	applied map[string]int
-	acted   []bool
-	items   []Item
+	applied  map[string]int
+	acted    []bool
+	items    []Item
+	outcomes []Outcome
 }
 
 // Malformed is why an item cannot be read (no entity with a string id and type, or a time that
@@ -439,24 +468,28 @@ func (b *Bridge) applyPart(cursor string, n int, part Part) error {
 			applied["malformed"] = bad
 		}
 		acted := make([]bool, len(items))
+		var outcomes []Outcome
 		for i, item := range items {
-			if ActionState(item) == "approved" {
-				if acted[i], err = b.act(item, settings, run); err != nil {
-					return err
-				}
-				// So the platform can show that an approval was carried out.
-				if acted[i] {
-					applied["acted"]++
-				}
+			if ActionState(item) != "approved" {
+				continue
+			}
+			out, err := b.act(item, settings, run)
+			if err != nil {
+				return err
+			}
+			// So the platform can show that an approval was carried out.
+			if acted[i] = out.Outcome == "acted"; acted[i] {
+				applied["acted"]++
+			}
+			if out.Outcome != "" && out.ActionID != "" && out.DecisionID != "" {
+				outcomes = append(outcomes, out)
 			}
 		}
-		b.unreported[cursor] = append(b.unreported[cursor], written{applied, acted, items})
+		b.unreported[cursor] = append(b.unreported[cursor], written{applied, acted, items, outcomes})
 	}
 	done := b.unreported[cursor][n]
 	applied, acted, items := done.applied, done.acted, done.items
-	if err := b.Client.Call("POST", "/predictions/feed/deliveries", map[string]any{
-		"consumer": b.Consumer(), "run_id": run.RunID, "cursor": cursor, "applied": applied, "target": b.title(),
-	}, nil); err != nil {
+	if err := b.report(cursor, run.RunID, applied, done.outcomes); err != nil {
 		return err
 	}
 	b.Log(fmt.Sprintf("applied %v, %s", applied, cursor))
@@ -469,6 +502,46 @@ func (b *Bridge) applyPart(cursor string, n int, part Part) error {
 		lines = append(lines, string(line))
 	}
 	return appendLines(b.ActionLog, lines)
+}
+
+// report tells Constellation what the run at `cursor` became in the system and what became of
+// each approval in it. When Constellation refuses the outcomes (409: a decision changed, or one
+// was declined or approved on the demo fleet and never sent; 422: an API from before outcomes),
+// they are logged and dropped, and the delivery is sent without them.
+func (b *Bridge) report(cursor, runID string, applied map[string]int, outcomes []Outcome) error {
+	body := map[string]any{"consumer": b.Consumer(), "run_id": runID, "cursor": cursor, "applied": applied, "target": b.title()}
+	if len(outcomes) == 0 {
+		return b.Client.Call("POST", "/predictions/feed/deliveries", body, nil)
+	}
+	withOutcomes := maps.Clone(body)
+	withOutcomes["actions"] = outcomes[:min(len(outcomes), 200)]
+	err := b.Client.Call("POST", "/predictions/feed/deliveries", withOutcomes, nil)
+	var apiErr *Error
+	if !errors.As(err, &apiErr) || (apiErr.Status != 409 && apiErr.Status != 422) {
+		return err
+	}
+	var answer struct {
+		Detail struct {
+			Error string `json:"error"`
+		} `json:"detail"`
+	}
+	_ = json.Unmarshal(apiErr.Body, &answer)
+	code := answer.Detail.Error
+	why := map[string]string{
+		"action_not_sent":  "one was declined or approved on the demo fleet, so never sent",
+		"unknown_decision": "a decision on one changed after this run",
+	}[code]
+	if why == "" && apiErr.Status == 422 {
+		why = "this API does not take outcomes"
+	} else if why == "" {
+		why = "it refused them"
+	}
+	status := fmt.Sprint(apiErr.Status)
+	if code != "" {
+		status += " " + code
+	}
+	b.Log(fmt.Sprintf("Constellation did not take the outcomes of %d approved action(s) of %s: %s (HTTP %s). Reported the delivery without them; they are not sent again", len(outcomes), cursor, why, status))
+	return b.Client.Call("POST", "/predictions/feed/deliveries", body, nil)
 }
 
 // CheckInEvery is how often a bridge checks in again: the platform reads a connection that

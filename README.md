@@ -33,7 +33,7 @@ and the CLI are the quicker path:
     npm install @constellationspace/client          # TypeScript
     constellation bridge new my-bridge --lang python   # or ts, go
     constellation mock                              # a demo fleet on localhost:7070
-    constellation conformance -- python bridge.py   # 21 checks against the mock
+    constellation conformance -- python bridge.py   # 22 checks against the mock
     constellation results tail                      # print runs as they arrive
 
 [`examples/`](examples) holds three, each run in CI against the mock:
@@ -63,6 +63,7 @@ is the one `contract.lock` pins; the Fleet Agent is released on its own `agent-v
 
 | Release | Contract | Fleet Agent | Yamcs (jar built and tested against) | Python | Node | Go | Open MCT (tested against) | COSMOS | Lattice |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| v0.8.6 | 2.9.0 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | 7.5.1, 7.0.0 | stub only |
 | v0.8.5 | 2.8.1 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | 7.5.1, 7.0.0 | stub only |
 | v0.8.3 | 2.1.0 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | 7.5.1, 7.0.0 | stub only |
 | v0.8.2 | 2.1.0 | agent-v0.1.0 | 5.14.0, 5.13.7 | >= 3.11 | >= 18 (client), >= 22.6 (TypeScript bridge scaffold) | >= 1.22 | 4.3.1 | 7.5.1, 7.0.0 | stub only |

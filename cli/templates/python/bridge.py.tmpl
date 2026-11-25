@@ -1,6 +1,6 @@
 """{{.Title}}: a Constellation bridge. Write workflow results into your system in apply(), and carry out
-approved actions in act(). Everything else (check-in, cursor, paging, reporting, retries) is the
-Bridge base class in the constellation-space package."""
+approved actions in act(). Everything else (check-in, cursor, paging, reporting what act() did,
+retries) is the Bridge base class in the constellation-space package."""
 
 from pathlib import Path
 
@@ -18,10 +18,12 @@ class {{.Class}}(Bridge):
         return {"passes": len(kept)}
 
     def act(self, item, settings, run):
-        """Handle an approved action and return True once done. A swap is advice: "add" a backup
-        pass and keep this one, or "move" to the backup. gain_gb is what it adds over doing
-        nothing, deadline the time to decide by. Constellation books and cancels nothing; your
-        system or team does. Only approved actions arrive here; raise to retry the run."""
+        """Handle an approved action. Return True once done, or a reason (or False) when your
+        system will not do it; an exception counts as a refusal too. Constellation shows "Sent
+        to your MCS" or "Not sent to your MCS: <reason>". A swap is advice: "add" a backup pass
+        and keep this one, or "move" to the backup. gain_gb is what it adds over doing nothing,
+        deadline the time to decide by. Constellation books and cancels nothing; your system or
+        team does. Each approval arrives here once."""
         action = item["action"]
         if action["verb"] == "swap" and action.get("action") == "move":
             # TODO: your booking calls go here: book the backup, then release this pass.

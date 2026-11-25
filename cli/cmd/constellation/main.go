@@ -26,7 +26,7 @@ import (
 // version is the release this source becomes (tests/test_versions.py keeps it with the rest);
 // the release build stamps the tag over it: -ldflags "-X main.version=vX.Y.Z". Scaffolds pin
 // the Go results package and the TypeScript client to it.
-var version = "v0.8.5"
+var version = "v0.8.6"
 
 const usage = `constellation: the Constellation developer CLI
 

@@ -105,8 +105,16 @@ func TestAWellBehavedBridgePasses(t *testing.T) {
 	if failed := failing(checks); len(failed) > 0 {
 		t.Fatalf("failed:\n%s", strings.Join(failed, "\n"))
 	}
-	if len(checks) != 21 {
-		t.Errorf("%d checks, want 21", len(checks))
+	if len(checks) != 22 {
+		t.Errorf("%d checks, want 22", len(checks))
+	}
+}
+
+func TestABridgeThatNeverReportsOutcomesFails(t *testing.T) {
+	// The naive bridge has no Act, so it reports nothing of the approvals it was sent.
+	check := run(t, "naive")["reports an outcome, acted or refused, once for each approval it was sent"]
+	if check.OK || !strings.Contains(check.Detail, "reported 0 time(s)") {
+		t.Errorf("%+v", check)
 	}
 }
 

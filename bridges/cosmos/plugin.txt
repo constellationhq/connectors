@@ -5,6 +5,18 @@ VARIABLE constellation_api_url https://api.constellation.space
 VARIABLE_DESCRIPTION "Constellation API URL. The API key goes in Admin > Secrets as CONSTELLATION_API_KEY"
 VARIABLE consumer cosmos-bridge
 VARIABLE_DESCRIPTION "Connection name Constellation workflows send to: lowercase letters, digits and hyphens. Change it only if another COSMOS uses cosmos-bridge"
+VARIABLE satellites ""
+VARIABLE_DESCRIPTION "Satellites with a NEXT_PASS packet of their own: <constellation id>=<name> pairs, space separated, such as sat-1=KESTREL1"
+VARIABLE outcomes ""
+VARIABLE_DESCRIPTION "Send what each pass delivered: <constellation id>=<COSMOS interface> pairs, the interface each satellite's downlink arrives on. The key then needs telemetry:write"
+VARIABLE approvals off
+VARIABLE_DESCRIPTION "on: APPROVE_SWAP and DECLINE_SWAP commands decide the swaps Constellation holds. The key then needs act:approve"
+VARIABLE_STATE Off off
+VARIABLE_STATE On on
+VARIABLE timeline off
+VARIABLE_DESCRIPTION "COSMOS Enterprise only. on: forecast passes of the next 48 hours as reserve activities on a CONSTELLATION timeline, which Enterprise's Calendar shows; on Core the bridge says so in its log and makes no timeline"
+VARIABLE_STATE Off off
+VARIABLE_STATE On on
 
 TARGET CONSTELLATION CONSTELLATION
 
@@ -19,6 +31,18 @@ MICROSERVICE BRIDGE constellation-bridge
   TARGET_NAME CONSTELLATION
   ENV CONSTELLATION_API_URL <%= constellation_api_url %>
   ENV CONSUMER <%= consumer %>
-  # Admin > Secrets: CONSTELLATION_API_KEY (a key with predictions:read). The bridge reads it there
-  # at each poll, so it can be added or changed after installing.
+  ENV SATELLITES "<%= satellites %>"
+  ENV OUTCOMES "<%= outcomes %>"
+  ENV TIMELINE <%= timeline %>
+  # Admin > Secrets: CONSTELLATION_API_KEY (a key with predictions:read; telemetry:write too for
+  # outcomes). The bridge reads it there at each poll, so it can be added or changed after
+  # installing.
   SECRET ENV CONSTELLATION_API_KEY CONSTELLATION_API_KEY
+<%- if approvals.to_s.strip.downcase == "on" -%>
+
+# Carries out APPROVE_SWAP and DECLINE_SWAP (cmd_tlm/cmd.txt) through Constellation's API, with
+# the same key, which then needs act:approve. It reads nothing: the bridge injects the telemetry.
+INTERFACE CONSTELLATION_INT constellation_interface.py <%= constellation_api_url %>
+  MAP_CMD_TARGET CONSTELLATION
+  SECRET ENV CONSTELLATION_API_KEY CONSTELLATION_API_KEY
+<%- end -%>

@@ -845,9 +845,19 @@ def test_the_forecast_is_a_named_service_never_the_antenna_itself(bridge):
     assert line["geoDetails"]["visualDetails"]["lineColor"] == module.FORECAST_COLOR
 
 
+def fresh_tle() -> dict[str, str]:
+    """TLE dated now: publish places satellites at the wall clock, and the fixture's drag term
+    decays its orbit within months of its own epoch."""
+    day = NOW.timetuple().tm_yday + (
+        NOW - NOW.replace(hour=0, minute=0, second=0, microsecond=0)
+    ) / timedelta(days=1)
+    return {**TLE, "line1": f"{TLE['line1'][:18]}{NOW:%y}{day:012.8f}{TLE['line1'][32:]}"}
+
+
 def test_satellites_are_published_only_where_lattice_has_none_of_its_own(bridge, monkeypatch):
     module, lattice = bridge
-    satellites = module.satellite_entities(DOCUMENT, NOW)
+    document = {**DOCUMENT, "satellites": {**DOCUMENT["satellites"], "sat-1": {"tle": fresh_tle()}}}
+    satellites = module.satellite_entities(document, NOW)
     module.publish([STATION], module.Forecast(), {}, satellites)
     assert not [e for e in lattice.entities() if "orbit" in e]
     monkeypatch.setattr(module, "PUBLISH_SATELLITES", True)
@@ -897,13 +907,7 @@ def test_publishing_satellites_without_sgp4_stops_at_start(monkeypatch, capsys):
 def test_published_satellites_carry_where_they_are_now(bridge, monkeypatch):
     module, lattice = bridge
     monkeypatch.setattr(module, "PUBLISH_SATELLITES", True)
-    # publish places satellites at the wall clock, so the element set is dated now: the
-    # fixture's drag term would decay its orbit within months of its own epoch.
-    day = NOW.timetuple().tm_yday + (
-        NOW - NOW.replace(hour=0, minute=0, second=0, microsecond=0)
-    ) / timedelta(days=1)
-    fresh = {**TLE, "line1": f"{TLE['line1'][:18]}{NOW:%y}{day:012.8f}{TLE['line1'][32:]}"}
-    document = {**DOCUMENT, "satellites": {"sat-1": {"tle": fresh}}}
+    document = {**DOCUMENT, "satellites": {"sat-1": {"tle": fresh_tle()}}}
     module.publish([STATION], module.Forecast(), {}, module.satellite_entities(document, NOW))
     (sat,) = [e for e in lattice.entities() if "orbit" in e]
     position = sat["location"]["position"]
