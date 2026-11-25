@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## v0.8.6 (2026-11-25)
 
-Models have no spread yet, so every bridge, scaffold and view shows one typical value, the
-expected GB (`expected_gb.p50`), and never a p10 or p90.
+Every bridge, scaffold and view shows one typical value, the expected GB (`expected_gb.p50`), and
+never a p10 or p90.
 
 ### For operators
 
@@ -15,17 +15,19 @@ expected GB (`expected_gb.p50`), and never a p10 or p90.
 - Lattice: the env floor is `MIN_GB`. `MIN_P10_GB` still works as a deprecated name, read when
   `MIN_GB` is unset, with one line at start saying to rename it.
 - Forecast view (Yamcs, COSMOS, Open MCT): the expected GB per hour is a line with no p10 to p90
-  band; tables, bars, the ledger and RFI show the expected value alone.
+  band. Tables, bars, the ledger and RFI show the expected value alone.
 - COSMOS: the screen shows "GB expected" and drops the p10 and p90 rows. `EXPECTED_GB_P10`,
-  `EXPECTED_GB_P90` and `GB_P10` stay in their packets, deprecated: read the matching `_P50`.
+  `EXPECTED_GB_P90`, `KEEPS_GB_P10` and `GB_P10` stay in their packets only so layouts don't
+  break. They are deprecated and can differ from the expected GB, so read the matching `_P50`.
 - Yamcs: timeline items no longer carry `expected_gb_p10` or `expected_gb_p90`.
-  `next_pass_expected_gb_p10` and `_p90` stay in the MDB, deprecated.
+  `next_pass_expected_gb_p10` and `_p90` stay in the MDB only so displays don't break. They are
+  deprecated, so read `next_pass_expected_gb_p50`.
 - COSMOS: the bridge signs in again when COSMOS ends its session, as setting or changing the
   COSMOS password does. Before, every inject failed with "Token is invalid" until the plugin
   restarted, and the forecast went stale with no word in Constellation.
 - COSMOS: `NEXT_PASS` gains `AT_RISK`, `YES` when the pass is at risk as on the Platform's Passes
   tab (expected to deliver nothing or under the workspace's contract minimum, a value its pricing
-  left unfilled, or flagged by a workflow), yellow in Limits Monitor, and `CONTRACT_MIN_GB`;
+  left unfilled, or flagged by a workflow), yellow in Limits Monitor, and `CONTRACT_MIN_GB`.
   `NEXT_24H` gains `AT_RISK`, the passes at risk in the next 24 hours. Appended, so earlier items
   keep their place.
 - COSMOS: the `satellites` variable (`sat-1=KESTREL1 ...`) gives each satellite a
@@ -42,7 +44,8 @@ expected GB (`expected_gb.p50`), and never a p10 or p90.
 - COSMOS Enterprise: with the `timeline` variable on, the next 48 hours of forecast passes are
   reserve activities on a `CONSTELLATION` timeline, which Enterprise's Calendar shows. COSMOS Core
   runs no timelines (a timeline made there has COSMOS restart Enterprise's timeline worker every
-  few seconds), so on Core the bridge says so in its log and makes none.
+  few seconds), so on Core the bridge says so in its log and makes none. The timeline is
+  Enterprise-only and has not been tested on COSMOS Enterprise yet.
 - COSMOS: `CONSTELLATION/lib/constellation_forecast.py` for Script Runner: `forecast_passes`,
   `next_forecast_pass`, `modcod_plan`, `held_swap`, `approve_held_swap` and `decline_held_swap`,
   read from what the bridge writes into COSMOS, with the script's own sign-in.
@@ -59,7 +62,7 @@ expected GB (`expected_gb.p50`), and never a p10 or p90.
   scaffold, report what `act()` did with each approval in the run's delivery report
   (`actions: [{action_id, decision_id, outcome, reason}]`), so the Platform shows "Sent to your MCS
   at ..." or "Not sent to your MCS: <reason>". They reported only an `acted` count before.
-  - `act()` returns true when done, or false or a reason (a string; in Go an error) when your
+  - `act()` returns true when done, or false or a reason (a string, in Go an error) when your
     system will not do it. An exception (Go: an error) is now a refusal with its message, no
     longer a retried run. An approval past its decide-by time is reported refused.
   - Each decision is handed to `act()` and reported once, whatever it returned, across runs and

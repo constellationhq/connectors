@@ -93,8 +93,8 @@ def _constellation_of_kind(kind, workflow, scope):
 
 
 def _constellation_gb(item):
-    """A pass's expected GB (p50): the ledger's expected_gb, else the item's own value. Forecasts
-    have no spread yet, so a p10 or p90 alongside is never read."""
+    """A pass's expected GB (p50): the ledger's expected_gb, else the item's own value. A p10 or
+    p90 alongside is deprecated and never read."""
     ledger = ((item.get("explain") or {}).get("expected_gb") or {}).get("value")
     for gb in (ledger, item.get("value")):
         p50 = gb.get("p50") if isinstance(gb, dict) else None
