@@ -157,6 +157,8 @@ def test_the_commands_and_their_interface_come_only_with_approvals_on(approvals)
         approvals=approvals,
     )
     assert screen.count("BUTTON") == (2 if on else 0)
+    # With approvals off the waiting swap says where to decide it instead.
+    assert ("Decide on the Constellation Platform" in screen) is not on
     assert "VALUE CONSTELLATION NEXT_PASS_KESTREL1 AOS" in screen and "<%" not in screen
 
 

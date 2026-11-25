@@ -137,3 +137,4 @@ TELEMETRY CONSTELLATION RUN BIG_ENDIAN "The latest workflow run received, of any
   APPEND_ITEM WORKFLOW_VERSION 32 UINT "Workflow version"
   APPEND_ITEM RUN_ID 512 STRING "Run id"
   APPEND_ITEM RESULTS 32 UINT "Results in the run"
+  APPEND_ITEM RECEIVED 256 STRING "When this COSMOS received the run, UTC"

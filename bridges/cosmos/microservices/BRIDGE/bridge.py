@@ -152,6 +152,7 @@ STRING_BYTES = {
     "TEMPLATE": 32,
     "RUN_ID": 64,
     "ITEM_ID": 64,
+    "RECEIVED": 32,
 }
 
 
@@ -663,6 +664,9 @@ class Forecast:
             "WORKFLOW_VERSION": int(resource.get("constellation.workflow_version") or 0),
             "RUN_ID": resource.get("constellation.run_id") or "",
             "RESULTS": len(items),
+            # Re-injected every minute with the rest, so COSMOS's own received time of RUN is
+            # the last refresh: this is when the run itself arrived.
+            "RECEIVED": _minute(datetime.now(UTC).isoformat()),
         }
         return len(items)
 

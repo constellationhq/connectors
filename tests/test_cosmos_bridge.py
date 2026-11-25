@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -480,6 +481,8 @@ def test_each_kind_of_run_replaces_only_its_own_packets_and_an_empty_one_clears_
     sent = dict(injected)
     assert sent["SWAP"] == module.NO_SWAP and sent["NEXT_24H"]["PASSES"] == 1
     assert sent["RUN"]["TEMPLATE"] == "rain-fade-swap" and sent["RUN"]["RESULTS"] == 0
+    # When the run arrived, as COSMOS's own received time of RUN moves with every refresh.
+    assert re.fullmatch(r"\d{4}-\d\d-\d\d \d\d:\d\dZ", sent["RUN"]["RECEIVED"])
 
 
 def test_a_kind_no_run_has_brought_is_not_injected_as_a_forecast_of_nothing(bridge):
@@ -507,7 +510,7 @@ def test_the_run_packet_says_it_is_the_latest_run_not_the_source_of_every_value(
     target = ROOT / "bridges/cosmos/targets/CONSTELLATION"
     tlm = (target / "cmd_tlm/tlm.txt").read_text()
     assert 'TELEMETRY CONSTELLATION RUN BIG_ENDIAN "The latest workflow run received' in tlm
-    assert 'HORIZONTALBOX "Latest run received"' in (target / "screens/forecast.txt").read_text()
+    assert 'VERTICALBOX "Latest run received"' in (target / "screens/forecast.txt").read_text()
 
 
 def tlm_items() -> list[tuple[str, str, int, str]]:
@@ -1370,10 +1373,11 @@ def test_the_screen_shows_every_packet_and_only_items_the_packets_have():
             packet = "NEXT_PASS" if words[2] == "<%=" else words[2]
         elif words[:1] == ["APPEND_ITEM"]:
             items.add((packet, words[1]))
+    widgets = ("LABELVALUE", "VALUE", "TEXTBOX")
     shown = {
         (words[2], words[3])
         for line in (target / "screens/forecast.txt").read_text().splitlines()
-        if (words := line.split()) and words[0].startswith("LABELVALUE")
+        if (words := line.split()) and words[0].startswith(widgets) and "<%" not in line
     }
     assert shown <= items
     assert {p for p, _ in shown} == {p for p, _ in items}

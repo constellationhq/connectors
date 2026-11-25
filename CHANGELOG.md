@@ -46,6 +46,12 @@ expected GB (`expected_gb.p50`), and never a p10 or p90.
 - COSMOS: `CONSTELLATION/lib/constellation_forecast.py` for Script Runner: `forecast_passes`,
   `next_forecast_pass`, `modcod_plan`, `held_swap`, `approve_held_swap` and `decline_held_swap`,
   read from what the bridge writes into COSMOS, with the script's own sign-in.
+- COSMOS: the `FORECAST` screen leads with the swap waiting on your decision (its advice in
+  full, minutes left, Approve and Decline), beside the next pass, the next 24 hours and when the
+  latest run arrived. Each satellite's next pass is a table with headers, times are no longer cut
+  off, and the rain-fade swaps, capacity and MODCOD plan sit in tabs below. `RUN` gains
+  `RECEIVED`, when the run arrived, as COSMOS's own received time of `RUN` moves with every
+  minute's refresh.
 
 ### For developers
 
