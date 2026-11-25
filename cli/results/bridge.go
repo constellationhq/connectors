@@ -264,9 +264,10 @@ func (b *Bridge) act(item Item, settings map[string]any, run Run) (Outcome, erro
 	}
 	actionID, _ := item["action_id"].(string)
 	decisionID, _ := item["decision_id"].(string)
+	entity, _ := item["entity"].(map[string]any)
 	out := Outcome{ActionID: actionID, DecisionID: decisionID, Outcome: "refused"}
 	if PastDeadline(item) {
-		b.Log(fmt.Sprintf("not acting on %v: its decide-by time has passed", item["entity"]))
+		b.Log(fmt.Sprintf("not acting on %v: its decide-by time has passed", entity["id"]))
 		action, _ := item["action"].(map[string]any)
 		out.Reason = fmt.Sprintf("it arrived after its decide-by time, %v", action["deadline"])
 	} else if done, err := b.Act(item, settings, run); err != nil {
@@ -277,7 +278,7 @@ func (b *Bridge) act(item Item, settings map[string]any, run Run) (Outcome, erro
 		out.Reason = "the bridge did not carry it out"
 	}
 	if out.Outcome == "refused" {
-		b.Log(fmt.Sprintf("refused %v: %s", item["entity"], out.Reason))
+		b.Log(fmt.Sprintf("refused %v: %s", entity["id"], out.Reason))
 	}
 	if len(out.Reason) > 500 {
 		out.Reason = out.Reason[:500]
