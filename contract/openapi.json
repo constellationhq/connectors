@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.10.3"
+    "version": "2.10.4"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2345,7 +2345,7 @@
             }
           },
           {
-            "description": "weather-attenuation only: the point's altitude, -500 to 10000 m; 0 when absent.",
+            "description": "weather-attenuation only: the point's altitude, -500 to 10000 m (required for LLA mode).",
             "in": "query",
             "name": "altitude_m",
             "required": false,
@@ -2358,7 +2358,7 @@
                   "type": "null"
                 }
               ],
-              "description": "weather-attenuation only: the point's altitude, -500 to 10000 m; 0 when absent.",
+              "description": "weather-attenuation only: the point's altitude, -500 to 10000 m (required for LLA mode).",
               "title": "Altitude M"
             }
           }
