@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.10.0"
+    "version": "2.10.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2394,11 +2394,17 @@
             },
             "description": "Validation Error"
           },
+          "429": {
+            "description": "All requested entities were throttled by miss-fill or per-request caps (rate_limited); retry after Retry-After seconds. Never counted as usage."
+          },
           "500": {
             "description": "The durable prediction store returned an unexpected error."
           },
           "503": {
-            "description": "The prediction store or the account's plan (plan_unavailable) is temporarily unreadable; retry later. A 503 is never counted as usage."
+            "description": "The prediction store, serving worker, or account plan (plan_unavailable) is temporarily unavailable; retry after Retry-After seconds. Never counted as usage."
+          },
+          "504": {
+            "description": "All requested entities timed out waiting for the prediction worker (prediction_timeout); retry after Retry-After seconds. Never counted as usage."
           }
         },
         "summary": "Get Predictions"
