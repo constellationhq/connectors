@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.10.1"
+    "version": "2.10.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3216,7 +3216,7 @@
     },
     "/predictions/feed/deliveries": {
       "post": {
-        "description": "What a plugin wrote into mission control for one of the tenant's runs, and what mission\ncontrol did with each approved action it delivered: acted or refused, with why. The latest\noutcome of a decision stands, and the actions lists read it back.",
+        "description": "What a plugin wrote into mission control for one of the tenant's runs, and what mission\ncontrol did with each approved action it delivered: acted or refused, with why. Each\nconnection keeps its own outcome of a decision, the first it reports, and the actions lists\nread them back.",
         "operationId": "deliver_predictions_feed_deliveries_post",
         "requestBody": {
           "content": {
@@ -3242,7 +3242,7 @@
             "description": "An unknown workflow, run, cursor or connector, or workflows are off."
           },
           "409": {
-            "description": "An action's decision_id is not the decision that stands on it (unknown_decision), or the action was never sent (action_not_sent: the decision is a rejection or a demo approval): nothing of the report is stored."
+            "description": "An action's decision_id is not the decision that stands on it (unknown_decision), the action was never sent (action_not_sent: the decision is a rejection or a demo approval), or the cursor is not a feed entry of the run (unknown_cursor): nothing of the report is stored."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."
@@ -3904,7 +3904,7 @@
         "summary": "Get Workflow"
       },
       "put": {
-        "description": "Save a workflow's name and graph as the slug's next version. A graph the validator finds\nissues with is refused whole, with every issue. A slug never used before needs no create; a\nworkflow created under a deleted slug starts with none of the deleted one's runs or\ndecisions, and its version numbers carry on from the deleted one's.",
+        "description": "Save a workflow's name and graph as the slug's next version. A graph the validator finds\nissues with is refused whole, with every issue. A slug never used before needs no create; a\nworkflow created with create=true starts with none of the runs made under its slug before\n(a deleted workflow's, or test runs of an abandoned draft) and none of a deleted one's\ndecisions, and its version numbers carry on from a deleted one's, so a version number\nnever names two graphs.",
         "operationId": "put_workflow_predictions_workflows__slug__put",
         "parameters": [
           {
@@ -5584,7 +5584,7 @@
             "description": "The run's stored data has expired (run_data_expired)."
           },
           "422": {
-            "description": "A bad body, or a weather_quantile other than p50 while the weather model has no spread (weather_quantile_unavailable)."
+            "description": "A bad body, a weather_quantile other than p50 while the weather model has no spread (weather_quantile_unavailable), or an antenna or station neither the latest network config holds nor the scenario adds (unknown_antennas, unknown_stations, with the ids)."
           },
           "429": {
             "description": "Too many feed consumers for this account (too_many_consumers)."
