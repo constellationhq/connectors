@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.9.0"
+    "version": "2.10.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2307,6 +2307,60 @@
               "description": "With workflow: the newest finished run that read this telemetry dataset (live, audit or sim), so a pass-log audit never stands in for a live review.",
               "title": "Dataset"
             }
+          },
+          {
+            "description": "weather-attenuation only: the point's latitude, -90 to 90 degrees. With longitude_deg and at, answers the raw weather there (weather-forecast-v1).",
+            "in": "query",
+            "name": "latitude_deg",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "weather-attenuation only: the point's latitude, -90 to 90 degrees. With longitude_deg and at, answers the raw weather there (weather-forecast-v1).",
+              "title": "Latitude Deg"
+            }
+          },
+          {
+            "description": "weather-attenuation only: the point's longitude, -180 to 180.",
+            "in": "query",
+            "name": "longitude_deg",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "weather-attenuation only: the point's longitude, -180 to 180.",
+              "title": "Longitude Deg"
+            }
+          },
+          {
+            "description": "weather-attenuation only: the point's altitude, -500 to 10000 m; 0 when absent.",
+            "in": "query",
+            "name": "altitude_m",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "weather-attenuation only: the point's altitude, -500 to 10000 m; 0 when absent.",
+              "title": "Altitude M"
+            }
           }
         ],
         "responses": {
@@ -2340,11 +2394,17 @@
             },
             "description": "Validation Error"
           },
+          "429": {
+            "description": "All requested entities were throttled by miss-fill or per-request caps (rate_limited); retry after Retry-After seconds. Never counted as usage."
+          },
           "500": {
             "description": "The durable prediction store returned an unexpected error."
           },
           "503": {
-            "description": "The prediction store or the account's plan (plan_unavailable) is temporarily unreadable; retry later. A 503 is never counted as usage."
+            "description": "The prediction store, serving worker, or account plan (plan_unavailable) is temporarily unavailable; retry after Retry-After seconds. Never counted as usage."
+          },
+          "504": {
+            "description": "All requested entities timed out waiting for the prediction worker (prediction_timeout); retry after Retry-After seconds. Never counted as usage."
           }
         },
         "summary": "Get Predictions"
@@ -4540,6 +4600,32 @@
                                 "maximum": 600,
                                 "minimum": 0,
                                 "type": "number"
+                              },
+                              "agent": {
+                                "description": "Set by `constellation-agent register`: the Fleet Agent install that registered the antenna. Its install_id is how a later register run knows the antenna is its own.",
+                                "properties": {
+                                  "hostname": {
+                                    "maxLength": 253,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  },
+                                  "install_id": {
+                                    "description": "A UUID made once per install and kept in /etc/constellation/install_id.",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "version": {
+                                    "maxLength": 128,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "install_id",
+                                  "hostname",
+                                  "version"
+                                ],
+                                "type": "object"
                               },
                               "antenna_diameter_m": {
                                 "exclusiveMinimum": 0,
