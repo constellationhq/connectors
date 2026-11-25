@@ -33,7 +33,7 @@ and the CLI are the quicker path:
     npm install @constellationspace/client          # TypeScript
     constellation bridge new my-bridge --lang python   # or ts, go
     constellation mock                              # a demo fleet on localhost:7070
-    constellation conformance -- python bridge.py   # 21 checks against the mock
+    constellation conformance -- python bridge.py   # 22 checks against the mock
     constellation results tail                      # print runs as they arrive
 
 [`examples/`](examples) holds three, each run in CI against the mock:

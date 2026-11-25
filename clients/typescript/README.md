@@ -15,7 +15,8 @@ A connector for your own system (Node): subclass `Bridge` from `@constellationsp
 implement `apply(items, settings, run)` (and `act(item, settings, run)` for approved actions) and
 call `run()`. It checks in, pulls and joins runs, reports, keeps its cursor and the actions it
 carried out (`CURSOR_FILE` and `CURSOR_FILE.acted`, or any `CursorStore`), so it resumes on restart
-and acts on each approved action once, and writes the log `constellation conformance` reads when
+and acts on each approved action once. `act()` returns true, or false or a reason; the Bridge
+reports it, and Constellation shows "Sent to your MCS" or "Not sent to your MCS: <reason>". It writes the log `constellation conformance` reads when
 `CONSTELLATION_CONFORMANCE_LOG` is set.
 
 `npm run build`, `npm test`, `npm run typecheck`. `npm run generate` (and `npm run build`) writes

@@ -2,7 +2,7 @@ import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises
 import { dirname } from "node:path";
 import { Client, loopback, origin, site, type ConstellationError } from "./client.js";
 import { actionState } from "./results.js";
-import type { Result, Manifest, RunInfo } from "./types.js";
+import type { ActionOutcome, Result, Manifest, RunInfo } from "./types.js";
 
 /**
  * Where a bridge keeps the last cursor it applied and the approvals it already carried out (by
@@ -174,8 +174,8 @@ export interface BridgeOptions {
 /**
  * A Constellation connector for your own system: subclass it, implement apply() (and act() for
  * approved actions), call run(). Checking in, pulling and joining runs, reporting, cursor
- * persistence, acting on each approved action exactly once and never dying on a bad poll are done
- * here; a refused key or plan (401/403) stops run() with a ConstellationError, and a cursor it cannot
+ * persistence, acting on each approved action exactly once and telling Constellation what act()
+ * did with it, and never dying on a bad poll are done here; a refused key or plan (401/403) stops run() with a ConstellationError, and a cursor it cannot
  * save stops it too.
  */
 export abstract class Bridge {
@@ -189,7 +189,10 @@ export abstract class Bridge {
   private readonly backfill: boolean;
   private started = false;
   private saidMinP10Gb = false;
-  private readonly unreported = new Map<string, { counts: Record<string, number>; acted: boolean[]; items: Result[] }[]>();
+  private readonly unreported = new Map<
+    string,
+    { counts: Record<string, number>; acted: boolean[]; items: Result[]; outcomes: ActionOutcome[] }[]
+  >();
   private actedKeys: Map<string, string> | undefined;
 
   constructor(options: BridgeOptions) {
@@ -215,19 +218,22 @@ export abstract class Bridge {
   ): Promise<Record<string, number>> | Record<string, number>;
 
   /**
-   * Handle an approved action; return true once done. A swap is advice: add a backup pass and
-   * keep this one, or move to the backup; your own system books and releases passes,
-   * Constellation books and cancels nothing. Called after apply(), once per approval, never for
-   * any other state, and never again for the same approval (actionKey) in a later run or after a
-   * restart. Throw when your system is failing: the run is retried, without acting again on what
-   * was done. The default does nothing.
+   * Handle an approved action. Return true once done, or false or a reason (string) when your
+   * system will not do it; a throw counts as a refusal, with the error as the reason.
+   * Constellation then shows "Sent to your MCS" or "Not sent to your MCS: <reason>".
+   *
+   * A swap is advice: add a backup pass and keep this one, or move to the backup; your own system
+   * books and releases passes, Constellation books and cancels nothing. Called after apply(), once
+   * per approval, never for any other state, and never again for the same approval (actionKey) in
+   * a later run or after a restart, whatever it returned. The default returns undefined: nothing is
+   * done or reported.
    */
   act(
     _item: Result,
     _settings: Record<string, unknown>,
     _run: RunInfo,
-  ): Promise<boolean> | boolean {
-    return false;
+  ): Promise<boolean | string | undefined> | boolean | string | undefined {
+    return undefined;
   }
 
   log(message: string): void {
@@ -280,14 +286,19 @@ export abstract class Bridge {
           const counts = { ...(await this.apply(items, settings, part.run)) };
           if (items.length < part.items.length) counts.malformed = part.items.length - items.length;
           const acted: boolean[] = [];
-          for (const item of items)
-            acted.push(actionState(item) === "approved" && (await this.carryOut(item, settings, part.run)));
+          const outcomes: ActionOutcome[] = [];
+          for (const item of items) {
+            const said = actionState(item) === "approved" ? await this.carryOut(item, settings, part.run) : undefined;
+            acted.push(said?.outcome === "acted");
+            if (said && item.action_id && item.decision_id)
+              outcomes.push({ action_id: item.action_id, decision_id: item.decision_id, ...said, reason: said.reason.slice(0, 500) });
+          }
           // So the platform can show that an approval was carried out.
           if (acted.some(Boolean)) counts.acted = acted.filter(Boolean).length;
-          done.push({ counts, acted, items });
+          done.push({ counts, acted, items, outcomes });
         }
-        const { counts, acted, items } = done[n]!;
-        await this.client.report(name, entry.cursor, counts, title);
+        const { counts, acted, items, outcomes } = done[n]!;
+        await this.client.report(name, entry.cursor, counts, title, outcomes);
         await this.record(items, acted);
         this.log(`applied ${JSON.stringify(counts)}, ${entry.cursor}`);
       }
@@ -320,22 +331,41 @@ export abstract class Bridge {
     }
   }
 
-  /** Carries out an approved action unless it was carried out before or is past its decide-by time; says whether it did. */
-  private async carryOut(item: Result, settings: Record<string, unknown>, run: RunInfo): Promise<boolean> {
-    if (pastDeadline(item)) {
-      this.log(`not acting on ${item.entity.id}: its decide-by time has passed`);
-      return false;
-    }
+  /**
+   * Hands an approved action to act() once per decision and says what became of it: acted, or
+   * refused with why (past its decide-by time, false, a reason, or an error). Undefined when there
+   * is nothing to report: seen before, or act() returned undefined.
+   */
+  private async carryOut(
+    item: Result,
+    settings: Record<string, unknown>,
+    run: RunInfo,
+  ): Promise<{ outcome: "acted" | "refused"; reason: string } | undefined> {
     if (!this.actedKeys) {
       this.actedKeys = await this.store.acted();
       if (prune(this.actedKeys)) await this.store.saveActed(this.actedKeys);
     }
     const key = actionKey(item);
-    if (this.actedKeys.has(key) || !(await this.act(item, settings, run))) return false;
+    if (this.actedKeys.has(key)) return undefined;
+    let done: boolean | string | undefined;
+    if (pastDeadline(item)) {
+      this.log(`not acting on ${item.entity.id}: its decide-by time has passed`);
+      done = `it arrived after its decide-by time, ${item.action?.deadline}`;
+    } else {
+      try {
+        done = await this.act(item, settings, run);
+      } catch (error) {
+        done = (error instanceof Error ? error.message || error.name : String(error)) || "it failed";
+      }
+    }
+    if (done === undefined) return undefined;
     this.actedKeys.set(key, actedUntil(item));
     prune(this.actedKeys);
     await this.keep(() => this.store.saveActed(this.actedKeys!));
-    return true;
+    if (done && typeof done !== "string") return { outcome: "acted", reason: "" };
+    const reason = done || "the bridge did not carry it out";
+    this.log(`refused ${item.entity.id}: ${reason}`);
+    return { outcome: "refused", reason };
   }
 
   /**

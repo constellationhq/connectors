@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -46,8 +47,8 @@ func TestAStandingApprovalIsActedOnOnceAcrossRunsAndARestart(t *testing.T) {
 		}
 	}
 	restarted, actedAfter := actsOn(dir)
-	if done, err := restarted.act(approval("d1", "2099"), nil, Run{}); done || err != nil {
-		t.Fatalf("acted again after a restart: %v %v", done, err)
+	if out, err := restarted.act(approval("d1", "2099"), nil, Run{}); out.Outcome != "" || err != nil {
+		t.Fatalf("acted again after a restart: %v %v", out, err)
 	}
 	if len(*acted) != 1 || len(*actedAfter) != 0 {
 		t.Fatalf("acted %d times, then %d", len(*acted), len(*actedAfter))
@@ -61,8 +62,8 @@ func TestAStandingApprovalIsActedOnOnceAcrossRunsAndARestart(t *testing.T) {
 func TestANewApprovalOfTheSameActionIsActedOnAgain(t *testing.T) {
 	b, acted := actsOn(t.TempDir())
 	b.act(approval("d1", "2099"), nil, Run{})
-	if done, _ := b.act(approval("d2", "2099"), nil, Run{}); !done || len(*acted) != 2 {
-		t.Fatalf("a new decision was not acted on: %v, %d", done, len(*acted))
+	if out, _ := b.act(approval("d2", "2099"), nil, Run{}); out.Outcome != "acted" || len(*acted) != 2 {
+		t.Fatalf("a new decision was not acted on: %v, %d", out, len(*acted))
 	}
 }
 
@@ -112,8 +113,8 @@ func TestTheLatestOfThePassEndAndTheDecideByTimeSetsWhenAKeyIsForgotten(t *testi
 
 func TestAnApprovalPastItsDecideByTimeIsNeverActedOn(t *testing.T) {
 	b, acted := actsOn(t.TempDir())
-	if done, err := b.act(approval("d1", "2020"), nil, Run{}); done || err != nil || len(*acted) != 0 {
-		t.Fatalf("acted on a closed action: %v %v %d", done, err, len(*acted))
+	if out, err := b.act(approval("d1", "2020"), nil, Run{}); out.Outcome != "refused" || err != nil || len(*acted) != 0 {
+		t.Fatalf("acted on a closed action: %v %v %d", out, err, len(*acted))
 	}
 }
 
@@ -433,3 +434,153 @@ func TestAManifestsDeprecatedMinP10GbIsReadAsMinGbAndSaidOnce(t *testing.T) {
 		t.Fatalf("said %v", said)
 	}
 }
+
+// decided is an approval (or another decision) the API sent, with its action and decision ids.
+func decided(id, decision, status string) Item {
+	item := approval(decision, "2099")
+	item["entity"] = map[string]any{"type": "pass", "id": id}
+	item["action_id"], item["action_status"] = "a-"+id, status
+	return item
+}
+
+// reporting is a bridge whose Act answers with answers[entity id] (an error is returned as one),
+// and the delivery reports it posted, in order. refuse answers the first report with outcomes.
+func reporting(t *testing.T, answers map[string]any, refuse func(w http.ResponseWriter)) (*Bridge, *[]map[string]any) {
+	var reports []map[string]any
+	b, _ := feed(t, nil, func(w http.ResponseWriter, r *http.Request) bool {
+		if r.Method != "POST" || r.URL.Path != "/predictions/feed/deliveries" {
+			return false
+		}
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		reports = append(reports, body)
+		if _, ok := body["actions"]; ok && refuse != nil {
+			refuse(w)
+			refuse = nil
+			return true
+		}
+		w.WriteHeader(204)
+		return true
+	})
+	b.Act = func(item Item, _ map[string]any, _ Run) (bool, error) {
+		switch a := answers[item["entity"].(map[string]any)["id"].(string)].(type) {
+		case error:
+			return false, a
+		case bool:
+			return a, nil
+		}
+		t.Fatalf("Act asked about %v", item["entity"])
+		return false, nil
+	}
+	b.Apply = func(items []Item, _ map[string]any, _ Run) (map[string]int, error) {
+		return map[string]int{"passes": len(items)}, nil
+	}
+	b.load()
+	b.unreported = map[string][]written{}
+	return b, &reports
+}
+
+func outcomeOf(id, decision, outcome, reason string) map[string]any {
+	return map[string]any{"action_id": "a-" + id, "decision_id": decision, "outcome": outcome, "reason": reason}
+}
+
+func TestEachApprovalIsReportedActedOrRefusedInOneDeliveryForItsRun(t *testing.T) {
+	answers := map[string]any{"ok": true, "no": false, "boom": errors.New("backup antenna is down")}
+	b, reports := reporting(t, answers, nil)
+	items := []Item{decided("ok", "d1", "approved"), decided("no", "d2", "approved"), decided("boom", "d3", "approved")}
+	if err := b.applyPart("1#run_1", 0, Part{Items: items}); err != nil {
+		t.Fatal(err)
+	}
+	want := []any{outcomeOf("ok", "d1", "acted", ""), outcomeOf("no", "d2", "refused", "the bridge did not carry it out"),
+		outcomeOf("boom", "d3", "refused", "backup antenna is down")}
+	if len(*reports) != 1 || !reflect.DeepEqual((*reports)[0]["actions"], want) {
+		t.Fatalf("reported %v", *reports)
+	}
+	if (*reports)[0]["applied"].(map[string]any)["acted"] != float64(1) {
+		t.Fatalf("applied %v", (*reports)[0]["applied"])
+	}
+}
+
+func TestDeclinedAndPendingActionsAndABridgeWithNoActReportNoOutcome(t *testing.T) {
+	b, reports := reporting(t, nil, nil)
+	if err := b.applyPart("1#run_1", 0, Part{Items: []Item{decided("x", "d1", "rejected"), decided("y", "d2", "pending")}}); err != nil {
+		t.Fatal(err)
+	}
+	b.Act = nil
+	if err := b.applyPart("2#run_2", 0, Part{Items: []Item{decided("z", "d3", "approved")}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range *reports {
+		if _, ok := r["actions"]; ok {
+			t.Fatalf("reported outcomes: %v", r)
+		}
+	}
+}
+
+func TestAnApprovalSeenAgainIsNeitherActedOnNorReportedAgain(t *testing.T) {
+	b, reports := reporting(t, map[string]any{"ok": true, "no": false}, nil)
+	for _, cursor := range []string{"1#run_1", "2#run_2"} {
+		if err := b.applyPart(cursor, 0, Part{Items: []Item{decided("ok", "d1", "approved"), decided("no", "d2", "approved")}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b.Act = func(Item, map[string]any, Run) (bool, error) {
+		t.Fatal("acted again after a restart")
+		return false, nil
+	}
+	b.load()
+	if err := b.applyPart("3#run_3", 0, Part{Items: []Item{decided("ok", "d1", "approved")}}); err != nil {
+		t.Fatal(err)
+	}
+	var counts []int
+	for _, r := range *reports {
+		list, _ := r["actions"].([]any)
+		counts = append(counts, len(list))
+	}
+	if !reflect.DeepEqual(counts, []int{2, 0, 0}) {
+		t.Fatalf("outcomes per report: %v", counts)
+	}
+}
+
+func TestOutcomesOnADeclinedOrDemoDecisionAreDroppedOnceAndTheDeliveryStillSent(t *testing.T) {
+	var logged []string
+	b, reports := reporting(t, map[string]any{"ok": true}, func(w http.ResponseWriter) {
+		w.WriteHeader(409)
+		w.Write([]byte(`{"detail": {"error": "action_not_sent", "action_id": "a-ok"}}`))
+	})
+	b.Log = func(m string) { logged = append(logged, m) }
+	if err := b.applyPart("1#run_1", 0, Part{Items: []Item{decided("ok", "d1", "approved")}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(*reports) != 2 || (*reports)[1]["actions"] != nil {
+		t.Fatalf("reports %v", *reports)
+	}
+	if logged[len(logged)-2] != "Constellation did not take the outcomes of 1 approved action(s) of 1#run_1: one was declined or approved on the demo fleet, so never sent (HTTP 409 action_not_sent). Reported the delivery without them; they are not sent again" {
+		t.Fatalf("logged %q", logged)
+	}
+}
+
+func TestAReportThatFailsIsRetriedWithBackoffAndTheSameOutcomes(t *testing.T) {
+	defer func(d time.Duration) { RetryDelay = d }(RetryDelay)
+	RetryDelay = time.Millisecond
+	fails := 2
+	b, reports := reporting(t, map[string]any{"ok": true}, nil)
+	inner := b.Client.HTTP.Transport
+	b.Client.HTTP.Transport = roundTrip(func(r *http.Request) (*http.Response, error) {
+		if r.Method == "POST" && fails > 0 {
+			fails--
+			return nil, errors.New("connection reset")
+		}
+		return inner.RoundTrip(r)
+	})
+	if err := b.applyPart("1#run_1", 0, Part{Items: []Item{decided("ok", "d1", "approved")}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(*reports) != 1 || len((*reports)[0]["actions"].([]any)) != 1 {
+		t.Fatalf("reports %v", *reports)
+	}
+}
+
+type roundTrip func(*http.Request) (*http.Response, error)
+
+func (f roundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

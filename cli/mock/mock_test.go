@@ -210,11 +210,22 @@ func TestCheckInsAndReportsAreValidatedAsTheAPIDoes(t *testing.T) {
 	if err := c.Call("POST", "/predictions/feed/deliveries", report, nil); status(err) != 422 {
 		t.Errorf("fractional count: %v", err)
 	}
-	if _, err := c.Results("", "b", 20, 0); status(err) != 503 {
-		t.Errorf("first poll: %v, want 503", err)
-	}
+	// The first poll is answered 503, and the client asks again.
 	if _, err := c.Results("", "b", 20, 0); err != nil {
-		t.Errorf("second poll: %v", err)
+		t.Errorf("first poll: %v", err)
+	}
+	approved := map[string]any{"action_id": "29a92528c8ffe03b", "decision_id": "60da5db9bd110aca", "outcome": "acted", "reason": ""}
+	report["applied"], report["actions"] = map[string]int{}, []any{approved}
+	if err := c.Call("POST", "/predictions/feed/deliveries", report, nil); err != nil {
+		t.Errorf("an outcome on an approval sent: %v", err)
+	}
+	report["actions"] = []any{map[string]any{"action_id": "29a92528c8ffe03b", "decision_id": "other", "outcome": "acted"}}
+	if err := c.Call("POST", "/predictions/feed/deliveries", report, nil); status(err) != 409 {
+		t.Errorf("an outcome on another decision: %v, want 409", err)
+	}
+	report["actions"] = []any{map[string]any{"action_id": "29a92528c8ffe03b", "decision_id": "60da5db9bd110aca", "outcome": "done"}}
+	if err := c.Call("POST", "/predictions/feed/deliveries", report, nil); status(err) != 422 {
+		t.Errorf("an outcome neither acted nor refused: %v, want 422", err)
 	}
 }
 

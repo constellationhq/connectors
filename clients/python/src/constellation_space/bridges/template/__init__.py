@@ -15,13 +15,15 @@ account the key belongs to, as waiting for approval; once someone approves it on
 workflows can send it their results with the settings the manifest declares. Everything
 else (pulling workflow results, skipping item shapes it was not built for, reporting what it wrote,
 keeping the cursor so a restart resumes where it stopped, handing approved actions to act()
-exactly once, never dying on a bad poll, stopping on a refused key or plan) is the protocol, done
-here: https://platform.constellation.space/docs/connectors/custom
+exactly once and telling Constellation what act() did with each, never dying on a bad poll,
+stopping on a refused key or plan) is the protocol, done here:
+https://platform.constellation.space/docs/connectors/custom
 
-Approved actions already carried out are kept beside the cursor (CURSOR_FILE plus ".acted"), so
-an approval Constellation sends again, in a later run or after a restart, is never carried out
-twice (constellation_space.results.Acted); each is kept a week past its action and past acting on it. An
-action past its decide-by time is never carried out. A bridge with no cursor starts at the newest
+Approved actions already handed to act() are kept beside the cursor (CURSOR_FILE plus ".acted"),
+so an approval Constellation sends again, in a later run or after a restart, is never carried out
+or reported twice (constellation_space.results.Acted); each is kept a week past its action and
+past acting on it. An action past its decide-by time is never carried out: it is reported
+refused. A bridge with no cursor starts at the newest
 run with something for it, never the older history and the decisions in it; BACKFILL=1 applies the
 whole history the feed still holds instead. When CONSTELLATION_CONFORMANCE_LOG names a file, each
 item applied is appended to it as one JSON line, {"item_id", "state", "acted", "verb"}, for
@@ -67,7 +69,9 @@ class Bridge:
         # A first start reads from the feed's newest run, unless BACKFILL=1 asks for its history.
         self._from_head = not self.cursor and os.environ.get("BACKFILL") != "1"
         self._acted = results.Acted(f"{self.cursor_file}.acted")
-        self._unreported: dict[str, list[tuple[dict[str, int], list[bool], list[Item]]]] = {}
+        self._unreported: dict[
+            str, list[tuple[dict[str, int], list[bool], list[Item], list[dict[str, str]]]]
+        ] = {}
         self._said_min_p10_gb = False
 
     def apply(self, items: list[Item], settings: dict[str, Any], run: Run) -> dict[str, int]:
@@ -98,16 +102,18 @@ class Bridge:
         """
         raise NotImplementedError("write the items into your system here")
 
-    def act(self, item: Item, settings: dict[str, Any], run: Run) -> bool:
-        """Handle an approved action; return True once done. A swap is advice: add a backup pass
-        and keep this one, or move to the backup; your own system books and releases passes,
-        Constellation books and cancels nothing. Called after apply(), once per approval, never
-        for any other state, and never again for the same approval (its decision_id; without
-        one, its verb, entity and target) in a later run or after a restart. A new approval of
-        the same action is a new decision. Raise when your system is failing: the run is
-        retried, without acting again on what was done.
-        The default does nothing."""
-        return False
+    def act(self, item: Item, settings: dict[str, Any], run: Run) -> bool | str | None:
+        """Handle an approved action. Return True once done, or False or a reason (str) when
+        your system will not do it; raising counts as a refusal, with the error as the reason.
+        Constellation then shows "Sent to your MCS" or "Not sent to your MCS: <reason>".
+
+        A swap is advice: add a backup pass and keep this one, or move to the backup; your own
+        system books and releases passes, Constellation books and cancels nothing. Called after
+        apply(), once per approval, never for any other state, and never again for the same
+        approval (its decision_id; without one, its verb, entity and target) in a later run or
+        after a restart, whatever it returned. A new approval of the same action is a new
+        decision. The default returns None: nothing is done or reported."""
+        return None
 
     def load_cursor(self) -> str:
         """The last cursor applied. Keep it in your system if it can hold one, so a moved or
@@ -190,22 +196,31 @@ class Bridge:
                     if malformed := len(items) - len(good):
                         applied = {**applied, "malformed": malformed}
                     items = good
-                    acted = [
-                        results.action_state(item) == "approved"
-                        and self._act(item, settings, run)
+                    said = [
+                        self._act(item, settings, run)
+                        if results.action_state(item) == "approved"
+                        else (None, "")
                         for item in items
+                    ]
+                    acted = [result == "acted" for result, _ in said]
+                    outcomes = [
+                        out
+                        for item, (result, why) in zip(items, said)
+                        if result and (out := results.outcome(item, result, why))
                     ]
                     # So the platform can show that an approval was carried out.
                     if sum(acted):
                         applied = {**applied, "acted": sum(acted)}
-                    done.append((applied, acted, items))
-                applied, acted, items = done[n]
+                    done.append((applied, acted, items, outcomes))
+                applied, acted, items, outcomes = done[n]
                 results.report(
                     self.client.call,
                     self.consumer,
                     entry["cursor"],
                     applied,
                     self.manifest.get("title", self.consumer),
+                    outcomes,
+                    self.log,
                 )
                 self.log(f"applied {applied}, {entry['cursor']}")
                 self._record(items, acted)
@@ -215,16 +230,28 @@ class Bridge:
             self.cursor = entry["cursor"]
             self._keep(lambda: self.save_cursor(self.cursor))
 
-    def _act(self, item: Item, settings: dict[str, Any], run: Run) -> bool:
-        """Carries out an approved action unless it was carried out before or its decide-by time
-        has passed; says whether it did."""
+    def _act(self, item: Item, settings: dict[str, Any], run: Run) -> tuple[str | None, str]:
+        """Hands an approved action to act() once per decision. Returns ("acted", ""), or
+        ("refused", why): past its decide-by time, False, a reason, or an error. (None, "") when
+        there is nothing to report: seen before, or act() returned None."""
+        if item in self._acted:
+            return None, ""
         if results.past_deadline(item):
             self.log(f"not acting on {item['entity']['id']}: its decide-by time has passed")
-            return False
-        if item in self._acted or not self.act(item, settings, run):
-            return False
+            done: bool | str | None = results.too_late(item)
+        else:
+            try:
+                done = self.act(item, settings, run)
+            except Exception as exc:
+                done = str(exc) or type(exc).__name__
+        if done is None:
+            return None, ""
         self._keep(lambda: self._acted.add(item))
-        return True
+        if done and not isinstance(done, str):
+            return "acted", ""
+        reason = done or "the bridge did not carry it out"
+        self.log(f"refused {item['entity']['id']}: {reason}")
+        return "refused", reason
 
     def _keep(self, save: Callable[[], None]) -> None:
         """Saves the cursor or the approvals carried out; a bridge that cannot would repeat its
