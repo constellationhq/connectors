@@ -252,9 +252,19 @@ jobs:
               -H 'Content-Type: application/json-rpc' \
               -d "{\"jsonrpc\": \"2.0\", \"method\": \"tlm\", \"params\": [\"CONSTELLATION $1\"], \"keyword_params\": {\"scope\": \"DEFAULT\"}, \"id\": 1}"
           }
-          until tlm "NEXT_PASS EXPECTED_GB_P50" | jq -e '.result == 10' > /dev/null; do sleep 5; done
-          tlm "NEXT_24H PASSES" | jq -e '.result == 1'
-          tlm "RUN WORKFLOW" | jq -e '.result == "pass-yield"'
+          # COSMOS drops a packet injected before the target's decom microservice is reading, which
+          # can catch part of the bridge's first publish. The bridge publishes again every 15 s, so
+          # each value is waited for on its own.
+          seen() {
+            local deadline=$((SECONDS + 120))
+            until tlm "$1" | jq -e "$2" > /dev/null; do
+              [ "$SECONDS" -lt "$deadline" ] || { echo "CONSTELLATION $1: $(tlm "$1")"; return 1; }
+              sleep 5
+            done
+          }
+          seen "NEXT_PASS EXPECTED_GB_P50" '.result == 10'
+          seen "NEXT_24H PASSES" '.result == 1'
+          seen "RUN WORKFLOW" '.result == "pass-yield"'
           # The plugin's Telemetry Viewer screen is listed.
           curl -sf 'localhost:2900/openc3-api/screens?scope=DEFAULT' -H "Authorization: $COSMOS_TOKEN" \
             | jq -e 'index("CONSTELLATION/screens/forecast.txt")'
