@@ -1594,7 +1594,7 @@
   },
   "info": {
     "title": "ConstellationOS",
-    "version": "2.10.2"
+    "version": "2.10.3"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2388,11 +2388,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "object"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "A query parameter is invalid, or with workflow a read names from, to or at (a_read_starts_no_run, its detail saying to POST /predictions instead)."
           },
           "429": {
             "description": "All requested entities were throttled by miss-fill or per-request caps (rate_limited); retry after Retry-After seconds. Never counted as usage."
@@ -2493,7 +2493,7 @@
     },
     "/predictions/actions": {
       "get": {
-        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected, expired, or unavailable (it books a slot on a ground network link since deleted,\nso it cannot be approved). A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
+        "description": "The actions the workflow's current run holds for approval, each pending, approved,\nrejected, expired, superseded (the action predates gain_gb, so its gain is gross; it cannot\nbe approved), or unavailable (it books a slot on a ground network link since deleted, so it\ncannot be approved). A run holds an action when a policy step in approve mode follows the\nstep that suggested it. Only the newest run that delivered is listed, never a test run. A\ndecision belongs to the action, not the run: when the next run suggests the same action on\nthe same pass, it is listed as it was decided.",
         "operationId": "list_actions_predictions_actions_get",
         "parameters": [
           {
@@ -2660,7 +2660,7 @@
             "description": "Workflows are off here, or no such run or held action."
           },
           "409": {
-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), or the action books a slot on a ground network link since deleted (offer_unavailable; it can still be rejected)."
+            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), the action books a slot on a ground network link since deleted (offer_unavailable), or it predates gain_gb, so its gain is gross (action_superseded); both can still be rejected."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."
@@ -2731,7 +2731,7 @@
             "description": "Workflows are off here, or no such run or held action."
           },
           "409": {
-            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), or the action books a slot on a ground network link since deleted (offer_unavailable; it can still be rejected)."
+            "description": "The action was decided already (action_decided; approving an approved action again is not an error), its deadline has passed (action_expired), a newer run or a newer version of the workflow answers it now (action_stale), the run was cancelled (run_cancelled), the run published to no mission control connection (no_feed_output), the action books a slot on a ground network link since deleted (offer_unavailable), or it predates gain_gb, so its gain is gross (action_superseded); both can still be rejected."
           },
           "410": {
             "description": "The run's stored data has expired (run_data_expired)."
@@ -4555,7 +4555,10 @@
             "description": "The plan does not include this many satellites (plan_required)."
           },
           "409": {
-            "description": "A concurrent write took the version number twice."
+            "description": "Concurrent writes took the version number five times running (version_conflict, with a message and Retry-After)."
+          },
+          "412": {
+            "description": "If-Match names a version other than the latest (version_mismatch, with current_version and a message). Nothing is written."
           },
           "413": {
             "description": "The body is over 358400 bytes."
@@ -4615,6 +4618,7 @@
                                     "type": "string"
                                   },
                                   "version": {
+                                    "description": "Free text with no control characters (U+0000 to U+001F, U+007F): a write that sets one is refused (control_character).",
                                     "maxLength": 128,
                                     "minLength": 1,
                                     "type": "string"
@@ -4866,6 +4870,7 @@
                           "type": "array"
                         },
                         "name": {
+                          "description": "Free text with no control characters (U+0000 to U+001F, U+007F): a write that sets one is refused (control_character).",
                           "maxLength": 128,
                           "minLength": 1,
                           "type": "string"
@@ -5017,11 +5022,13 @@
                           "type": "array"
                         },
                         "fleet": {
+                          "description": "Free text with no control characters (U+0000 to U+001F, U+007F): a write that sets one is refused (control_character).",
                           "maxLength": 128,
                           "minLength": 1,
                           "type": "string"
                         },
                         "name": {
+                          "description": "Free text with no control characters (U+0000 to U+001F, U+007F): a write that sets one is refused (control_character).",
                           "maxLength": 128,
                           "minLength": 1,
                           "type": "string"
@@ -5033,6 +5040,7 @@
                           "type": "integer"
                         },
                         "operator": {
+                          "description": "Free text with no control characters (U+0000 to U+001F, U+007F): a write that sets one is refused (control_character).",
                           "maxLength": 128,
                           "minLength": 1,
                           "type": "string"
@@ -5302,7 +5310,10 @@
             "description": "The plan does not include this many satellites (plan_required)."
           },
           "409": {
-            "description": "A concurrent write took the version number twice."
+            "description": "Concurrent writes took the version number five times running (version_conflict, with a message and Retry-After)."
+          },
+          "412": {
+            "description": "If-Match names a version other than the latest (version_mismatch, with current_version and a message). Nothing is written."
           },
           "413": {
             "description": "The body is over 358400 bytes."
@@ -5361,7 +5372,7 @@
             "description": "The key lacks config:write."
           },
           "409": {
-            "description": "The account's network config uses a demo station, antenna or satellite id for an entity of its own (demo_ids_taken; `ids` names them). Nothing is written."
+            "description": "The account's network config uses a demo station, antenna or satellite id for an entity of its own, or flies a demo satellite's NORAD id on a satellite of its own (demo_ids_taken; `ids` names them, `message` says what to change). Nothing is written."
           },
           "422": {
             "content": {
@@ -5379,7 +5390,7 @@
     },
     "/topology/orbits": {
       "get": {
-        "description": "Each satellite of the caller's latest network config with the element set a run would\npropagate now, as an OMM record: the satellite's own TLE (source \"config\"), else the orbit\ncatalog's set for its NORAD id (source \"catalog\"). A satellite a run would decline has a null\nomm and the run's code: norad_not_in_catalog, or orbit_propagation_failed for a catalog set\nfurther than the age limit from now. as_of is the catalog snapshot read, null when none was:\na catalog file, no snapshot, or every satellite carries its own TLE.",
+        "description": "Each satellite of the caller's latest network config with the element set a run would\npropagate now, as an OMM record: its own TLE (source \"config\") or the orbit catalog's set for\nits NORAD id (source \"catalog\"), whichever epoch is newer, with that epoch (epoch_utc). One\nwhose epoch is further than the catalog's age limit from now is still served, and priced by a\nrun, with stale_days saying how far. A satellite with neither has a null omm and the run's\ncode, no_orbit_data. as_of is the catalog snapshot read, null when none was.",
         "operationId": "get_orbits_topology_orbits_get",
         "responses": {
           "200": {
@@ -5546,6 +5557,7 @@
         "summary": "List Scenarios"
       },
       "post": {
+        "description": "Checked against the latest network config as a run checks it, so a scenario no run could\ntake is refused here rather than listed. A later config edit can still make one misfit; the\nrun then refuses it the same way.",
         "operationId": "create_scenario_topology_scenarios_post",
         "requestBody": {
           "content": {
