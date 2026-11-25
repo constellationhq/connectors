@@ -94,10 +94,10 @@ file carries a build provenance attestation:
 ## Contributing
 
 `contract/` changes only through `make contract-update VERSION=X.Y.Z`. Within the hour of a new
-contract, the contract-bump workflow opens one PR, `contract: bump to X.Y.Z`; merge it by hand
-once its CI is green. `make contract-test` runs everything that reads `contract/`, and the
-contract-nightly workflow runs it against the newest contract and checks the dev API's feed,
-keeping one issue open while either fails.
+contract, the contract-bump workflow opens one PR, `contract: bump to X.Y.Z`, and merges it once
+its CI is green; a failing check leaves it open. `make contract-test` runs everything that reads
+`contract/`, and the contract-nightly workflow runs it against the newest contract and checks the
+dev API's feed, keeping one issue open while either fails.
 
 ## Security
 
