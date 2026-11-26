@@ -6,6 +6,11 @@ bump, a removal DEPRECATIONS.md lists a major one, any other change a patch) and
 CHANGELOG.md is this file with each later release's computed changes added above the newest
 entry.
 
+## 2.10.4
+
+-            "description": "weather-attenuation only: the point's altitude, -500 to 10000 m; 0 when absent.",
+-              "description": "weather-attenuation only: the point's altitude, -500 to 10000 m; 0 when absent.",
+
 ## 2.10.3
 
 -                  "$ref": "#/components/schemas/HTTPValidationError"
